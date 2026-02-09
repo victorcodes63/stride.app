@@ -1,0 +1,170 @@
+// Eagle HR ATS - Scalable schema for 16k+ applications/year
+// Use PostgreSQL in production (Vercel Postgres, Neon, Supabase, or self-hosted)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Client companies; jobs can be tied to a client and shown publicly or anonymously
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  isAnonymous  Boolean  @default(false) // when true, job board shows "Confidential" instead of client name
+  contactName  String?  // primary contact person name
+  contactEmail String?  // primary contact email
+  contactPhone String?  // primary contact phone
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobs Job[]
+
+  @@index([name])
+}
+
+// Jobs can be synced from external ATS or managed in-app; id can match external system
+model Job {
+  id                String   @id @default(cuid())
+  referenceId       String?  @unique // human-readable e.g. JOB-2026-0001; generated on create
+  title             String
+  company           String   // display name: client name or "Confidential" when client.isAnonymous
+  location          String
+  type              String   // Full Time | Part Time | Contract | Remote
+  category          String
+  postedDate        DateTime @default(now())
+  description       String   @db.Text
+  requirements      Json     // string[]
+  responsibilities  Json     // string[]
+  benefits          Json     // string[]
+  salary            Json?    // { min, max, currency }
+  salaryPublic       Boolean  @default(false) // when true, show salary on public job board; when false, staff-only
+  experience        String?   // free-text for job ad display
+  education         String?   // free-text for job ad display
+  minYearsExperience Int?     // structured: filter candidates by experience >= this
+  educationLevel    String?   // structured: e.g. "High School" | "Bachelor" | "Master" | "PhD" | "Any"
+  educationQualification String?  @db.Text // specific degree for filtering: e.g. "MBA", "Bachelor of Commerce", "MSc Computer Science"
+  skills            Json     // string[]
+  isActive          Boolean  @default(true)
+  applicationCount  Int      @default(0)
+  views             Int      @default(0)
+  applicationDeadline DateTime?
+  clientId          String?
+  concealCompany    Boolean  @default(false) // when true, job board shows "Confidential" instead of company name
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  applications Application[]
+
+  @@index([isActive, postedDate(sort: Desc)])
+  @@index([category])
+  @@index([location])
+  @@index([clientId])
+  @@index([referenceId])
+}
+
+model Candidate {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  location     String?
+  nationality  String?  // Stage 1: candidate profile
+  homeCounty   String?  // Stage 1: home county
+  experience   Int      @default(0) // years
+  education    String?  @db.Text
+  skills       Json     @default("[]") // string[]
+  resumePath   String?  // server path or storage URL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  applications Application[]
+
+  @@unique([email])
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+  @@index([nationality])
+  @@index([homeCounty])
+}
+
+model Application {
+  id          String   @id @default(cuid())
+  jobId       String
+  candidateId String
+  status      ApplicationStatus @default(pending)
+  appliedDate DateTime @default(now())
+  coverLetter String?  @db.Text
+  resumePath  String?  // CV (Stage 4)
+  notes       String?  @db.Text // internal staff notes
+  formData    Json?    // Stage 2–5: education, employment, certifications, declarations
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  job        Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate  Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+
+  @@index([jobId])
+  @@index([status])
+  @@index([appliedDate(sort: Desc)])
+  @@index([candidateId])
+  @@index([jobId, status]) // for dashboard filters
+}
+
+model Interview {
+  id             String         @id @default(cuid())
+  applicationId  String
+  scheduledAt    DateTime
+  type           String         // phone | video | onsite
+  locationOrLink String?        @db.Text // meeting link or address
+  notes          String?        @db.Text
+  status         InterviewStatus @default(scheduled)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+enum ApplicationStatus {
+  pending
+  reviewed
+  shortlisted
+  rejected
+  hired
+}
+
+enum InterviewStatus {
+  scheduled
+  completed
+  cancelled
+}
+
+// Staff members who can access the dashboard
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         UserRole @default(staff)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+enum UserRole {
+  admin
+  staff
+  viewer
+}

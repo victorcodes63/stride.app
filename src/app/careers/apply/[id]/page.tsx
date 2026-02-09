@@ -1,0 +1,260 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import JobApplicationForm from '@/components/ats/JobApplicationForm';
+import { JobListing } from '@/types/ats';
+import { useATS } from '@/lib/ats-api';
+import { ArrowLeft, MapPin, Clock, Building2, CheckCircle, Star } from 'lucide-react';
+import Link from 'next/link';
+
+export default function JobApplicationPage() {
+  const params = useParams();
+  const jobId = params.id as string;
+  const [job, setJob] = useState<JobListing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+
+  const { getJobById } = useATS();
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      if (!jobId) return;
+
+      setLoading(true);
+      try {
+        const jobData = await getJobById(jobId);
+        setJob(jobData);
+      } catch (error) {
+        console.error('Error fetching job:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJob();
+  }, [jobId, getJobById]);
+
+  const handleApplicationSuccess = () => {
+    setApplicationSubmitted(true);
+    setShowApplicationForm(false);
+  };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen">
+        <Navbar />
+        <div className="pt-28 pb-20">
+          <div className="container mx-auto px-4 sm:px-6">
+            <div className="max-w-3xl mx-auto">
+              <div className="animate-pulse space-y-6">
+                <div className="h-4 bg-neutral-200 rounded w-32" />
+                <div className="bg-white rounded-xl border border-neutral-200 p-8">
+                  <div className="h-8 bg-neutral-200 rounded w-3/4 mb-4" />
+                  <div className="h-4 bg-neutral-100 rounded w-1/2 mb-2" />
+                  <div className="h-4 bg-neutral-100 rounded w-2/5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </main>
+    );
+  }
+
+  if (!job) {
+    return (
+      <main className="min-h-screen">
+        <Navbar />
+        <div className="pt-32 pb-20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-primary-900 mb-4">Job Not Found</h1>
+              <p className="text-neutral-600 mb-8">
+                The job you&apos;re looking for doesn&apos;t exist or has been removed.
+              </p>
+              <Link
+                href="/careers"
+                className="inline-flex items-center px-6 py-3 bg-primary-900 text-white rounded-lg font-semibold hover:bg-primary-800 transition-colors duration-300"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back to Job Board
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen">
+      <Navbar />
+      
+      {/* Job Header */}
+      <section className="pt-28 pb-10 bg-neutral-50">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-3xl mx-auto">
+            <Link
+              href="/careers"
+              className="inline-flex items-center gap-2 text-sm text-neutral-500 hover:text-primary-600 font-medium mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Job Board
+            </Link>
+
+            <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+              <div className="p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+                  <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-primary-900 mb-3">{job.title}</h1>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+                      <span className="flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-neutral-400 shrink-0" />
+                        {job.company}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-neutral-400 shrink-0" />
+                        {job.location}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-neutral-400 shrink-0" />
+                        {job.type}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-medium bg-primary-100 text-primary-800">
+                        {job.category}
+                      </span>
+                      {job.applicationDeadline && (
+                        <span className="text-xs text-amber-700 font-medium">
+                          Apply by {new Date(job.applicationDeadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {!applicationSubmitted && (
+                    <button
+                      onClick={() => setShowApplicationForm(true)}
+                      className="shrink-0 w-full sm:w-auto px-6 py-3 bg-primary-900 text-white text-sm font-semibold rounded-lg hover:bg-primary-800 transition-colors"
+                    >
+                      Apply Now
+                    </button>
+                  )}
+                </div>
+                {job.salary && (
+                  <p className="mt-4 pt-4 border-t border-neutral-100 text-sm text-neutral-600">
+                    <span className="font-medium text-neutral-700">Salary:</span>{' '}
+                    {job.salary.currency} {job.salary.min.toLocaleString()} – {job.salary.max.toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Job Details */}
+      <section className="py-10 sm:py-12 bg-white">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-3xl mx-auto space-y-10">
+            <div>
+              <h2 className="text-lg font-semibold text-primary-900 mb-3">Job Description</h2>
+              <p className="text-neutral-700 leading-relaxed">
+                {job.description}
+              </p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold text-primary-900 mb-3">Requirements</h2>
+              <ul className="space-y-2">
+                {job.requirements.map((req, index) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
+                    <span className="text-neutral-700">{req}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold text-primary-900 mb-3">Key Responsibilities</h2>
+              <ul className="space-y-2">
+                {job.responsibilities.map((resp, index) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
+                    <span className="text-neutral-700">{resp}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {job.benefits.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-primary-900 mb-3">Benefits</h2>
+                <ul className="space-y-2">
+                  {job.benefits.map((benefit, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <Star className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
+                      <span className="text-neutral-700">{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Application Success Message */}
+      {applicationSubmitted && (
+        <section className="py-10 sm:py-12 bg-neutral-50">
+          <div className="container mx-auto px-4 sm:px-6">
+            <div className="max-w-xl mx-auto text-center bg-white rounded-xl p-8 border border-neutral-200 shadow-sm">
+              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-7 h-7 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-bold text-primary-900 mb-3">Application submitted</h3>
+              <p className="text-neutral-600 mb-6 text-sm">
+                Thank you for applying to {job.title} at {job.company}. We&apos;ll review your application and get back to you soon.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  href="/careers"
+                  className="px-5 py-2.5 bg-primary-900 text-white text-sm font-semibold rounded-lg hover:bg-primary-800 transition-colors"
+                >
+                  Browse more jobs
+                </Link>
+                <Link
+                  href="/"
+                  className="px-5 py-2.5 border border-neutral-300 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
+                >
+                  Back to home
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Application Form Modal */}
+      {showApplicationForm && (
+        <JobApplicationForm
+          job={job}
+          onSuccess={handleApplicationSuccess}
+          onClose={() => setShowApplicationForm(false)}
+        />
+      )}
+
+      <Footer />
+    </main>
+  );
+}

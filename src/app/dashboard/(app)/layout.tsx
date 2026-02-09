@@ -1,0 +1,67 @@
+'use client';
+
+import Link from 'next/link';
+import Image from 'next/image';
+import DashboardNav from '@/components/dashboard/DashboardNav';
+import DashboardTopbar from '@/components/dashboard/DashboardTopbar';
+import { LogOut } from 'lucide-react';
+
+export default function DashboardAppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/dashboard/login';
+  };
+
+  return (
+    <div className="min-h-screen bg-neutral-50 flex">
+      {/* Sidebar */}
+      <aside className="sticky top-0 h-screen w-64 bg-white flex-shrink-0 flex flex-col border-r border-neutral-200">
+        <div className="p-5 flex justify-center">
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <Image
+              src="/images/logo/logo_dark_ubxaCll.png"
+              alt="Eagle HR Consultants"
+              width={160}
+              height={48}
+              className="h-12 w-auto object-contain"
+            />
+          </Link>
+        </div>
+        <DashboardNav />
+        <div className="p-4 mt-auto">
+          <div className="flex items-center gap-3 px-3 py-2 mb-3">
+            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold text-primary-700">SU</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-primary-900 truncate">Staff User</p>
+              <p className="text-xs text-neutral-500 truncate">staff@eaglehr.co.ke</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-neutral-600 hover:text-primary-900 hover:bg-neutral-100 rounded-lg text-sm font-medium transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* Main area: topbar + content — responsive container for 14"–32" */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <DashboardTopbar />
+        <main className="flex-1 overflow-auto">
+          <div className="w-full min-w-0 max-w-[1920px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16 py-6 sm:py-8 lg:py-10">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
