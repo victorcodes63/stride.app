@@ -43,6 +43,31 @@ function jobToSummary(job: {
   };
 }
 
+async function sendConfirmationEmailNonBlocking(params: {
+  to: string;
+  applicantFirstName: string;
+  jobTitle: string;
+  companyName: string;
+  applicationId: string;
+}) {
+  try {
+    const result = await sendApplicationReceivedEmail(params);
+    if (!result.sent) {
+      console.warn('Application confirmation email skipped or not sent.', {
+        to: params.to,
+        applicationId: params.applicationId,
+        error: result.error ?? null,
+      });
+    }
+  } catch (error) {
+    console.error('Application confirmation email failed:', {
+      to: params.to,
+      applicationId: params.applicationId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const jobId = searchParams.get('jobId') || undefined;
@@ -406,13 +431,13 @@ export async function POST(request: NextRequest) {
         }),
       };
 
-      sendApplicationReceivedEmail({
+      await sendConfirmationEmailNonBlocking({
         to: application.candidate.email,
         applicantFirstName: application.candidate.firstName,
         jobTitle: application.job.title,
         companyName: application.job.company,
         applicationId: application.id,
-      }).catch((err) => console.error('Application confirmation email failed:', err));
+      });
 
       return NextResponse.json(result);
     }
@@ -480,13 +505,13 @@ export async function POST(request: NextRequest) {
     formData: formData as ApplicationWithDetails['formData'] | undefined,
   });
 
-  sendApplicationReceivedEmail({
+  await sendConfirmationEmailNonBlocking({
     to: app.candidate.email,
     applicantFirstName: app.candidate.firstName,
     jobTitle: app.job.title,
     companyName: app.job.company,
     applicationId: app.id,
-  }).catch((err) => console.error('Application confirmation email failed:', err));
+  });
 
   return NextResponse.json(app);
 }
