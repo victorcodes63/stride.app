@@ -53,12 +53,20 @@ async function sendConfirmationEmailNonBlocking(params: {
   try {
     const result = await sendApplicationReceivedEmail(params);
     if (!result.sent) {
-      console.warn('Application confirmation email skipped or not sent.', {
+      console.error('Application confirmation email not sent.', {
         to: params.to,
         applicationId: params.applicationId,
-        error: result.error ?? null,
+        reason: result.reason,
+        error: result.error,
+        diagnostics: result.diagnostics ?? null,
       });
+      return;
     }
+    console.info('Application confirmation email sent.', {
+      to: params.to,
+      applicationId: params.applicationId,
+      messageId: result.messageId ?? null,
+    });
   } catch (error) {
     console.error('Application confirmation email failed:', {
       to: params.to,

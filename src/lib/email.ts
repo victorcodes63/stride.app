@@ -20,6 +20,22 @@ const LOGO_URL = `${BASE_URL.replace(/\/$/, '')}/images/logo/logo_dark_ubxaCll.p
 const LOGO_CID = 'eaglehr-logo';
 const LOGO_FILE_PATH = resolve(process.cwd(), 'public/images/logo/logo_dark_ubxaCll.png');
 
+export type EmailSendResult =
+  | { sent: true; messageId?: string }
+  | {
+      sent: false;
+      reason: 'smtp_not_configured' | 'from_email_missing' | 'smtp_error';
+      error: string;
+      diagnostics?: {
+        host: string;
+        port: number;
+        secure: boolean;
+        hasUser: boolean;
+        hasPass: boolean;
+        hasFromEmail: boolean;
+      };
+    };
+
 function getLogoEmailAsset(): {
   src: string;
   attachments?: Array<{ filename: string; path: string; cid: string }>;
@@ -55,6 +71,19 @@ function getTransporter(): nodemailer.Transporter | null {
   });
 }
 
+function getSmtpDiagnostics() {
+  const host = process.env.SMTP_HOST || 'smtp.office365.com';
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  return {
+    host,
+    port,
+    secure: port === 465,
+    hasUser: Boolean(process.env.SMTP_USER?.trim()),
+    hasPass: Boolean(process.env.SMTP_PASS?.trim()),
+    hasFromEmail: Boolean(FROM_EMAIL?.trim()),
+  };
+}
+
 /**
  * Send "application received" confirmation to the applicant (and your records).
  * No-op if SMTP is not configured.
@@ -65,10 +94,23 @@ export async function sendApplicationReceivedEmail(params: {
   jobTitle: string;
   companyName: string;
   applicationId?: string;
-}): Promise<{ sent: boolean; error?: string }> {
+}): Promise<EmailSendResult> {
   const transporter = getTransporter();
-  if (!transporter || !FROM_EMAIL) {
-    return { sent: false };
+  if (!transporter) {
+    return {
+      sent: false,
+      reason: 'smtp_not_configured',
+      error: 'SMTP_USER or SMTP_PASS is missing.',
+      diagnostics: getSmtpDiagnostics(),
+    };
+  }
+  if (!FROM_EMAIL) {
+    return {
+      sent: false,
+      reason: 'from_email_missing',
+      error: 'From email is missing. Set SMTP_USER or SMTP_FROM_EMAIL.',
+      diagnostics: getSmtpDiagnostics(),
+    };
   }
 
   const { to, applicantFirstName, jobTitle } = params;
@@ -106,17 +148,22 @@ export async function sendApplicationReceivedEmail(params: {
   `;
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
       to,
       subject,
       html,
       attachments: logoAsset.attachments,
     });
-    return { sent: true };
+    return { sent: true, messageId: info.messageId };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('Send application-received email error:', message);
-    return { sent: false, error: message };
+    return {
+      sent: false,
+      reason: 'smtp_error',
+      error: message,
+      diagnostics: getSmtpDiagnostics(),
+    };
   }
 }
