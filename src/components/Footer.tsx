@@ -200,12 +200,12 @@ const Footer = () => {
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
-          className="border-t border-neutral-200 py-6 flex flex-col md:flex-row justify-between items-center"
+          className="border-t border-neutral-200 py-6 flex flex-col md:flex-row justify-between items-center gap-4"
         >
-          <div className="text-neutral-600 text-sm">
+          <div className="text-neutral-600 text-sm w-full md:w-auto text-center md:text-left">
             © {new Date().getFullYear()} Eagle HR Consultants. All rights reserved.
             <br />
-            <span className="text-xs">
+            <span className="text-xs block mt-1">
               Website by{' '}
               <a 
                 href="https://www.raventechgroup.com" 
@@ -218,7 +218,7 @@ const Footer = () => {
             </span>
           </div>
           
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 md:mt-0">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 md:mt-0">
             <Link href="/privacy" className="text-neutral-600 hover:text-orange-500 text-sm transition-colors duration-200">
               Privacy Policy
             </Link>
