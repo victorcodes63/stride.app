@@ -14,8 +14,6 @@ import {
   BookOpen,
   CheckCircle,
   Building2,
-  Star,
-  ExternalLink,
   LucideIcon
 } from 'lucide-react';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -109,7 +107,7 @@ export default function CareersPage() {
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <a
-                href="#ats-system"
+                href="#job-openings"
                 className="inline-flex items-center px-8 py-4 bg-primary-900 text-white rounded-lg font-semibold text-lg hover:bg-primary-800 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
               >
                 Browse Jobs
@@ -117,7 +115,7 @@ export default function CareersPage() {
               </a>
               
               <a
-                href="#ats-system"
+                href="/contact"
                 className="inline-flex items-center px-8 py-4 border-2 border-primary-900 text-primary-900 rounded-lg font-semibold text-lg hover:bg-primary-900 hover:text-white transition-all duration-300"
               >
                 Post a Job
@@ -297,44 +295,6 @@ export default function CareersPage() {
             ))}
             </div>
           )}
-        </div>
-      </section>
-
-      {/* ATS System CTA */}
-      <section id="ats-system" className="py-20 bg-primary-900 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="max-w-3xl mx-auto"
-          >
-            <SectionTitle
-              label="Coming soon"
-              title="Advanced job board coming soon."
-              subtitle="We're building a comprehensive Applicant Tracking System (ATS) that will revolutionise job searching and recruitment in Kenya. Get ready for advanced features including AI-powered job matching, automated applications, and real-time notifications."
-              variant="dark"
-              className="mb-8"
-            />
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/contact"
-                className="inline-flex items-center px-8 py-4 bg-secondary-500 text-primary-900 rounded-lg font-semibold text-lg hover:bg-secondary-400 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300"
-              >
-                Get Early Access
-                <Star className="ml-2 w-5 h-5" />
-              </a>
-              
-              <a
-                href="/contact"
-                className="inline-flex items-center px-8 py-4 border-2 border-white/30 text-white rounded-lg font-semibold text-lg hover:bg-white/10 hover:border-white/50 backdrop-blur-sm transition-all duration-300"
-              >
-                Learn More
-                <ExternalLink className="ml-2 w-5 h-5" />
-              </a>
-            </div>
-          </motion.div>
         </div>
       </section>
 
