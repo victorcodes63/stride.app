@@ -55,7 +55,7 @@ const Footer = () => {
         ></div>
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-full min-w-0">
         {/* Main Footer Content */}
         <div className="py-16 flex flex-col md:flex-row lg:flex-row gap-8 lg:gap-12">
           {/* Company Info */}

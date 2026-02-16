@@ -91,9 +91,9 @@ const ServicesSection = () => {
 
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: isDesktop ? 0.6 : 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
@@ -122,10 +122,10 @@ const ServicesSection = () => {
                   className={`block ${service.span}`}
                 >
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={isDesktop ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     whileHover={isDesktop ? { y: -4 } : undefined}
-                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                    transition={{ duration: isDesktop ? 0.5 : 0, delay: isDesktop ? index * 0.05 : 0 }}
                     viewport={{ once: true }}
                     className={`group relative h-full rounded-2xl border transition-all duration-300 ${
                       isRecruitmentCard
@@ -229,9 +229,9 @@ const ServicesSection = () => {
 
         {/* Bottom CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: isDesktop ? 0.6 : 0 }}
           viewport={{ once: true }}
           className="mt-20"
         >

@@ -218,7 +218,7 @@ export default function ServicesPage() {
   });
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
       
       {/* Hero Section */}
@@ -235,7 +235,7 @@ export default function ServicesPage() {
           <div className="absolute inset-0 bg-white/70" />
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -263,7 +263,7 @@ export default function ServicesPage() {
 
       {/* Services Overview */}
       <section className="py-20 bg-neutral-50/50">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <SectionTitle
             label="Services"
             title="Our services at a glance."
@@ -370,7 +370,7 @@ export default function ServicesPage() {
 
       {/* Service Comparison Matrix */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <SectionTitle
             label="Compare"
             title="Find the right solution for your organisation."
@@ -450,7 +450,7 @@ export default function ServicesPage() {
 
       {/* FAQ Section — two-column: intro left, accordion right */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <SectionTitle
             label="FAQ"
             title="Common questions about our HR services."
@@ -466,7 +466,7 @@ export default function ServicesPage() {
 
       {/* Benefits Section — world-class layout: aligned heights, refined card, clear CTA */}
       <section className="py-20 md:py-28 bg-neutral-50/50">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <SectionTitle
             label="Why work with us"
             title="Expertise and results that scale with your organisation."
@@ -517,7 +517,7 @@ export default function ServicesPage() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-secondary-500 to-secondary-400 text-primary-900">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 sm:px-6 text-center">
           <div className="max-w-3xl mx-auto">
             <SectionTitle
               label="Get started"

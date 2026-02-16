@@ -31,13 +31,13 @@ export default function TermsOfServicePage() {
   ];
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 min-h-[60vh] flex flex-col justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-50 to-secondary-50"></div>
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -58,7 +58,7 @@ export default function TermsOfServicePage() {
 
       {/* Terms Content */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}

@@ -6,8 +6,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Target, Eye, Heart, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import SectionTitle from '@/components/SectionTitle';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 
 const StickyAboutSection = () => {
+  const isDesktop = useIsDesktop();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -24,23 +26,11 @@ const StickyAboutSection = () => {
   ];
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check if device is mobile/tablet
-  useEffect(() => {
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
-    };
-    
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
-    
-    return () => window.removeEventListener('resize', checkDevice);
-  }, []);
+  const isMobile = !isDesktop;
 
   // Calculate which image should be shown based on scroll progress (desktop only)
   useEffect(() => {
-    if (isMobile) return;
+    if (!isDesktop) return;
     
     const unsubscribe = scrollYProgress.onChange((latest) => {
       // 5 images: map scroll 0–1 to indices 0–4 in equal steps
@@ -60,7 +50,7 @@ const StickyAboutSection = () => {
     });
 
     return unsubscribe;
-  }, [scrollYProgress, aboutImages.length, isMobile]);
+  }, [scrollYProgress, aboutImages.length, isDesktop]);
 
   // Mobile slider navigation
   const nextImage = () => {
@@ -263,9 +253,9 @@ const StickyAboutSection = () => {
 
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 1, y: 0 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0 }}
               viewport={{ once: true }}
               className="mb-8"
             >
@@ -279,9 +269,9 @@ const StickyAboutSection = () => {
             <div className="grid gap-8">
               {/* Mobile Image Slider */}
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 1, y: 0 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
+                transition={{ duration: 0 }}
                 viewport={{ once: true }}
                 className="relative"
               >
@@ -346,9 +336,9 @@ const StickyAboutSection = () => {
 
               {/* Mobile Content */}
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 1, y: 0 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ duration: 0 }}
                 viewport={{ once: true }}
                 className="text-center"
               >

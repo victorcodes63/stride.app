@@ -113,16 +113,16 @@ const SlidingHRQuestions = () => {
       <div className="container mx-auto px-4 relative z-10">
         {/* Header Section */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: isDesktop ? 0.8 : 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
           <motion.div
-            initial={{ opacity: 0, ...(isDesktop ? { scale: 0.8 } : {}) }}
-            whileInView={{ opacity: 1, ...(isDesktop ? { scale: 1 } : {}) }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            initial={isDesktop ? { opacity: 0, scale: 0.8 } : { opacity: 1, scale: 1 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: isDesktop ? 0.6 : 0, delay: isDesktop ? 0.2 : 0 }}
             viewport={{ once: true }}
           >
             <SectionTitle
@@ -210,9 +210,9 @@ const SlidingHRQuestions = () => {
 
         {/* Value Proposition Grid */}
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={isDesktop ? { opacity: 0, y: 50 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+          transition={{ duration: isDesktop ? 0.8 : 0, delay: isDesktop ? 0.4 : 0 }}
           viewport={{ once: true }}
           className="grid md:grid-cols-2 lg:grid-cols-4 gap-8"
         >
@@ -311,9 +311,9 @@ const SlidingHRQuestions = () => {
 
         {/* CTA Section */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
+          transition={{ duration: isDesktop ? 0.8 : 0, delay: isDesktop ? 0.6 : 0 }}
           viewport={{ once: true }}
           className="text-center mt-16"
         >

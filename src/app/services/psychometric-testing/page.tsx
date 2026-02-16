@@ -121,7 +121,7 @@ export default function PsychometricTestingPage() {
   ];
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
       
       {/* Hero Section */}
@@ -136,7 +136,7 @@ export default function PsychometricTestingPage() {
           <div className="absolute inset-0 bg-white/70" />
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -157,7 +157,7 @@ export default function PsychometricTestingPage() {
 
       {/* Test Types Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -183,7 +183,7 @@ export default function PsychometricTestingPage() {
 
       {/* Process Section */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -239,7 +239,7 @@ export default function PsychometricTestingPage() {
 
       {/* Benefits Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -283,7 +283,7 @@ export default function PsychometricTestingPage() {
 
       {/* Client Success Story */}
       <section className="py-20 relative overflow-hidden">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -362,7 +362,7 @@ export default function PsychometricTestingPage() {
 
       {/* Industries Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="mb-16">
             <SectionTitle label="Industries" title="Industries we serve." subtitle="With deep expertise across multiple sectors, we understand the unique talent assessment needs of each industry we serve." variant="section" />
           </motion.div>
@@ -378,7 +378,7 @@ export default function PsychometricTestingPage() {
 
       {/* CTA Card */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
             <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-md">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
@@ -402,7 +402,7 @@ export default function PsychometricTestingPage() {
 
       {/* Download Resources Section */}
       <section className="py-12 bg-secondary-500 text-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="mb-16">
             <SectionTitle label="Resources" title="Download our resources." subtitle="Access our company profile and client list to learn more about Eagle HR and the organisations we partner with." variant="dark" className="mb-16" />
           </motion.div>

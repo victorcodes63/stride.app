@@ -96,16 +96,16 @@ const FeaturedJobs = () => {
     <section className="py-16 md:py-20 bg-white">
       <div className="container mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: isDesktop ? 0.6 : 0 }}
           viewport={{ once: true }}
           className="text-center mb-12 md:mb-16"
         >
           <motion.div
-            initial={{ opacity: 0, ...(isDesktop ? { scale: 0.8 } : {}) }}
-            whileInView={{ opacity: 1, ...(isDesktop ? { scale: 1 } : {}) }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            initial={isDesktop ? { opacity: 0, scale: 0.8 } : { opacity: 1, scale: 1 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: isDesktop ? 0.6 : 0, delay: isDesktop ? 0.2 : 0 }}
             viewport={{ once: true }}
           >
             <SectionTitle
@@ -120,9 +120,9 @@ const FeaturedJobs = () => {
 
           {/* Company Stats */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isDesktop ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: isDesktop ? 0.6 : 0, delay: isDesktop ? 0.4 : 0 }}
             viewport={{ once: true }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 max-w-2xl mx-auto"
           >
@@ -167,9 +167,9 @@ const FeaturedJobs = () => {
             {featuredJobs.map((job, index) => (
               <motion.div
                 key={job.id}
-                initial={{ opacity: 0, y: 30 }}
+                initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
+                transition={{ delay: isDesktop ? index * 0.1 : 0, duration: isDesktop ? 0.6 : 0 }}
                 viewport={{ once: true }}
                 className="group bg-white border border-neutral-200 rounded-xl p-4 md:p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
               >
@@ -243,9 +243,9 @@ const FeaturedJobs = () => {
 
         {/* CTA Section */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={isDesktop ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
+          transition={{ duration: isDesktop ? 0.6 : 0, delay: isDesktop ? 0.3 : 0 }}
           viewport={{ once: true }}
           className="text-center bg-gradient-to-r from-neutral-50 to-neutral-100 rounded-2xl p-6 md:p-8 lg:p-12"
         >

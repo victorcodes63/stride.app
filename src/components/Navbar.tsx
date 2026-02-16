@@ -176,15 +176,15 @@ const Navbar = () => {
 
   return (
     <motion.nav
-      initial={{ y: -80, opacity: 0 }}
+      initial={isDesktop ? { y: -80, opacity: 0 } : { y: 0, opacity: 1 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+      transition={{ duration: isDesktop ? 0.5 : 0, ease: 'easeOut' }}
       className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-lg transition-all duration-500 ${
         scrolled ? 'bg-white/80 shadow-lg' : 'bg-transparent'
       }`}
     >
-        <div className="container mx-auto px-4 md:px-5">
-          <div className="relative flex items-center justify-between h-16 md:h-20">
+        <div className="container mx-auto px-4 sm:px-6 md:px-5 max-w-full min-w-0">
+          <div className="relative flex items-center justify-between h-16 md:h-20 min-w-0">
             {/* Logo */}
             <Link href="/" className="flex items-center z-10">
               <motion.img
@@ -306,7 +306,7 @@ const Navbar = () => {
             onMouseEnter={() => setIsServicesOpen(true)}
             onMouseLeave={() => setIsServicesOpen(false)}
           >
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 sm:px-6 py-8 max-w-full min-w-0">
               {/* View All Services Link */}
               <div className="mb-6 pb-4 border-b border-neutral-200">
                 <Link
@@ -458,7 +458,7 @@ const Navbar = () => {
             onMouseEnter={() => setIsResourcesOpen(true)}
             onMouseLeave={() => setIsResourcesOpen(false)}
           >
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 sm:px-6 py-8 max-w-full min-w-0">
               {/* Resources Slider */}
               <div className="relative">
                 <div className="flex items-center justify-between mb-6">
@@ -594,7 +594,7 @@ const Navbar = () => {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="lg:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-primary-100 z-50"
           >
-            <div className="container mx-auto px-4 py-6">
+            <div className="container mx-auto px-4 sm:px-6 py-6 max-w-full min-w-0">
               {/* Mobile Navigation Links */}
               <div className="space-y-2 mb-6">
                 {navItems.map((item, index) => (

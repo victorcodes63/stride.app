@@ -80,7 +80,7 @@ export default function ResourcesPage() {
     : resources.filter(resource => resource.category === activeFilter);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
       
       {/* Hero Section */}
@@ -95,7 +95,7 @@ export default function ResourcesPage() {
           <div className="absolute inset-0 bg-white/70" />
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -122,7 +122,7 @@ export default function ResourcesPage() {
 
       {/* Resources Grid */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-6xl mx-auto">
             {/* Category Filter */}
             <div className="flex flex-wrap justify-center gap-4 mb-12">
@@ -220,7 +220,7 @@ export default function ResourcesPage() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-secondary-500 to-secondary-400 text-primary-900">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 sm:px-6 text-center">
           <div className="max-w-3xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}

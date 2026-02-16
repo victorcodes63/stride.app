@@ -8,15 +8,14 @@ import SectionTitle from '@/components/SectionTitle';
 
 const HeroSection = () => {
   const isDesktop = useIsDesktop();
-  // Text animation variants
+  // Text animation variants — no stagger/delay on mobile for instant content
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
+      transition: isDesktop
+        ? { staggerChildren: 0.2, delayChildren: 0.3 }
+        : { duration: 0 },
     }
   };
 
@@ -25,10 +24,7 @@ const HeroSection = () => {
     visible: {
       opacity: 1,
       y: 0,
-      transition: {
-        duration: 0.8,
-        ease: "easeOut"
-      }
+      transition: { duration: isDesktop ? 0.8 : 0, ease: "easeOut" }
     }
   };
 
@@ -37,10 +33,7 @@ const HeroSection = () => {
     visible: {
       opacity: 1,
       y: 0,
-      transition: {
-        duration: 1,
-        ease: "easeOut"
-      }
+      transition: { duration: isDesktop ? 1 : 0, ease: "easeOut" }
     }
   };
 
@@ -78,7 +71,7 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 relative z-10 flex-1 flex flex-col justify-center min-h-screen">
         <motion.div 
           variants={containerVariants}
-          initial="hidden"
+          initial={isDesktop ? "hidden" : "visible"}
           animate="visible"
           className="text-center max-w-4xl mx-auto"
         >
@@ -128,18 +121,18 @@ const HeroSection = () => {
         {/* Client Logos Ticker - Integrated into Hero */}
         <div className="absolute bottom-8 left-0 right-0">
           <motion.p 
-            initial={{ opacity: 0, y: 20 }}
+            initial={isDesktop ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2, duration: 0.6 }}
+            transition={{ delay: isDesktop ? 1.2 : 0, duration: isDesktop ? 0.6 : 0 }}
             className="text-center text-sm font-medium text-primary-600 mb-6"
           >
             Trusted by leading organizations across Kenya and beyond
           </motion.p>
           
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={isDesktop ? { opacity: 0 } : { opacity: 1 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.4, duration: 0.8 }}
+            transition={{ delay: isDesktop ? 1.4 : 0, duration: isDesktop ? 0.8 : 0 }}
             className="relative overflow-hidden"
           >
             {/* Infinite scrolling ticker */}
@@ -150,7 +143,7 @@ const HeroSection = () => {
                   key={`first-${index}`}
                   initial={{ opacity: 0, ...(isDesktop ? { scale: 0.8 } : {}) }}
                   animate={{ opacity: 1, ...(isDesktop ? { scale: 1 } : {}) }}
-                  transition={{ delay: 1.6 + index * 0.1, duration: 0.5 }}
+                  transition={{ delay: isDesktop ? 1.6 + index * 0.1 : 0, duration: isDesktop ? 0.5 : 0 }}
                   className="flex-shrink-0 mx-8 flex items-center justify-center h-[4.84rem]"
                 >
                   <img 
@@ -172,7 +165,7 @@ const HeroSection = () => {
                   key={`second-${index}`}
                   initial={{ opacity: 0, ...(isDesktop ? { scale: 0.8 } : {}) }}
                   animate={{ opacity: 1, ...(isDesktop ? { scale: 1 } : {}) }}
-                  transition={{ delay: 1.6 + index * 0.1, duration: 0.5 }}
+                  transition={{ delay: isDesktop ? 1.6 + index * 0.1 : 0, duration: isDesktop ? 0.5 : 0 }}
                   className="flex-shrink-0 mx-8 flex items-center justify-center h-[4.84rem]"
                 >
                   <img 
@@ -193,33 +186,21 @@ const HeroSection = () => {
       </div>
 
 
-      {/* Floating Elements */}
-      <motion.div
-        animate={{ 
-          y: [0, -20, 0],
-          rotate: [0, 5, 0]
-        }}
-        transition={{ 
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute top-20 right-20 w-20 h-20 bg-secondary-500/20 rounded-full blur-xl"
-      />
-      
-      <motion.div
-        animate={{ 
-          y: [0, 20, 0],
-          rotate: [0, -5, 0]
-        }}
-        transition={{ 
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1
-        }}
-        className="absolute bottom-40 left-20 w-32 h-32 bg-primary-500/20 rounded-full blur-xl"
-      />
+      {/* Floating Elements — desktop only to avoid mobile jank */}
+      {isDesktop && (
+        <>
+          <motion.div
+            animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-20 right-20 w-20 h-20 bg-secondary-500/20 rounded-full blur-xl"
+          />
+          <motion.div
+            animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute bottom-40 left-20 w-32 h-32 bg-primary-500/20 rounded-full blur-xl"
+          />
+        </>
+      )}
 
     </section>
   );

@@ -81,7 +81,7 @@ export default function HRDocumentationPage() {
   ];
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
       
       {/* Hero Section */}
@@ -98,7 +98,7 @@ export default function HRDocumentationPage() {
           <div className="absolute inset-0 bg-white/70" />
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -135,7 +135,7 @@ export default function HRDocumentationPage() {
 
       {/* Services Section */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -161,7 +161,7 @@ export default function HRDocumentationPage() {
 
       {/* Benefits Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -199,7 +199,7 @@ export default function HRDocumentationPage() {
 
       {/* Stats Section */}
       <section className="py-20 bg-gradient-to-br from-primary-900 to-primary-800 text-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -243,7 +243,7 @@ export default function HRDocumentationPage() {
 
       {/* Case Study Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -348,7 +348,7 @@ export default function HRDocumentationPage() {
 
       {/* Industries Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="mb-16">
             <SectionTitle label="Industries" title="Industries we serve." subtitle="Our HR documentation expertise spans across various industries, providing tailored solutions for each sector's unique requirements." variant="section" />
           </motion.div>
@@ -364,7 +364,7 @@ export default function HRDocumentationPage() {
 
       {/* CTA Card */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
             <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-md">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
@@ -388,7 +388,7 @@ export default function HRDocumentationPage() {
 
       {/* Download Resources Section */}
       <section className="py-12 bg-secondary-500 text-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="mb-16">
             <SectionTitle label="Resources" title="Download our resources." subtitle="Access our company profile and client list to learn more about Eagle HR and the organisations we partner with." variant="dark" className="mb-16" />
           </motion.div>

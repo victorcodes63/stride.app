@@ -45,7 +45,7 @@ export default function JobApplicationPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen min-w-0 overflow-x-hidden">
         <Navbar />
         <div className="pt-28 pb-20">
           <div className="container mx-auto px-4 sm:px-6">
@@ -68,10 +68,10 @@ export default function JobApplicationPage() {
 
   if (!job) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen min-w-0 overflow-x-hidden">
         <Navbar />
         <div className="pt-32 pb-20">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto px-4 sm:px-6">
             <div className="max-w-4xl mx-auto text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-red-600" />
@@ -96,7 +96,7 @@ export default function JobApplicationPage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-hidden">
       <Navbar />
       
       {/* Job Header */}

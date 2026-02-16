@@ -124,7 +124,7 @@ export default function InterviewChecklistEmployees() {
   const progressPercentage = Math.round((completedCount / totalItems) * 100);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-neutral-50 to-white">
+    <main className="min-h-screen min-w-0 overflow-x-hidden bg-gradient-to-br from-neutral-50 to-white">
       <Navbar />
       
       {/* Hero Section */}
@@ -139,7 +139,7 @@ export default function InterviewChecklistEmployees() {
           <div className="absolute inset-0 bg-white/70" />
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -180,7 +180,7 @@ export default function InterviewChecklistEmployees() {
 
       {/* Progress Section */}
       <section className="py-12 bg-white border-b border-neutral-200">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -226,7 +226,7 @@ export default function InterviewChecklistEmployees() {
 
       {/* Checklist Sections */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
             <div className="space-y-8">
               {checklistSections.map((section, sectionIndex) => (
@@ -288,7 +288,7 @@ export default function InterviewChecklistEmployees() {
 
       {/* Common Questions Section */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -330,7 +330,7 @@ export default function InterviewChecklistEmployees() {
 
       {/* Tips Section */}
       <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -373,7 +373,7 @@ export default function InterviewChecklistEmployees() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-900 to-primary-800 text-white">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 sm:px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

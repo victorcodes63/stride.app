@@ -13,6 +13,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -23,6 +24,8 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 /* Custom scrollbar */
@@ -178,4 +181,11 @@ h1, h2, h3, h4, h5, h6 {
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 100px;
+}
+
+/* Prevent horizontal overflow on mobile/tablet */
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
 }
