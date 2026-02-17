@@ -58,9 +58,9 @@ export default function DashboardAppLayout({
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
-      {/* Sidebar */}
-      <aside className="sticky top-0 h-screen w-64 bg-white flex-shrink-0 flex flex-col border-r border-neutral-200">
+    <div className="h-screen overflow-hidden flex bg-neutral-50">
+      {/* Sidebar — fixed height so it never scrolls with content */}
+      <aside className="h-screen w-64 bg-white flex-shrink-0 flex flex-col border-r border-neutral-200 overflow-y-auto">
         <div className="p-5 flex justify-center">
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <Image

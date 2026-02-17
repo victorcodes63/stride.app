@@ -285,13 +285,24 @@ export async function GET(request: NextRequest) {
     const educationCells = Array.from({ length: MAX_EDUCATION_COLUMNS }, (_, i) =>
       educationEntries[i] ? formatEducationEntry(educationEntries[i]) : ''
     );
+    const formatEmploymentDate = (d: string) => {
+      if (!d?.trim()) return '—';
+      const date = new Date(d.trim());
+      if (isNaN(date.getTime())) return d.trim();
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+    };
     const employmentStr = fd?.employmentHistory
       ?.filter((e) => e.jobTitle || e.companyName)
       .map(
-        (e) =>
-          `${e.jobTitle} at ${e.companyName} (${e.employmentType})${e.isCurrentJob ? ' [current]' : ''}`
+        (e) => {
+          const company = (e.companyName ?? '').trim() || '—';
+          const position = (e.jobTitle ?? '').trim() || '—';
+          const start = formatEmploymentDate(e.startDate ?? '');
+          const end = e.isCurrentJob ? 'Present' : formatEmploymentDate(e.endDate ?? '');
+          return `Company: ${company}; Position: ${position}; Dates: ${start} – ${end}`;
+        }
       )
-      .join('; ') ?? '';
+      .join('\n||\n') ?? '';
     const workExpYears = totalWorkExperienceYears(fd?.employmentHistory);
     const profCertsStr =
       (fd?.professionalCertificationsList?.map((x) => x.name).join(', ') ||
@@ -329,7 +340,7 @@ export async function GET(request: NextRequest) {
     const widths: number[] = [
       14, 14, 28, 16, 14, 14, 12, 18, 10, 22,
       ...Array(MAX_EDUCATION_COLUMNS).fill(32),
-      40, 12, 24, 28, 12, 12, 12, 14, 14, 18,
+      56, 12, 24, 28, 12, 12, 12, 14, 14, 18,
     ];
     return { width: widths[i] ?? 18 };
   });

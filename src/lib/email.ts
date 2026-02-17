@@ -138,6 +138,7 @@ function getGraphConfig() {
 
 async function sendViaMicrosoftGraph(params: {
   to: string;
+  cc?: string;
   subject: string;
   html: string;
   attachments?: Array<Record<string, unknown>>;
@@ -223,6 +224,9 @@ async function sendViaMicrosoftGraph(params: {
             emailAddress: { address: graph.mailbox, name: FROM_NAME },
           },
           toRecipients: [{ emailAddress: { address: params.to } }],
+          ...(params.cc?.trim()
+            ? { ccRecipients: [{ emailAddress: { address: params.cc.trim() } }] }
+            : {}),
           ...(params.attachments?.length ? { attachments: params.attachments } : {}),
         },
         saveToSentItems: true,
@@ -339,6 +343,147 @@ export async function sendApplicationReceivedEmail(params: {
         provider: 'smtp',
         ...getSmtpDiagnostics(),
       },
+    };
+  }
+}
+
+/**
+ * Send official interview invitation to candidate. From recruitment@, CC account holder.
+ * Optional: attach official letter PDF (e.g. for government clients).
+ */
+export async function sendInterviewInviteEmail(params: {
+  to: string;
+  cc?: string;
+  candidateFirstName: string;
+  jobTitle: string;
+  companyName: string;
+  scheduledAt: string; // ISO
+  durationMinutes: number;
+  type: string; // phone | video | onsite
+  locationOrLink?: string | null;
+  officialLetterPath?: string | null; // e.g. /uploads/documents/xxx.pdf
+}): Promise<EmailSendResult> {
+  const {
+    to,
+    cc,
+    candidateFirstName,
+    jobTitle,
+    companyName,
+    scheduledAt,
+    durationMinutes,
+    type,
+    locationOrLink,
+    officialLetterPath,
+  } = params;
+  const candidateName = candidateFirstName || 'Candidate';
+  const typeLabel = type === 'phone' ? 'Phone' : type === 'video' ? 'Video' : 'On-site';
+  const date = new Date(scheduledAt);
+  const dateStr = Number.isNaN(date.getTime())
+    ? scheduledAt
+    : date.toLocaleDateString(undefined, { dateStyle: 'long' });
+  const timeStr = Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const durationStr = `${durationMinutes} minutes`;
+  const locationLine = locationOrLink?.trim()
+    ? `Location / Link: ${locationOrLink.trim()}`
+    : 'We will share the meeting details separately if applicable.';
+
+  const subject = `Interview invitation – ${jobTitle} at ${companyName}`;
+  const smtpLogoAsset = getSmtpLogoAsset();
+  const graphLogoAsset = getGraphLogoAsset();
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #374151;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px;">
+        <tr>
+          <td style="padding: 24px 0 32px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+            <img src="${graphLogoAsset.src}" alt="Eagle HR Consultants" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 32px 0 24px;">
+            <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">Dear ${candidateName},</p>
+            <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">We are pleased to invite you for an interview for the position of <strong>${jobTitle}</strong> at ${companyName}.</p>
+            <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;"><strong>Interview details</strong></p>
+            <ul style="margin: 0 0 16px; padding-left: 20px; font-size: 16px; line-height: 1.8;">
+              <li>Date: ${dateStr}</li>
+              <li>Time: ${timeStr}</li>
+              <li>Duration: ${durationStr}</li>
+              <li>Type: ${typeLabel}</li>
+              <li>${locationLine}</li>
+            </ul>
+            ${officialLetterPath ? '<p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">An official invitation letter is attached to this email.</p>' : ''}
+            <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6;">Please confirm your availability. If you have any questions or need to reschedule, reply to this email at your earliest convenience.</p>
+            <p style="margin: 0 0 8px; font-size: 16px; line-height: 1.6;">Sincerely,</p>
+            <p style="margin: 0 0 4px; font-size: 16px; line-height: 1.6;"><strong>Recruitment Team</strong></p>
+            <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #0B1D39;"><strong>Eagle HR Consultants</strong></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 24px 0; border-top: 1px solid #e5e7eb;">
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6b7280;">Eagle HR Consultants recruits and hires people from a range of backgrounds. If you need special arrangements or accommodations during the recruitment process, kindly reach out as soon as possible.</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  let graphAttachments: Array<Record<string, unknown>> = [...(graphLogoAsset.attachments || [])];
+  let smtpAttachments: Array<{ filename: string; path?: string; content?: Buffer }> = [
+    ...(smtpLogoAsset.attachments || []),
+  ];
+  if (officialLetterPath?.trim()) {
+    const letterPath = resolve(process.cwd(), 'public', officialLetterPath.replace(/^\//, ''));
+    if (existsSync(letterPath)) {
+      const contentBytes = readFileSync(letterPath).toString('base64');
+      graphAttachments.push({
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        name: 'Interview-Letter.pdf',
+        contentType: 'application/pdf',
+        contentBytes,
+      });
+      smtpAttachments.push({ filename: 'Interview-Letter.pdf', path: letterPath });
+    }
+  }
+
+  const graphResult = await sendViaMicrosoftGraph({
+    to,
+    cc,
+    subject,
+    html,
+    attachments: graphAttachments,
+  });
+  if (graphResult.sent) return graphResult;
+
+  const transporter = getTransporter();
+  if (!transporter) return graphResult;
+  if (!FROM_EMAIL) {
+    return {
+      sent: false,
+      reason: 'from_email_missing',
+      error: 'From email is missing. Set SMTP_USER or SMTP_FROM_EMAIL.',
+      diagnostics: { provider: 'smtp', ...getSmtpDiagnostics() },
+    };
+  }
+  try {
+    const mailOptions: Parameters<typeof transporter.sendMail>[0] = {
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to,
+      cc: cc?.trim() || undefined,
+      subject,
+      html,
+      attachments: smtpAttachments,
+    };
+    const info = (await transporter.sendMail(mailOptions)) as { messageId?: string };
+    return { sent: true, messageId: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      sent: false,
+      reason: 'smtp_error',
+      error: message,
+      diagnostics: { provider: 'smtp', ...getSmtpDiagnostics() },
     };
   }
 }

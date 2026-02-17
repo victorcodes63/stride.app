@@ -131,14 +131,19 @@ export interface UpdateApplicationStatusBody {
 export type InterviewStatus = 'scheduled' | 'completed' | 'cancelled';
 export type InterviewType = 'phone' | 'video' | 'onsite';
 
+export type InterviewDurationMinutes = 30 | 45 | 60;
+
 export interface InterviewWithDetails {
   id: string;
   applicationId: string;
   scheduledAt: string;
+  durationMinutes: number;
   type: InterviewType;
   locationOrLink: string | null;
   notes: string | null;
   status: InterviewStatus;
+  inviteSentAt: string | null;
+  officialLetterPath: string | null;
   createdAt: string;
   updatedAt: string;
   application: {
@@ -152,9 +157,30 @@ export interface InterviewWithDetails {
 export interface CreateInterviewBody {
   applicationId: string;
   scheduledAt: string; // ISO datetime
+  durationMinutes?: InterviewDurationMinutes; // default 45
   type: InterviewType;
   locationOrLink?: string;
   notes?: string;
+}
+
+export interface UpdateInterviewBody {
+  scheduledAt?: string;
+  durationMinutes?: InterviewDurationMinutes;
+  type?: InterviewType;
+  locationOrLink?: string | null;
+  notes?: string | null;
+  status?: InterviewStatus;
+  officialLetterPath?: string | null;
+}
+
+export interface BulkCreateInterviewsBody {
+  jobId: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  durationMinutes: InterviewDurationMinutes;
+  type: InterviewType;
+  applicationIds: string[]; // max 10
+  locationOrLink?: string;
 }
 
 // Staff / User management (no password in API responses)

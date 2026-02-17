@@ -245,11 +245,11 @@ export default function JobApplicationForm({ job, onSuccess, onClose }: JobAppli
   ]);
   const [educationFiles, setEducationFiles] = useState<(File | null)[]>(() => [null, null, null, null]);
 
-  // Stage 3: Employment (up to 5)
+  // Stage 3: Employment (up to 10)
   const [employment, setEmployment] = useState<EmploymentEntry[]>([
     { ...EMPTY_EMPLOYMENT },
   ]);
-  const employmentMax = 5;
+  const employmentMax = 10;
 
   // Stage 4: Attachments
   const [professionalCertificationsList, setProfessionalCertificationsList] = useState<ProfessionalCertificationEntry[]>(() => [{ ...EMPTY_PROF_CERT }]);
@@ -1021,7 +1021,7 @@ export default function JobApplicationForm({ job, onSuccess, onClose }: JobAppli
                   <Briefcase className="w-5 h-5" />
                   Employment history
                 </h3>
-                <p className="text-sm text-neutral-600">Up to 5 entries. Add job title, company, industry, type, and dates.</p>
+                <p className="text-sm text-neutral-600">Add up to 10 relevant work experience entries: job title, company, industry, type, and dates.</p>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Minimum expected salary *</label>
                   <input

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { InterviewWithDetails, CreateInterviewBody, InterviewType } from '@/types/dashboard';
+import type { InterviewWithDetails, CreateInterviewBody, InterviewType, InterviewDurationMinutes } from '@/types/dashboard';
+
+const VALID_DURATIONS: InterviewDurationMinutes[] = [30, 45, 60];
 
 function jobToSummary(job: {
   id: string;
@@ -36,13 +38,41 @@ function jobToSummary(job: {
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json([]);
     }
+    const { searchParams } = new URL(request.url);
+    const jobId = searchParams.get('jobId') || undefined;
+    const dateFrom = searchParams.get('dateFrom') || undefined; // YYYY-MM-DD
+    const dateTo = searchParams.get('dateTo') || undefined;
+    const status = searchParams.get('status') || undefined;
+    const inviteSent = searchParams.get('inviteSent'); // 'true' | 'false'
+
+    const where: Record<string, unknown> = {};
+    if (jobId?.trim()) {
+      where.application = { jobId: jobId.trim() };
+    }
+    if (dateFrom?.trim() || dateTo?.trim()) {
+      where.scheduledAt = {};
+      if (dateFrom?.trim()) {
+        (where.scheduledAt as Record<string, Date>).gte = new Date(dateFrom.trim());
+      }
+      if (dateTo?.trim()) {
+        const d = new Date(dateTo.trim());
+        d.setHours(23, 59, 59, 999);
+        (where.scheduledAt as Record<string, Date>).lte = d;
+      }
+    }
+    if (status?.trim() && ['scheduled', 'completed', 'cancelled'].includes(status)) {
+      where.status = status;
+    }
+    if (inviteSent === 'true') where.inviteSentAt = { not: null };
+    if (inviteSent === 'false') where.inviteSentAt = null;
+
     const interviews = await prisma.interview.findMany({
-      where: {},
+      where,
       include: {
         application: {
           include: {
@@ -57,10 +87,13 @@ export async function GET() {
       id: i.id,
       applicationId: i.applicationId,
       scheduledAt: i.scheduledAt.toISOString(),
+      durationMinutes: i.durationMinutes,
       type: i.type as InterviewType,
       locationOrLink: i.locationOrLink,
       notes: i.notes,
       status: i.status,
+      inviteSentAt: i.inviteSentAt?.toISOString() ?? null,
+      officialLetterPath: i.officialLetterPath,
       createdAt: i.createdAt.toISOString(),
       updatedAt: i.updatedAt.toISOString(),
       application: {
@@ -116,6 +149,10 @@ export async function POST(request: NextRequest) {
   const b = body as Record<string, unknown>;
   const applicationId = typeof b.applicationId === 'string' ? b.applicationId.trim() : '';
   const scheduledAtRaw = typeof b.scheduledAt === 'string' ? b.scheduledAt.trim() : '';
+  const durationRaw = b.durationMinutes != null ? Number(b.durationMinutes) : 45;
+  const durationMinutes = VALID_DURATIONS.includes(durationRaw as InterviewDurationMinutes)
+    ? (durationRaw as InterviewDurationMinutes)
+    : 45;
   const type = (typeof b.type === 'string' ? b.type.trim().toLowerCase() : '') as InterviewType;
   const locationOrLink = typeof b.locationOrLink === 'string' ? b.locationOrLink.trim() || undefined : undefined;
   const notes = typeof b.notes === 'string' ? b.notes.trim() || undefined : undefined;
@@ -149,6 +186,7 @@ export async function POST(request: NextRequest) {
       data: {
         applicationId,
         scheduledAt,
+        durationMinutes,
         type,
         locationOrLink,
         notes,
@@ -167,10 +205,13 @@ export async function POST(request: NextRequest) {
       id: interview.id,
       applicationId: interview.applicationId,
       scheduledAt: interview.scheduledAt.toISOString(),
+      durationMinutes: interview.durationMinutes,
       type: interview.type as InterviewType,
       locationOrLink: interview.locationOrLink,
       notes: interview.notes,
       status: interview.status,
+      inviteSentAt: interview.inviteSentAt?.toISOString() ?? null,
+      officialLetterPath: interview.officialLetterPath,
       createdAt: interview.createdAt.toISOString(),
       updatedAt: interview.updatedAt.toISOString(),
       application: {

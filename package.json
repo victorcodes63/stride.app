@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:reset-for-go-live": "node prisma/reset-for-go-live.js",
     "db:seed-candidates": "node prisma/seed-candidates.js",
     "db:seed-insights": "node prisma/seed-insights.js",
     "db:update-resume-paths": "node prisma/update-resume-paths.js",
