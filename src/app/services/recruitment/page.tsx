@@ -240,48 +240,44 @@ export default function RecruitmentPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.6 }}
                 viewport={{ once: true }}
-                className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-neutral-100 hover:border-primary-200"
+                className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-neutral-100 hover:border-primary-200 overflow-hidden"
               >
-                <div className="flex h-full">
-                  {/* Image Side - Wider */}
-                  <div className="relative w-64 flex-shrink-0 rounded-l-xl overflow-hidden">
+                <div className="flex flex-col md:flex-row h-full min-w-0">
+                  {/* Image: full width on mobile, fixed width on desktop */}
+                  <div className="relative w-full md:w-64 h-48 md:h-auto md:min-h-[200px] flex-shrink-0 rounded-t-xl md:rounded-l-xl md:rounded-tr-none overflow-hidden">
                     <img
                       src={service.image}
                       alt={service.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
                       }}
                     />
-                    <div className={`absolute inset-0 bg-gradient-to-br ${service.bgColor} opacity-90 flex items-center justify-center hidden`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${service.bgColor} opacity-90 hidden items-center justify-center`}>
                       <div className="w-16 h-16 bg-white/20 flex items-center justify-center">
                         <service.icon className="w-8 h-8 text-white" />
                       </div>
-                </div>
-                
-                    {/* Overlay with icon */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-20`}></div>
-                    <div className="absolute top-4 right-4 w-10 h-10 bg-white/90 flex items-center justify-center backdrop-blur-sm">
+                    </div>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-20`} />
+                    <div className="absolute top-4 right-4 w-10 h-10 bg-white/90 flex items-center justify-center backdrop-blur-sm rounded-lg">
                       <service.icon className="w-5 h-5 text-primary-900" />
-                </div>
-              </div>
-              
-                  {/* Content Side - Larger */}
-                  <div className="flex-1 p-8 flex flex-col justify-center rounded-r-xl">
-                    <h3 className="text-2xl font-semibold text-primary-900 mb-4">
+                    </div>
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center min-w-0 rounded-b-xl md:rounded-r-xl md:rounded-bl-none">
+                    <h3 className="text-xl sm:text-2xl font-semibold text-primary-900 mb-3 sm:mb-4">
                       {service.title}
                     </h3>
-                    
-                    <p className="text-neutral-600 mb-6 leading-relaxed">
+                    <p className="text-neutral-600 mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base">
                       {service.description}
                     </p>
-                    
-                    <ul className="space-y-3">
+                    <ul className="space-y-2 sm:space-y-3">
                       {service.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-center text-neutral-600">
+                        <li key={featureIndex} className="flex items-center text-neutral-600 text-sm sm:text-base">
                           <CheckCircle className="w-5 h-5 text-secondary-500 mr-3 flex-shrink-0" />
-                          {feature}
+                          <span className="min-w-0">{feature}</span>
                         </li>
                       ))}
                     </ul>
