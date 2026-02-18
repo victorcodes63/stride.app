@@ -89,6 +89,41 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = (siteUrl: string) => ({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${siteUrl}/#organization`,
+      name: 'Eagle HR Consultants',
+      url: siteUrl,
+      logo: { '@type': 'ImageObject', url: `${siteUrl}/images/logo/logo_dark_ubxaCll.png` },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: '+254-700-178-680',
+        contactType: 'customer service',
+        email: 'info@eaglehr.co.ke',
+        areaServed: 'KE',
+      },
+      sameAs: [],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      url: siteUrl,
+      name: 'Eagle HR Consultants',
+      description: "Transform your organization with Kenya's premier HR consulting firm. Expert recruitment, training, HR outsourcing, and advisory services.",
+      publisher: { '@id': `${siteUrl}/#organization` },
+      inLanguage: 'en-KE',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: { '@type': 'EntryPoint', urlTemplate: `${siteUrl}/careers?keyword={search_term_string}` },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -97,6 +132,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={figtree.variable}>
       <body className="font-sans antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteUrl)) }}
+        />
         {children}
         <CookieConsent />
       </body>
