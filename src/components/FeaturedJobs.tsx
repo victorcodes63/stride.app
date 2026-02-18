@@ -230,7 +230,7 @@ const FeaturedJobs = () => {
                 </div>
 
                 <Link
-                  href={`/careers/apply/${job.id}`}
+                  href={`/careers/apply/${job.slug ?? job.id}`}
                   className="w-full bg-primary-900 text-white py-2.5 md:py-2 px-4 rounded-lg font-medium hover:bg-primary-800 transition-colors duration-200 flex items-center justify-center group text-sm md:text-base mt-auto"
                 >
                   Apply Now

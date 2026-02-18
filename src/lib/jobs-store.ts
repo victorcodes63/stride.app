@@ -4,10 +4,12 @@
 import { JobListing } from '@/types/ats';
 import type { JobSummary } from '@/types/dashboard';
 import { getInMemoryClientById } from './clients-store';
+import { jobSlugBase } from './slug';
 
 type StoredJob = {
   id: string;
   referenceId?: string;
+  slug?: string;
   title: string;
   company: string;
   location: string;
@@ -51,6 +53,7 @@ function toListing(j: StoredJob, maskAnonymous = false): JobListing {
   return {
     id: j.id,
     referenceId: j.referenceId ?? undefined,
+    slug: j.slug ?? undefined,
     title: j.title,
     company,
     location: j.location,
@@ -98,6 +101,12 @@ export function getInMemoryJobs(activeOnly?: boolean, maskAnonymous = false): Jo
 
 export function getInMemoryJobById(id: string, maskAnonymous = false): JobListing | null {
   const j = jobs.find((x) => x.id === id);
+  return j ? toListing(j, maskAnonymous) : null;
+}
+
+/** Find job by id or slug (for public apply URL resolution). */
+export function getInMemoryJobBySlugOrId(slugOrId: string, maskAnonymous = false): JobListing | null {
+  const j = jobs.find((x) => x.id === slugOrId || x.slug === slugOrId);
   return j ? toListing(j, maskAnonymous) : null;
 }
 
@@ -158,6 +167,7 @@ export function updateInMemoryJob(id: string, input: UpdateJobInput): JobListing
     ...(input.concealCompany !== undefined && { concealCompany: input.concealCompany }),
     ...(input.salaryPublic !== undefined && { salaryPublic: input.salaryPublic }),
     ...(input.applicationDeadline !== undefined && { applicationDeadline: input.applicationDeadline }),
+    ...(input.slug !== undefined && { slug: input.slug }),
   };
   jobs[index] = updated;
   return toListing(updated, false);
@@ -185,6 +195,7 @@ export interface CreateJobInput {
   concealCompany?: boolean;
   salaryPublic?: boolean;
   applicationDeadline?: string | null;
+  slug?: string;
 }
 
 export function createInMemoryJob(input: CreateJobInput): JobListing {
@@ -194,9 +205,12 @@ export function createInMemoryJob(input: CreateJobInput): JobListing {
   const nextNum = sameYear.length + 1;
   const referenceId = `JOB-${year}-${String(nextNum).padStart(4, '0')}`;
   const now = new Date().toISOString();
+  const slug =
+    input.slug ?? jobSlugBase(input.title, input.location, id.replace(/^mem-/, ''));
   const job: StoredJob = {
     id,
     referenceId,
+    slug,
     title: input.title,
     company: input.company,
     location: input.location,

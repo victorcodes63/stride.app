@@ -307,7 +307,7 @@ export default function DashboardJobsPage() {
                           Edit
                         </Link>
                         <a
-                          href={`/careers/apply/${job.id}`}
+                          href={`/careers/apply/${job.slug ?? job.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"

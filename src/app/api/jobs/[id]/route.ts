@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getInMemoryJobById, getInMemoryJobRaw, updateInMemoryJob, UpdateJobInput } from '@/lib/jobs-store';
+import { getInMemoryJobById, getInMemoryJobBySlugOrId, getInMemoryJobRaw, updateInMemoryJob, UpdateJobInput } from '@/lib/jobs-store';
 import { JobListing } from '@/types/ats';
+import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 
 type PrismaJobForListing = {
   id: string;
   referenceId: string | null;
+  slug: string | null;
   title: string;
   company: string;
   location: string;
@@ -40,6 +42,7 @@ function prismaJobToListing(job: PrismaJobForListing): JobListing {
   return {
     id: job.id,
     referenceId: job.referenceId ?? undefined,
+    slug: job.slug ?? undefined,
     title: job.title,
     company: job.company,
     location: job.location,
@@ -73,10 +76,17 @@ export async function GET(
 
   try {
     if (process.env.DATABASE_URL) {
-      const job = await prisma.job.findUnique({
+      // Try by id first (supports existing CUID links and bookmarks), then by slug
+      let job = await prisma.job.findUnique({
         where: { id },
         include: { client: true, _count: { select: { applications: true } } },
       });
+      if (!job && id) {
+        job = await prisma.job.findUnique({
+          where: { slug: id },
+          include: { client: true, _count: { select: { applications: true } } },
+        });
+      }
       if (job) {
         const listing = prismaJobToListing(job as unknown as PrismaJobForListing);
         if (!internal) {
@@ -124,7 +134,7 @@ export async function GET(
       });
     }
   } else {
-    const job = getInMemoryJobById(id, true);
+    const job = getInMemoryJobById(id, true) ?? getInMemoryJobBySlugOrId(id, true);
     if (job) return NextResponse.json(job);
   }
   return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -292,28 +302,47 @@ export async function PATCH(
 
   try {
     if (process.env.DATABASE_URL) {
+      const existing = await prisma.job.findUnique({
+        where: { id },
+        select: { slug: true, title: true, location: true },
+      });
+      const updateData: Record<string, unknown> = {
+        ...(payload.title !== undefined && { title: payload.title }),
+        ...(payload.company !== undefined && { company: payload.company }),
+        ...(payload.clientId !== undefined && { clientId: payload.clientId }),
+        ...(payload.location !== undefined && { location: payload.location }),
+        ...(payload.type !== undefined && { type: payload.type }),
+        ...(payload.category !== undefined && { category: payload.category }),
+        ...(payload.description !== undefined && { description: payload.description }),
+        ...(payload.requirements !== undefined && { requirements: payload.requirements }),
+        ...(payload.responsibilities !== undefined && { responsibilities: payload.responsibilities }),
+        ...(payload.benefits !== undefined && { benefits: payload.benefits }),
+        ...(payload.concealCompany !== undefined && { concealCompany: payload.concealCompany }),
+        ...(payload.salaryPublic !== undefined && { salaryPublic: payload.salaryPublic }),
+        ...(payload.salary !== undefined && { salary: payload.salary }),
+        ...(payload.applicationDeadline !== undefined && { applicationDeadline: payload.applicationDeadline }),
+        ...(payload.minYearsExperience !== undefined && { minYearsExperience: payload.minYearsExperience }),
+        ...(payload.educationLevel !== undefined && { educationLevel: payload.educationLevel }),
+        ...(payload.educationQualification !== undefined && { educationQualification: payload.educationQualification }),
+        ...(payload.requiredCertifications !== undefined && { requiredCertifications: payload.requiredCertifications }),
+      };
+      if (existing?.slug == null) {
+        const baseSlug = jobSlugBase(
+          payload.title ?? existing.title,
+          payload.location ?? existing.location,
+          id.slice(0, 8)
+        );
+        const slug = await ensureUniqueSlug(baseSlug, async (s) => {
+          const other = await prisma.job.findFirst({
+            where: { slug: s, id: { not: id } },
+          });
+          return !!other;
+        });
+        updateData.slug = slug;
+      }
       const job = await prisma.job.update({
         where: { id },
-        data: {
-          ...(payload.title !== undefined && { title: payload.title }),
-          ...(payload.company !== undefined && { company: payload.company }),
-          ...(payload.clientId !== undefined && { clientId: payload.clientId }),
-          ...(payload.location !== undefined && { location: payload.location }),
-          ...(payload.type !== undefined && { type: payload.type }),
-          ...(payload.category !== undefined && { category: payload.category }),
-          ...(payload.description !== undefined && { description: payload.description }),
-          ...(payload.requirements !== undefined && { requirements: payload.requirements }),
-          ...(payload.responsibilities !== undefined && { responsibilities: payload.responsibilities }),
-          ...(payload.benefits !== undefined && { benefits: payload.benefits }),
-          ...(payload.concealCompany !== undefined && { concealCompany: payload.concealCompany }),
-          ...(payload.salaryPublic !== undefined && { salaryPublic: payload.salaryPublic }),
-          ...(payload.salary !== undefined && { salary: payload.salary }),
-          ...(payload.applicationDeadline !== undefined && { applicationDeadline: payload.applicationDeadline }),
-          ...(payload.minYearsExperience !== undefined && { minYearsExperience: payload.minYearsExperience }),
-          ...(payload.educationLevel !== undefined && { educationLevel: payload.educationLevel }),
-          ...(payload.educationQualification !== undefined && { educationQualification: payload.educationQualification }),
-          ...(payload.requiredCertifications !== undefined && { requiredCertifications: payload.requiredCertifications }),
-        },
+        data: updateData as Parameters<typeof prisma.job.update>[0]['data'],
       });
       const listing = prismaJobToListing(job as unknown as PrismaJobForListing);
       return NextResponse.json(listing);

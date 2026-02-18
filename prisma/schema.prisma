@@ -30,6 +30,7 @@ model Client {
 model Job {
   id                String   @id @default(cuid())
   referenceId       String?  @unique // human-readable e.g. JOB-2026-0001; generated on create
+  slug              String?  @unique // URL-safe e.g. senior-accountant-nairobi; used for /careers/apply/[slug]
   title             String
   company           String   // display name: client name or "Confidential" when client.isAnonymous
   location          String
@@ -66,6 +67,7 @@ model Job {
   @@index([location])
   @@index([clientId])
   @@index([referenceId])
+  @@index([slug])
 }
 
 model Candidate {

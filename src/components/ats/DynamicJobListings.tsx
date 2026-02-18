@@ -413,7 +413,7 @@ const DynamicJobListings = ({
                         {/* Apply Button */}
                         <div className="mt-6 pt-6 border-t border-neutral-300">
                           <a
-                            href={`/careers/apply/${job.id}`}
+                            href={`/careers/apply/${job.slug ?? job.id}`}
                             className="group inline-flex items-center bg-primary-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-800 transition-all duration-300"
                           >
                             Apply for This Position

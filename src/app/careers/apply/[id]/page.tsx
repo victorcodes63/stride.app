@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import JobApplicationForm from '@/components/ats/JobApplicationForm';
@@ -12,7 +12,8 @@ import Link from 'next/link';
 
 export default function JobApplicationPage() {
   const params = useParams();
-  const jobId = params.id as string;
+  const router = useRouter();
+  const slugOrId = params.id as string;
   const [job, setJob] = useState<JobListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -22,11 +23,11 @@ export default function JobApplicationPage() {
 
   useEffect(() => {
     const fetchJob = async () => {
-      if (!jobId) return;
+      if (!slugOrId) return;
 
       setLoading(true);
       try {
-        const jobData = await getJobById(jobId);
+        const jobData = await getJobById(slugOrId);
         setJob(jobData);
       } catch (error) {
         console.error('Error fetching job:', error);
@@ -36,7 +37,13 @@ export default function JobApplicationPage() {
     };
 
     fetchJob();
-  }, [jobId, getJobById]);
+  }, [slugOrId, getJobById]);
+
+  // Redirect to canonical slug URL when user landed on CUID (old or shared link)
+  useEffect(() => {
+    if (!job?.slug || slugOrId === job.slug) return;
+    router.replace(`/careers/apply/${job.slug}`, { scroll: false });
+  }, [job?.slug, slugOrId, router]);
 
   const handleApplicationSuccess = () => {
     setApplicationSubmitted(true);

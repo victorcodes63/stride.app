@@ -6,10 +6,12 @@ import {
   CreateJobInput,
 } from '@/lib/jobs-store';
 import { JobListing } from '@/types/ats';
+import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 
 type PrismaJobForListing = {
   id: string;
   referenceId: string | null;
+  slug: string | null;
   title: string;
   company: string;
   location: string;
@@ -44,6 +46,7 @@ function prismaJobToListing(job: PrismaJobForListing): JobListing {
   return {
     id: job.id,
     referenceId: job.referenceId ?? undefined,
+    slug: job.slug ?? undefined,
     title: job.title,
     company: job.company,
     location: job.location,
@@ -299,9 +302,16 @@ export async function POST(request: NextRequest) {
         : (parseInt(existing[0].referenceId?.replace(prefix, '') || '0', 10) + 1);
       const referenceId = `${prefix}${String(nextNum).padStart(4, '0')}`;
 
+      const baseSlug = jobSlugBase(input.title, input.location);
+      const slug = await ensureUniqueSlug(baseSlug, async (s) => {
+        const existing = await prisma.job.findUnique({ where: { slug: s } });
+        return !!existing;
+      });
+
       const job = await prisma.job.create({
         data: {
           referenceId,
+          slug,
           title: input.title,
           company: input.company,
           location: input.location,

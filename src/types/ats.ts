@@ -2,6 +2,7 @@
 export interface JobListing {
   id: string;
   referenceId?: string; // e.g. JOB-2026-0001 for ease of reference
+  slug?: string; // URL-safe e.g. senior-accountant-nairobi for /careers/apply/[slug]
   title: string;
   company: string;
   location: string;
