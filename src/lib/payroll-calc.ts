@@ -1,9 +1,10 @@
 /**
- * Kenyan payroll statutory calculations.
- * PAYE, NSSF, NHIF - auto-calculated but overridable by user.
+ * Kenyan payroll statutory calculations (2024/2026).
+ * PAYE, NSSF, SHIF - auto-calculated but overridable by user.
+ * Note: The nhif field stores SHIF (2.75% of gross) - Kenya migrated from NHIF to SHIF.
  */
 
-// PAYE brackets (monthly, KES) - 2023 onwards
+// PAYE brackets (monthly, KES) - Kenya 2024/2026
 const PAYE_BRACKETS = [
   { max: 24_000, rate: 0.1 },
   { max: 32_333, rate: 0.25 },
@@ -13,49 +14,21 @@ const PAYE_BRACKETS = [
 ];
 const PERSONAL_RELIEF = 2_400;
 
-// NSSF Tier I: 400 employee contribution (up to 8k pensionable). Tier II: 6% of (pensionable - 8000), capped. Max total 4320.
+// NSSF 2024/2026: Tier I = 6% of first 9k (max 540), Tier II = 6% of next 99k (max 5940), pensionable cap 108k
 function calcNSSF(grossPay: number): number {
-  const pensionable = Math.min(grossPay, 72_000); // cap pensionable earnings
-  if (pensionable <= 8_000) return 400;
-  const tierI = 400;
-  const tierII = Math.min((pensionable - 8_000) * 0.06, 3_920);
-  return Math.min(Math.round(tierI + tierII), 4_320);
+  const pensionable = Math.min(grossPay, 108_000);
+  const tierI = Math.min(pensionable, 9_000) * 0.06;
+  const tierII = Math.max(0, Math.min(pensionable - 9_000, 99_000)) * 0.06;
+  return Math.round(tierI + tierII);
 }
 
-// NHIF brackets (monthly gross, KES) - traditional rates
-const NHIF_BRACKETS: { min: number; amount: number }[] = [
-  { min: 0, amount: 150 },
-  { min: 6_000, amount: 300 },
-  { min: 8_000, amount: 400 },
-  { min: 12_000, amount: 500 },
-  { min: 15_000, amount: 600 },
-  { min: 20_000, amount: 750 },
-  { min: 25_000, amount: 850 },
-  { min: 30_000, amount: 900 },
-  { min: 35_000, amount: 950 },
-  { min: 40_000, amount: 1_000 },
-  { min: 45_000, amount: 1_100 },
-  { min: 50_000, amount: 1_200 },
-  { min: 60_000, amount: 1_400 },
-  { min: 70_000, amount: 1_500 },
-  { min: 80_000, amount: 1_600 },
-  { min: 90_000, amount: 1_700 },
-  { min: 100_000, amount: 1_800 },
-];
-
-function calcNHIF(grossPay: number): number {
-  let amount = 150;
-  for (let i = NHIF_BRACKETS.length - 1; i >= 0; i--) {
-    if (grossPay >= NHIF_BRACKETS[i].min) {
-      amount = NHIF_BRACKETS[i].amount;
-      break;
-    }
-  }
-  return amount;
+// SHIF (Social Health Insurance Fund) - 2.75% of gross, replaces NHIF
+function calcSHIF(grossPay: number): number {
+  return Math.round(grossPay * 0.0275);
 }
 
-function calcPAYE(grossPay: number, nssf: number, nhif: number): number {
-  const taxableIncome = Math.max(0, grossPay - nssf - nhif);
+function calcPAYE(grossPay: number, nssf: number, shif: number): number {
+  const taxableIncome = Math.max(0, grossPay - nssf - shif);
   let paye = 0;
   let remaining = taxableIncome;
   let prevMax = 0;
@@ -84,8 +57,8 @@ export function calculateStatutory(
   otherDeductionsTotal: number = 0
 ): StatutoryResult {
   const nssf = calcNSSF(grossPay);
-  const nhif = calcNHIF(grossPay);
-  const paye = calcPAYE(grossPay, nssf, nhif);
-  const netPay = grossPay - paye - nssf - nhif - otherDeductionsTotal;
-  return { grossPay, paye, nssf, nhif, netPay };
+  const shif = calcSHIF(grossPay);
+  const paye = calcPAYE(grossPay, nssf, shif);
+  const netPay = grossPay - paye - nssf - shif - otherDeductionsTotal;
+  return { grossPay, paye, nssf, nhif: shif, netPay };
 }

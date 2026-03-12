@@ -212,7 +212,7 @@ export default function PayrollEditModal({
               <div>
                 <h3 className="text-sm font-semibold text-primary-900 mb-2">Statutory deductions (editable)</h3>
                 <p className="text-xs text-neutral-500 mb-3">
-                  PAYE, NSSF, NHIF are auto-calculated. Override if needed. Click &quot;Recalculate&quot; to apply Kenyan rates.
+                  PAYE, NSSF, SHIF are auto-calculated. Override if needed. Click &quot;Recalculate&quot; to apply Kenyan rates.
                 </p>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -238,7 +238,7 @@ export default function PayrollEditModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-600 mb-1">NHIF (KES)</label>
+                    <label className="block text-xs font-medium text-neutral-600 mb-1">SHIF (KES)</label>
                     <input
                       type="number"
                       value={nhif}

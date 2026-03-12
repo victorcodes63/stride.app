@@ -18,75 +18,85 @@ export default function NetSalaryCalculator() {
   
   const [results, setResults] = useState({
     netPay: 0,
+    totalTaxableIncome: 0,
+    taxablePay: 0,
     paye: 0,
     shif: 0,
     nssfTierI: 0,
     nssfTierII: 0,
     housingLevy: 0,
+    rent: 0,
     totalDeductions: 0
   });
 
-  // Tax brackets for 2025 (Kenya)
-  const taxBrackets = [
-    { min: 0, max: 288000, rate: 0.1 },
-    { min: 288000, max: 388000, rate: 0.25 },
-    { min: 388000, max: 6000000, rate: 0.3 },
-    { min: 6000000, max: Infinity, rate: 0.35 }
+  // PAYE brackets (monthly, KES) - Kenya 2024/2025
+  const PAYE_BRACKETS = [
+    { max: 24_000, rate: 0.1 },
+    { max: 32_333, rate: 0.25 },
+    { max: 500_000, rate: 0.3 },
+    { max: 800_000, rate: 0.325 },
+    { max: Infinity, rate: 0.35 },
   ];
+  const PERSONAL_RELIEF = 2_400;
+
+  // NSSF 2024/2026: Tier I = 6% of first 9k (max 540), Tier II = 6% of next 99k (max 5940), pensionable cap 108k
+  const calcNSSF = (gross: number) => {
+    const pensionable = Math.min(gross, 108_000);
+    const tierI = Math.min(pensionable, 9_000) * 0.06;
+    const tierII = Math.max(0, Math.min(pensionable - 9_000, 99_000)) * 0.06;
+    return { tierI: Math.round(tierI), tierII: Math.round(tierII) };
+  };
 
   const calculateNetSalary = () => {
-    const grossPayValue = parseFloat(grossPay) || 0;
-    const nonCashBenefitsValue = parseFloat(nonCashBenefits) || 0;
-    const housingValueAmount = parseFloat(housingValue) || 0;
-    const rentPaidAmount = parseFloat(rentPaid) || 0;
+    const grossPayValue = parseFloat(grossPay.replace(/,/g, '')) || 0;
+    const nonCashBenefitsValue = parseFloat(nonCashBenefits.replace(/,/g, '')) || 0;
+    const housingValueAmount = parseFloat(housingValue.replace(/,/g, '')) || 0;
+    const rentPaidAmount = parseFloat(rentPaid.replace(/,/g, '')) || 0;
 
-    // Calculate taxable benefits
+    // Taxable benefits: non-cash (with 5k exemption if opted) + housing benefit (value - rent)
     let taxableBenefits = nonCashBenefitsValue;
-    if (ignoreFirst5000 && taxableBenefits > 5000) {
-      taxableBenefits = taxableBenefits - 5000;
-    }
+    if (ignoreFirst5000 && taxableBenefits > 5000) taxableBenefits -= 5000;
+    const housingBenefitTaxable = Math.max(0, housingValueAmount - rentPaidAmount);
+    taxableBenefits += housingBenefitTaxable;
 
-    // Calculate housing benefit
-    const housingBenefit = Math.max(0, housingValueAmount - rentPaidAmount);
-    taxableBenefits += housingBenefit;
-
-    // Calculate total taxable income
     const totalTaxableIncome = grossPayValue + taxableBenefits;
 
-    // Calculate PAYE
-    let paye = 0;
-    let remainingIncome = totalTaxableIncome;
-    
-    for (const bracket of taxBrackets) {
-      if (remainingIncome <= 0) break;
-      
-      const taxableInThisBracket = Math.min(remainingIncome, bracket.max - bracket.min);
-      if (taxableInThisBracket > 0) {
-        paye += taxableInThisBracket * bracket.rate;
-        remainingIncome -= taxableInThisBracket;
-      }
-    }
+    const nssfFull = calcNSSF(grossPayValue);
+    const nssf = { tierI: nssfFull.tierI, tierII: deductTierII ? nssfFull.tierII : 0 };
 
-    // Calculate other deductions
     const shif = deductSHIF ? grossPayValue * 0.0275 : 0;
-    const nssfTierI = grossPayValue * 0.06; // NSSF Tier I is always 6%
-    const nssfTierII = deductTierII ? grossPayValue * 0.03 : 0;
     const housingLevy = deductHousingLevy ? grossPayValue * 0.015 : 0;
+    const nssfTotal = nssf.tierI + nssf.tierII;
 
-    // Calculate total deductions
-    const totalDeductions = paye + shif + nssfTierI + nssfTierII + housingLevy;
+    // Taxable Pay for PAYE = Total Taxable Income - NSSF - SHIF - Housing Levy
+    const taxablePay = Math.max(0, totalTaxableIncome - nssfTotal - shif - housingLevy);
 
-    // Calculate net pay
+    let payeBeforeRelief = 0;
+    let remaining = taxablePay;
+    let prevMax = 0;
+    for (const b of PAYE_BRACKETS) {
+      if (remaining <= 0) break;
+      const band = Math.min(remaining, b.max - prevMax);
+      if (band > 0) payeBeforeRelief += band * b.rate;
+      remaining -= band;
+      prevMax = b.max;
+    }
+    const paye = Math.max(0, payeBeforeRelief - PERSONAL_RELIEF);
+
+    const totalDeductions = paye + shif + nssf.tierI + nssf.tierII + housingLevy + rentPaidAmount;
     const netPay = grossPayValue - totalDeductions;
 
     setResults({
-      netPay: Math.round(netPay),
-      paye: Math.round(paye),
-      shif: Math.round(shif),
-      nssfTierI: Math.round(nssfTierI),
-      nssfTierII: Math.round(nssfTierII),
-      housingLevy: Math.round(housingLevy),
-      totalDeductions: Math.round(totalDeductions)
+      netPay: Math.round(netPay * 100) / 100,
+      totalTaxableIncome: Math.round(totalTaxableIncome * 100) / 100,
+      taxablePay: Math.round(taxablePay * 100) / 100,
+      paye: Math.round(paye * 100) / 100,
+      shif: Math.round(shif * 100) / 100,
+      nssfTierI: nssf.tierI,
+      nssfTierII: nssf.tierII,
+      housingLevy: Math.round(housingLevy * 100) / 100,
+      rent: rentPaidAmount,
+      totalDeductions: Math.round(totalDeductions * 100) / 100,
     });
   };
 
@@ -304,7 +314,7 @@ export default function NetSalaryCalculator() {
                     <div className="flex justify-between items-center">
                       <span className="text-primary-900 font-semibold">Gross Pay:</span>
                       <span className="text-xl font-bold text-primary-900">
-                        {formatCurrency(parseFloat(grossPay) || 0)}
+                        {formatCurrency(parseFloat(String(grossPay).replace(/,/g, '')) || 0)}
                       </span>
                     </div>
                   </div>
@@ -312,29 +322,39 @@ export default function NetSalaryCalculator() {
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">PAYE:</span>
+                        <span className="text-neutral-700">Total Taxable Income:</span>
+                        <span className="font-semibold text-neutral-900">{formatCurrency(results.totalTaxableIncome)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-neutral-500">
+                        <span>Taxable Pay (for PAYE):</span>
+                        <span>{formatCurrency(results.taxablePay)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-700">PAYE (incl. KSh 2,400 relief):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.paye)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">SHIF:</span>
+                        <span className="text-neutral-700">SHIF (2.75%):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.shif)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">NSSF Tier I:</span>
+                        <span className="text-neutral-700">NSSF Tier I (6% of first 9k):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.nssfTierI)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">NSSF Tier II:</span>
+                        <span className="text-neutral-700">NSSF Tier II (6% of next 99k):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.nssfTierII)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">Housing Levy:</span>
+                        <span className="text-neutral-700">Housing Levy (1.5%):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.housingLevy)}</span>
                       </div>
+                      {results.rent > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-700">Rent (to employer):</span>
+                          <span className="font-semibold text-neutral-900">{formatCurrency(results.rent)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -363,7 +383,7 @@ export default function NetSalaryCalculator() {
                     <Info className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-neutral-700">
                       <p className="font-semibold mb-1 text-primary-900">Calculation Note:</p>
-                      <p>This calculator uses current Kenya tax rates for 2025. Results are estimates and may vary based on specific circumstances.</p>
+                      <p>Based on Kenya 2024/2025: PAYE (monthly brackets, KSh 2,400 relief), NSSF Tier I (6% of first 9k) & II (6% of next 99k), SHIF 2.75%, Housing Levy 1.5%. Estimates only.</p>
                     </div>
                   </div>
                 </div>

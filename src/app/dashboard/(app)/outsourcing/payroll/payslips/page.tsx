@@ -246,7 +246,7 @@ function PayslipsContent() {
                           <td className="text-right tabular-nums">KES {formatAmount(p.nssf)}</td>
                         </tr>
                         <tr>
-                          <td className="py-1 print:py-0">NHIF</td>
+                          <td className="py-1 print:py-0">SHIF</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.nhif)}</td>
                         </tr>
                         {Array.isArray(p.deductions) && p.deductions.length > 0 && p.deductions.map((d, i) => (

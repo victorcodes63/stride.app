@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       updated,
-      message: `Recalculated statutory deductions (PAYE, NSSF, NHIF) for ${updated} payroll record(s).`,
+      message: `Recalculated statutory deductions (PAYE, NSSF, SHIF) for ${updated} payroll record(s).`,
     });
   } catch (e) {
     console.error('[payroll recalculate-statutory]', e);

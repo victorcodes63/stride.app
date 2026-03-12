@@ -354,7 +354,7 @@ export default function OutsourcingPayrollPage() {
               type="button"
               onClick={handleRecalculateStatutory}
               disabled={payrolls.length === 0 || recalculating}
-              title="Recalculate PAYE, NSSF, NHIF for all employees in scope using current Kenyan rates"
+              title="Recalculate PAYE, NSSF, SHIF for all employees in scope using current Kenyan rates"
               className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
@@ -390,7 +390,7 @@ export default function OutsourcingPayrollPage() {
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Gross</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">PAYE</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">NSSF</th>
-                  <th className="text-right px-4 py-3 font-medium text-neutral-600">NHIF</th>
+                  <th className="text-right px-4 py-3 font-medium text-neutral-600">SHIF</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Net pay</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Status</th>
                   <th className="w-10 px-4 py-3 text-center font-medium text-neutral-600">Edit</th>

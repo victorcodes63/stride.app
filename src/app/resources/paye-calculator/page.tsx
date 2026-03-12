@@ -15,50 +15,53 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+// NSSF 2024/2026: Tier I = 6% of first 9k, Tier II = 6% of next 99k, pensionable cap 108k
+const calcNSSF = (gross: number) => {
+  const pensionable = Math.min(gross, 108_000);
+  const tierI = Math.min(pensionable, 9_000) * 0.06;
+  const tierII = Math.max(0, Math.min(pensionable - 9_000, 99_000)) * 0.06;
+  return Math.round(tierI + tierII);
+};
+const calcSHIF = (gross: number) => Math.round(gross * 0.0275);
+
+const PAYE_BRACKETS = [
+  { max: 24_000, rate: 0.1 },
+  { max: 32_333, rate: 0.25 },
+  { max: 500_000, rate: 0.3 },
+  { max: 800_000, rate: 0.325 },
+  { max: Infinity, rate: 0.35 },
+];
+const PERSONAL_RELIEF = 2_400;
+
 export default function PAYECalculatorPage() {
   const [grossSalary, setGrossSalary] = useState('');
-  const [nssfContribution, setNssfContribution] = useState('');
-  const [nhifContribution, setNhifContribution] = useState('');
-  const [personalRelief, setPersonalRelief] = useState('2400'); // 2024 personal relief
   const [results, setResults] = useState<any>(null);
 
   const calculatePAYE = () => {
-    const gross = parseFloat(grossSalary) || 0;
-    const nssf = parseFloat(nssfContribution) || 0;
-    const nhif = parseFloat(nhifContribution) || 0;
-    const relief = parseFloat(personalRelief) || 0;
+    const gross = parseFloat(String(grossSalary).replace(/,/g, '')) || 0;
+    const nssf = calcNSSF(gross);
+    const shif = calcSHIF(gross);
+    const taxablePay = Math.max(0, gross - nssf - shif);
 
-    // Calculate taxable income
-    const taxableIncome = gross - nssf - nhif;
-
-    // PAYE calculation based on 2024 tax brackets
-    let paye = 0;
-    if (taxableIncome <= 288000) {
-      paye = taxableIncome * 0.1; // 10% for first 288,000
-    } else if (taxableIncome <= 388000) {
-      paye = 28800 + (taxableIncome - 288000) * 0.25; // 10% + 25% for next 100,000
-    } else if (taxableIncome <= 688000) {
-      paye = 53800 + (taxableIncome - 388000) * 0.3; // Previous + 30% for next 300,000
-    } else if (taxableIncome <= 1088000) {
-      paye = 143800 + (taxableIncome - 688000) * 0.325; // Previous + 32.5% for next 400,000
-    } else {
-      paye = 273800 + (taxableIncome - 1088000) * 0.35; // Previous + 35% for above
+    let paye = 0, r = taxablePay, prev = 0;
+    for (const b of PAYE_BRACKETS) {
+      const band = Math.min(r, b.max - prev);
+      if (band > 0) paye += band * b.rate;
+      r -= band;
+      prev = b.max;
     }
-
-    // Apply personal relief
-    const finalPAYE = Math.max(0, paye - relief);
-
-    const netSalary = gross - nssf - nhif - finalPAYE;
+    const finalPAYE = Math.max(0, paye - PERSONAL_RELIEF);
+    const netSalary = gross - nssf - shif - finalPAYE;
 
     setResults({
       grossSalary: gross,
       nssfContribution: nssf,
-      nhifContribution: nhif,
-      personalRelief: relief,
-      taxableIncome: taxableIncome,
+      shifContribution: shif,
+      personalRelief: PERSONAL_RELIEF,
+      taxableIncome: taxablePay,
       paye: finalPAYE,
       netSalary: netSalary,
-      totalDeductions: nssf + nhif + finalPAYE
+      totalDeductions: nssf + shif + finalPAYE
     });
   };
 
@@ -66,17 +69,17 @@ export default function PAYECalculatorPage() {
     {
       icon: Info,
       title: 'Personal Relief',
-      description: 'KSh 2,400 per month (2024) - Reduces your PAYE liability'
+      description: 'KSh 2,400 per month - Reduces your PAYE liability'
     },
     {
       icon: TrendingUp,
       title: 'Tax Brackets',
-      description: 'Progressive tax system: 10% to 35% based on income levels'
+      description: 'Progressive tax: 10% to 35% based on monthly taxable pay'
     },
     {
       icon: Shield,
-      title: 'NSSF & NHIF',
-      description: 'Mandatory contributions that reduce your taxable income'
+      title: 'NSSF & SHIF',
+      description: 'Auto-calculated. NSSF (Tier I & II), SHIF 2.75% of gross'
     },
     {
       icon: FileText,
@@ -89,20 +92,20 @@ export default function PAYECalculatorPage() {
     {
       title: 'NSSF (National Social Security Fund)',
       description: 'Mandatory social security contribution',
-      rate: '6% of gross salary (capped at KSh 1,800)',
-      details: 'Both employee and employer contribute 6% each'
+      rate: 'Tier I: 6% of first KSh 9,000. Tier II: 6% of next KSh 99,000',
+      details: 'Pensionable earnings capped at KSh 108,000'
     },
     {
-      title: 'NHIF (National Hospital Insurance Fund)',
-      description: 'Health insurance contribution',
-      rate: 'KSh 150 - KSh 1,700 per month',
-      details: 'Based on gross salary brackets'
+      title: 'SHIF (Social Health Insurance Fund)',
+      description: 'Health insurance contribution (replaces NHIF)',
+      rate: '2.75% of gross salary',
+      details: 'Mandatory for all employees'
     },
     {
       title: 'PAYE (Pay As You Earn)',
       description: 'Income tax deducted at source',
-      rate: '10% - 35% progressive rates',
-      details: 'Applied to taxable income after NSSF and NHIF deductions'
+      rate: '10% - 35% progressive (monthly brackets)',
+      details: 'Applied to taxable pay after NSSF and SHIF. KSh 2,400 relief.'
     }
   ];
 
@@ -161,44 +164,9 @@ export default function PAYECalculatorPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-primary-900 mb-2">
-                    NSSF Contribution (KSh)
-                  </label>
-                  <input
-                    type="number"
-                    value={nssfContribution}
-                    onChange={(e) => setNssfContribution(e.target.value)}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors duration-200"
-                    placeholder="Enter NSSF contribution"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary-900 mb-2">
-                    NHIF Contribution (KSh)
-                  </label>
-                  <input
-                    type="number"
-                    value={nhifContribution}
-                    onChange={(e) => setNhifContribution(e.target.value)}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors duration-200"
-                    placeholder="Enter NHIF contribution"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary-900 mb-2">
-                    Personal Relief (KSh)
-                  </label>
-                  <input
-                    type="number"
-                    value={personalRelief}
-                    onChange={(e) => setPersonalRelief(e.target.value)}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors duration-200"
-                    placeholder="Personal relief amount"
-                  />
-                </div>
+                <p className="text-sm text-neutral-500 -mt-2">
+                  NSSF and SHIF are auto-calculated from gross.
+                </p>
 
                 <button
                   onClick={calculatePAYE}
@@ -230,17 +198,17 @@ export default function PAYECalculatorPage() {
                   </div>
                   
                   <div className="flex justify-between items-center py-3 border-b border-neutral-200">
-                    <span className="text-neutral-600">NSSF Contribution:</span>
+                    <span className="text-neutral-600">NSSF:</span>
                     <span className="font-semibold text-red-600">-KSh {results.nssfContribution.toLocaleString()}</span>
                   </div>
                   
                   <div className="flex justify-between items-center py-3 border-b border-neutral-200">
-                    <span className="text-neutral-600">NHIF Contribution:</span>
-                    <span className="font-semibold text-red-600">-KSh {results.nhifContribution.toLocaleString()}</span>
+                    <span className="text-neutral-600">SHIF:</span>
+                    <span className="font-semibold text-red-600">-KSh {results.shifContribution.toLocaleString()}</span>
                   </div>
                   
                   <div className="flex justify-between items-center py-3 border-b border-neutral-200">
-                    <span className="text-neutral-600">Taxable Income:</span>
+                    <span className="text-neutral-600">Taxable Pay:</span>
                     <span className="font-semibold text-primary-900">KSh {results.taxableIncome.toLocaleString()}</span>
                   </div>
                   
@@ -250,8 +218,8 @@ export default function PAYECalculatorPage() {
                   </div>
                   
                   <div className="flex justify-between items-center py-3 border-b-2 border-primary-200">
-                    <span className="text-neutral-600">Personal Relief:</span>
-                    <span className="font-semibold text-green-600">+KSh {results.personalRelief.toLocaleString()}</span>
+                    <span className="text-neutral-600">Personal Relief (applied):</span>
+                    <span className="font-semibold text-green-600">KSh 2,400</span>
                   </div>
                   
                   <div className="bg-primary-50 p-4 rounded-lg">

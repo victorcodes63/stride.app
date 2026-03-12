@@ -199,7 +199,7 @@ export async function generatePayslipPdf(
   const deductionsRows: [string, string][] = [
     ['PAYE', fmt(data.paye)],
     ['NSSF', fmt(data.nssf)],
-    ['NHIF', fmt(data.nhif)],
+    ['SHIF', fmt(data.nhif)],
     ...(data.deductions ?? []).map((d) => [d.name, fmt(d.amount)]),
     ['Net pay', fmt(data.netPay)],
   ];

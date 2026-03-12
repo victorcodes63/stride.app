@@ -831,7 +831,7 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
               <tr><td colspan="2" style="padding:8px 0;font-weight:600;color:#0B1D39;border-bottom:1px solid #e5e7eb;">Deductions</td></tr>
               <tr><td style="padding:6px 0;color:#374151;">PAYE</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.paye)}</td></tr>
               <tr><td style="padding:6px 0;color:#374151;">NSSF</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.nssf)}</td></tr>
-              <tr><td style="padding:6px 0;color:#374151;">NHIF</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.nhif)}</td></tr>
+              <tr><td style="padding:6px 0;color:#374151;">SHIF</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.nhif)}</td></tr>
               ${deductionsRows}
               <tr><td style="padding:8px 0;font-weight:600;color:#0B1D39;border-top:1px solid #e5e7eb;">Net pay</td><td style="text-align:right;font-weight:600;color:#0B1D39;border-top:1px solid #e5e7eb;">KES ${formatPayslipAmount(data.netPay)}</td></tr>
             </table>

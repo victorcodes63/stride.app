@@ -9,6 +9,7 @@ import { Calculator, DollarSign, TrendingUp, Info, AlertCircle } from 'lucide-re
 export default function GrossSalaryCalculator() {
   const [netPay, setNetPay] = useState<string>('');
   const [nonCashBenefits, setNonCashBenefits] = useState<string>('');
+  const [allowableDeductions, setAllowableDeductions] = useState<string>('');
   const [housingValue, setHousingValue] = useState<string>('');
   const [rentPaid, setRentPaid] = useState<string>('');
   const [ignoreFirst5000, setIgnoreFirst5000] = useState<boolean>(true);
@@ -18,6 +19,7 @@ export default function GrossSalaryCalculator() {
   
   const [results, setResults] = useState({
     grossPay: 0,
+    taxablePay: 0,
     paye: 0,
     shif: 0,
     nssfTierI: 0,
@@ -26,84 +28,73 @@ export default function GrossSalaryCalculator() {
     netPayCalculated: 0
   });
 
-  // Tax brackets for 2025 (Kenya)
-  const taxBrackets = [
-    { min: 0, max: 288000, rate: 0.1 },
-    { min: 288000, max: 388000, rate: 0.25 },
-    { min: 388000, max: 6000000, rate: 0.3 },
-    { min: 6000000, max: Infinity, rate: 0.35 }
+  // Same logic as Net Pay calculator - Kenya 2024/2026
+  const PAYE_BRACKETS = [
+    { max: 24_000, rate: 0.1 },
+    { max: 32_333, rate: 0.25 },
+    { max: 500_000, rate: 0.3 },
+    { max: 800_000, rate: 0.325 },
+    { max: Infinity, rate: 0.35 },
   ];
+  const PERSONAL_RELIEF = 2_400;
+
+  const calcNSSF = (gross: number) => {
+    const pensionable = Math.min(gross, 108_000);
+    const tierI = Math.min(pensionable, 9_000) * 0.06;
+    const tierII = deductTierII ? Math.max(0, Math.min(pensionable - 9_000, 99_000)) * 0.06 : 0;
+    return { tierI: Math.round(tierI), tierII: Math.round(tierII) };
+  };
+
+  const calcDeductions = (gross: number, taxableBenefits: number, allowable: number) => {
+    const totalTaxable = Math.max(0, gross + taxableBenefits - allowable);
+    const nssf = calcNSSF(gross);
+    const shif = deductSHIF ? gross * 0.0275 : 0;
+    const housingLevy = deductHousingLevy ? gross * 0.015 : 0;
+    const taxablePay = Math.max(0, totalTaxable - nssf.tierI - nssf.tierII - shif - housingLevy);
+    let paye = 0, r = taxablePay, prev = 0;
+    for (const b of PAYE_BRACKETS) {
+      const band = Math.min(r, b.max - prev);
+      if (band > 0) paye += band * b.rate;
+      r -= band;
+      prev = b.max;
+    }
+    paye = Math.max(0, paye - PERSONAL_RELIEF);
+    return { paye, shif, nssf, housingLevy, taxablePay };
+  };
 
   const calculateGrossSalary = () => {
-    const netPayValue = parseFloat(netPay) || 0;
-    const nonCashBenefitsValue = parseFloat(nonCashBenefits) || 0;
-    const housingValueAmount = parseFloat(housingValue) || 0;
-    const rentPaidAmount = parseFloat(rentPaid) || 0;
+    const netPayValue = parseFloat(String(netPay).replace(/,/g, '')) || 0;
+    let taxableBenefits = parseFloat(String(nonCashBenefits).replace(/,/g, '')) || 0;
+    if (ignoreFirst5000 && taxableBenefits > 5000) taxableBenefits -= 5000;
+    taxableBenefits += Math.max(0, (parseFloat(String(housingValue).replace(/,/g, '')) || 0) - (parseFloat(String(rentPaid).replace(/,/g, '')) || 0));
+    const rent = parseFloat(String(rentPaid).replace(/,/g, '')) || 0;
+    const allowable = parseFloat(String(allowableDeductions).replace(/,/g, '')) || 0;
 
-    // Calculate taxable benefits
-    let taxableBenefits = nonCashBenefitsValue;
-    if (ignoreFirst5000 && taxableBenefits > 5000) {
-      taxableBenefits = taxableBenefits - 5000;
+    // Goal Seek: find gross such that netPay = gross - totalDeductions
+    // Allowable reduces taxable income (tax relief), not deducted from net
+    let gross = netPayValue + rent + (netPayValue * 0.4); // initial guess
+    for (let i = 0; i < 40; i++) {
+      const d = calcDeductions(gross, taxableBenefits, allowable);
+      const totalDed = d.paye + d.shif + d.nssf.tierI + d.nssf.tierII + d.housingLevy + rent;
+      const netCalc = gross - totalDed;
+      if (Math.abs(netCalc - netPayValue) < 0.02) break;
+      gross = gross + (netPayValue - netCalc);
+      if (gross < netPayValue) gross = netPayValue + 1000;
     }
 
-    // Calculate housing benefit
-    const housingBenefit = Math.max(0, housingValueAmount - rentPaidAmount);
-    taxableBenefits += housingBenefit;
-
-    // Start with net pay and work backwards
-    let grossPay = netPayValue;
-    
-    // Add back deductions in reverse order
-    if (deductHousingLevy) {
-      grossPay = grossPay / 0.985; // Housing levy is 1.5%
-    }
-    
-    if (deductSHIF) {
-      grossPay = grossPay / 0.9725; // SHIF is 2.75%
-    }
-    
-    if (deductTierII) {
-      grossPay = grossPay / 0.97; // NSSF Tier II is 3%
-    }
-    
-    // Add NSSF Tier I (6% of gross pay)
-    const nssfTierI = grossPay * 0.06;
-    grossPay += nssfTierI;
-    
-    // Add taxable benefits
-    grossPay += taxableBenefits;
-    
-    // Calculate PAYE
-    let paye = 0;
-    let remainingIncome = grossPay;
-    
-    for (const bracket of taxBrackets) {
-      if (remainingIncome <= 0) break;
-      
-      const taxableInThisBracket = Math.min(remainingIncome, bracket.max - bracket.min);
-      if (taxableInThisBracket > 0) {
-        paye += taxableInThisBracket * bracket.rate;
-        remainingIncome -= taxableInThisBracket;
-      }
-    }
-
-    // Calculate other deductions
-    const shif = deductSHIF ? grossPay * 0.0275 : 0;
-    const nssfTierII = deductTierII ? grossPay * 0.03 : 0;
-    const housingLevy = deductHousingLevy ? grossPay * 0.015 : 0;
-    const nssfTierIAmount = grossPay * 0.06;
-
-    // Calculate final net pay
-    const netPayCalculated = grossPay - paye - shif - nssfTierIAmount - nssfTierII - housingLevy;
+    const d = calcDeductions(gross, taxableBenefits, allowable);
+    const totalDed = d.paye + d.shif + d.nssf.tierI + d.nssf.tierII + d.housingLevy + rent;
+    const netPayCalculated = gross - totalDed;
 
     setResults({
-      grossPay: Math.round(grossPay),
-      paye: Math.round(paye),
-      shif: Math.round(shif),
-      nssfTierI: Math.round(nssfTierIAmount),
-      nssfTierII: Math.round(nssfTierII),
-      housingLevy: Math.round(housingLevy),
-      netPayCalculated: Math.round(netPayCalculated)
+      grossPay: Math.round(gross * 100) / 100,
+      taxablePay: Math.round(d.taxablePay * 100) / 100,
+      paye: Math.round(d.paye * 100) / 100,
+      shif: Math.round(d.shif * 100) / 100,
+      nssfTierI: d.nssf.tierI,
+      nssfTierII: d.nssf.tierII,
+      housingLevy: Math.round(d.housingLevy * 100) / 100,
+      netPayCalculated: Math.round(netPayCalculated * 100) / 100,
     });
   };
 
@@ -111,7 +102,7 @@ export default function GrossSalaryCalculator() {
     if (netPay) {
       calculateGrossSalary();
     }
-  }, [netPay, nonCashBenefits, housingValue, rentPaid, ignoreFirst5000, deductTierII, deductSHIF, deductHousingLevy]);
+  }, [netPay, nonCashBenefits, allowableDeductions, housingValue, rentPaid, ignoreFirst5000, deductTierII, deductSHIF, deductHousingLevy]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
@@ -162,7 +153,7 @@ export default function GrossSalaryCalculator() {
               className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold mb-6 text-primary-900"
             >
               Gross Salary Calculator
-              <span className="block text-secondary-500">Kenya 2025</span>
+              <span className="block text-secondary-500">Kenya 2026</span>
             </motion.h1>
             
             <motion.p
@@ -222,6 +213,20 @@ export default function GrossSalaryCalculator() {
                       value={nonCashBenefits}
                       onChange={(e) => setNonCashBenefits(e.target.value)}
                       placeholder="Enter non-cash benefits"
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-lg"
+                    />
+                  </div>
+
+                  {/* Allowable Deductions */}
+                  <div>
+                    <label className="block text-sm font-semibold text-primary-900 mb-2">
+                      Other Allowable Deductions e.g. Mortgage (Ksh)
+                    </label>
+                    <input
+                      type="number"
+                      value={allowableDeductions}
+                      onChange={(e) => setAllowableDeductions(e.target.value)}
+                      placeholder="e.g. mortgage, loan repayments"
                       className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-lg"
                     />
                   </div>
@@ -328,6 +333,10 @@ export default function GrossSalaryCalculator() {
 
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
                     <div className="space-y-3">
+                      <div className="flex justify-between text-sm text-neutral-500">
+                        <span>Taxable Pay:</span>
+                        <span>{formatCurrency(results.taxablePay)}</span>
+                      </div>
                       <div className="flex justify-between">
                         <span className="text-neutral-700">PAYE:</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.paye)}</span>
@@ -371,7 +380,7 @@ export default function GrossSalaryCalculator() {
                     <Info className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-neutral-700">
                       <p className="font-semibold mb-1 text-primary-900">Calculation Note:</p>
-                      <p>This calculator uses current Kenya tax rates for 2025. Results are estimates and may vary based on specific circumstances.</p>
+                      <p>Based on Kenya 2024/2026: Goal Seek to find gross from net. Uses PAYE, NSSF (Tier I & II), SHIF 2.75%, Housing Levy 1.5%. Estimates only.</p>
                     </div>
                   </div>
                 </div>
