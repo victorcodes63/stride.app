@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       include: {
         employee: {
           include: {
-            client: { select: { id: true, name: true } },
+            client: { select: { id: true, name: true, payrollFrequency: true, leavePayMode: true } },
             department: { select: { id: true, name: true } },
           },
         },
@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
       employeeName: `${p.employee.firstName} ${p.employee.lastName}`,
       employeeNumber: p.employee.employeeNumber ?? null,
       clientName: p.employee.client.name,
+      payrollFrequency: p.employee.client.payrollFrequency ?? 'monthly',
+      leavePayMode: p.employee.client.leavePayMode ?? 'none',
+      leavePay: String(p.leavePay ?? 0),
       departmentName: p.employee.department?.name ?? null,
       month: p.month,
       year: p.year,
@@ -58,9 +61,13 @@ export async function GET(request: NextRequest) {
       allowances: p.allowances as { name: string; amount: number }[],
       deductions: p.deductions as { name: string; amount: number }[],
       grossPay: String(p.grossPay),
+      period1Gross: p.period1Gross != null ? String(p.period1Gross) : null,
+      period2Gross: p.period2Gross != null ? String(p.period2Gross) : null,
+      biweeklyAttendance: p.biweeklyAttendance ?? null,
       paye: String(p.paye),
       nssf: String(p.nssf),
       nhif: String(p.nhif),
+      ahl: String(p.ahl ?? 0),
       netPay: String(p.netPay),
       status: p.status,
     }));

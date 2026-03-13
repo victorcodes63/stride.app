@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import ExcelJS from 'exceljs';
+import { Decimal } from '@prisma/client/runtime/library';
+import {
+  allocateNextEmployeeNumber,
+  deriveEmployeePrefixFromName,
+} from '@/lib/outsourcing-employee-number';
 
 const HEADER_MAP: Record<string, string> = {
   'EMP No.': 'employeeNumber',
@@ -18,6 +23,8 @@ const HEADER_MAP: Record<string, string> = {
   'Bank Branch': 'bankBranch',
   'Bank Account Number': 'bankAccountNumber',
   'Department Name': 'departmentName',
+  'Base Salary (monthly)': 'baseSalary',
+  'Monthly Basic (KES)': 'baseSalary',
 };
 
 function parseDate(val: unknown): Date | null {
@@ -71,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allRows: unknown[][] = [];
-    const maxCols = 15;
+    const maxCols = 16;
     sheet.eachRow((row, rowNumber) => {
       const vals: unknown[] = [];
       for (let c = 1; c <= maxCols; c++) {
@@ -154,16 +161,31 @@ export async function POST(request: NextRequest) {
 
       const dateOfJoining = parseDate(getVal(row, 'dateOfJoining'));
 
+      let employeeNumber = parseString(getVal(row, 'employeeNumber'));
+      if (!employeeNumber?.trim()) {
+        const prefix =
+          client.employeeNumberPrefix?.trim() || deriveEmployeePrefixFromName(client.name);
+        employeeNumber = await allocateNextEmployeeNumber(prisma, clientId.trim(), prefix);
+      }
+
+      let baseSalary: Decimal | undefined;
+      const baseRaw = getVal(row, 'baseSalary');
+      if (baseRaw != null && String(baseRaw).trim() !== '') {
+        const n = parseFloat(String(baseRaw).replace(/,/g, ''));
+        if (!Number.isNaN(n) && n >= 0) baseSalary = new Decimal(n);
+      }
+
       await prisma.employee.create({
         data: {
           outsourcingClientId: clientId.trim(),
           departmentId,
-          employeeNumber: parseString(getVal(row, 'employeeNumber')),
+          employeeNumber,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: emailNorm,
           phone: parseString(getVal(row, 'phone')),
           jobTitle: parseString(getVal(row, 'jobTitle')),
+          ...(baseSalary ? { baseSalary } : {}),
           idNumber: parseString(getVal(row, 'idNumber')),
           kraPin: parseString(getVal(row, 'kraPin')),
           nssfNumber: parseString(getVal(row, 'nssfNumber')),

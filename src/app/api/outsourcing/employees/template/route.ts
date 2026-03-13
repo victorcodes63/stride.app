@@ -18,6 +18,7 @@ const HEADERS = [
   'Bank Branch',
   'Bank Account Number',
   'Department Name',
+  'Base Salary (monthly)',
 ] as const;
 
 const EXAMPLE_ROW = [
@@ -36,6 +37,7 @@ const EXAMPLE_ROW = [
   'Westlands',
   '01234567890',
   'Finance',
+  '85000',
 ];
 
 export async function GET(request: NextRequest) {
@@ -75,7 +77,7 @@ export async function GET(request: NextRequest) {
     sheet.addRow([
       `${clientInfo}Required: First Name, Last Name, Email. Department Name must match exactly or leave blank.${deptList}`,
     ]);
-    sheet.mergeCells('A1:O1');
+    sheet.mergeCells('A1:P1');
     const instructionRow = sheet.getRow(1);
     instructionRow.font = { italic: true, size: 10, color: { argb: 'FF6b7280' } };
     instructionRow.height = 36;

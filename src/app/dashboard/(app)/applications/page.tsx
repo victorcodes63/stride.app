@@ -33,6 +33,7 @@ import type {
   ApplicationStatus,
   ApplicationFormData,
 } from '@/types/dashboard';
+import { sortEmploymentByRecency } from '@/lib/employment-sort';
 
 function StatusBadge({ status }: { status: ApplicationStatus }) {
   const styles: Record<ApplicationStatus, string> = {
@@ -95,9 +96,10 @@ const APPLICANT_TABS: { id: ApplicantDetailTab; label: string; icon: React.Compo
 ];
 
 function WorkExperienceTab({ formData }: { formData: ApplicationFormData | null }) {
-  const entries = formData?.employmentHistory?.filter(
+  const raw = formData?.employmentHistory?.filter(
     (e) => e.jobTitle?.trim() || e.companyName?.trim()
   ) ?? [];
+  const entries = sortEmploymentByRecency(raw);
   const totalYears = entries.reduce(
     (sum, e) => {
       const end = e.isCurrentJob ? new Date().toISOString().slice(0, 7) : e.endDate;
@@ -350,6 +352,7 @@ export default function DashboardApplicationsPage() {
   const [downloadingCvs, setDownloadingCvs] = useState(false);
   const [sendingRejections, setSendingRejections] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [qualificationsExpanded, setQualificationsExpanded] = useState(false);
 
   const markAsViewed = (appId: string) => {
     setApplications((prev) =>
@@ -495,6 +498,15 @@ export default function DashboardApplicationsPage() {
   };
 
   const allApplications = applications;
+
+  const extraQualificationFiltersActive =
+    !!membershipFilter.trim() ||
+    !!nationalityFilter.trim() ||
+    !!homeCountyFilter.trim() ||
+    !!employmentTypeFilter.trim() ||
+    !!minExperienceFilter.trim() ||
+    !!maxExperienceFilter.trim() ||
+    !!employerCompanyFilter.trim();
 
   const hasActiveFilters =
     statusFilter !== 'all' ||
@@ -707,99 +719,110 @@ export default function DashboardApplicationsPage() {
     }
   };
 
+  const filterInputClass =
+    'w-full px-3 py-2.5 border border-neutral-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300 transition-colors';
+
   return (
     <div className="w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 mb-1">
-            Applications
-          </h1>
-          <p className="text-neutral-600 text-sm sm:text-base">
-            Review and manage job applications. Update status to notify
-            applicants via email.
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary-900 tracking-tight mb-1.5">
+          Applications
+        </h1>
+        <p className="text-neutral-600 text-sm sm:text-[15px] leading-relaxed max-w-2xl">
+          Review and manage job applications. Status updates can notify applicants by email.
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
+          className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm min-w-0"
         >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Total</p>
-              <p className="text-xl sm:text-2xl font-bold text-primary-900">{stats.total}</p>
-            </div>
-            <Users className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 opacity-80 shrink-0" />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-primary-50 p-3 text-primary-700">
+            <Users className="w-5 h-5" strokeWidth={1.75} />
           </div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Total</p>
+          <p className="text-3xl font-bold text-primary-900 tabular-nums">{stats.total}</p>
+          <p className="text-xs text-neutral-500 mt-1">All applications</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
+          className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm min-w-0"
         >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Pending</p>
-              <p className="text-xl sm:text-2xl font-bold text-amber-600">{stats.pending}</p>
-            </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-amber-50 p-3 text-amber-700">
+            <Calendar className="w-5 h-5" strokeWidth={1.75} />
           </div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Pending</p>
+          <p className="text-3xl font-bold text-amber-600 tabular-nums">{stats.pending}</p>
+          <p className="text-xs text-neutral-500 mt-1">Awaiting review</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
+          className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm min-w-0"
         >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Shortlisted</p>
-              <p className="text-xl sm:text-2xl font-bold text-indigo-600">
-                {stats.shortlisted}
-              </p>
-            </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-indigo-50 p-3 text-indigo-700">
+            <Eye className="w-5 h-5" strokeWidth={1.75} />
           </div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Shortlisted</p>
+          <p className="text-3xl font-bold text-indigo-600 tabular-nums">{stats.shortlisted}</p>
+          <p className="text-xs text-neutral-500 mt-1">In pipeline</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
+          className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm min-w-0"
         >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Hired</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.hired}</p>
-            </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-emerald-50 p-3 text-emerald-700">
+            <Briefcase className="w-5 h-5" strokeWidth={1.75} />
           </div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Hired</p>
+          <p className="text-3xl font-bold text-emerald-600 tabular-nums">{stats.hired}</p>
+          <p className="text-xs text-neutral-500 mt-1">Placed</p>
         </motion.div>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden mb-6">
-        {/* Row 1: Search + core application filters + actions */}
-        <div className="p-4 border-b border-neutral-100">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">
-            Search &amp; application
-          </p>
+      <div className="rounded-2xl border border-neutral-200/90 bg-white shadow-sm overflow-hidden mb-6">
+        {/* Search & application filters */}
+        <div className="p-4 sm:p-5 border-b border-neutral-100 bg-gradient-to-b from-white to-neutral-50/40">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-0.5">
+                Search &amp; application
+              </p>
+              <p className="text-xs text-neutral-500">Find rows and narrow by status, client, and job.</p>
+            </div>
+            <a
+              href={exportParams ? `/api/applications/export?${exportParams}` : '/api/applications/export'}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-900 text-white text-sm font-semibold shadow-sm shadow-primary-900/15 hover:bg-primary-800 transition-colors shrink-0"
+              download
+              title="Export applications (current filters)"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Export
+            </a>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
             <div className="relative lg:col-span-5">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search by name, email, or job title..."
+                placeholder="Search by name, email, or job title…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl text-sm bg-neutral-50/80 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300 transition-colors"
                 aria-label="Search applications"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm lg:col-span-2"
+              className={`${filterInputClass} lg:col-span-2`}
               aria-label="Status"
             >
               {STATUS_OPTIONS.map((o) => (
@@ -811,7 +834,7 @@ export default function DashboardApplicationsPage() {
             <select
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm lg:col-span-2"
+              className={`${filterInputClass} lg:col-span-2`}
               aria-label="Client"
             >
               <option value="">All clients</option>
@@ -824,7 +847,7 @@ export default function DashboardApplicationsPage() {
             <select
               value={jobFilter}
               onChange={(e) => setJobFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm lg:col-span-3 truncate"
+              className={`${filterInputClass} lg:col-span-3 truncate min-w-0`}
               aria-label="Job"
             >
               {!clientFilter && <option value="">All jobs</option>}
@@ -838,12 +861,12 @@ export default function DashboardApplicationsPage() {
               ))}
             </select>
           </div>
-          <div className="flex flex-wrap justify-end items-center gap-2 mt-3">
+          <div className="flex flex-wrap justify-end items-center gap-2 mt-4 pt-3 border-t border-neutral-100/80">
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
+                className="inline-flex items-center px-3 py-2 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
               >
                 Clear filters
               </button>
@@ -887,31 +910,31 @@ export default function DashboardApplicationsPage() {
             {bulkResult && (
               <span className="text-sm text-neutral-600">{bulkResult}</span>
             )}
-            <a
-              href={exportParams ? `/api/applications/export?${exportParams}` : '/api/applications/export'}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-primary-200 bg-primary-50 text-primary-800 hover:bg-primary-100 text-sm font-medium transition-colors"
-              download
-              title="Export applications (current filters)"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              Export
-            </a>
           </div>
         </div>
 
-        {/* Row 2: Candidate & qualifications */}
-        <div className="p-4 bg-neutral-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-            Candidate &amp; qualifications
-          </p>
-          <p className="text-xs text-neutral-500 mb-3">
-            Filter by education, credentials, location, experience, and employer history.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* Candidate & qualifications — first row always; rest expandable */}
+        <div className="p-4 sm:p-5 bg-primary-50/25 border-t border-primary-100/50">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-primary-800/80 mb-1">
+                Candidate &amp; qualifications
+              </p>
+              <p className="text-xs text-neutral-600 max-w-3xl">
+                Start with education and credentials. Open more filters for location, experience, and employer.
+              </p>
+            </div>
+            {!qualificationsExpanded && extraQualificationFiltersActive && (
+              <span className="text-[11px] font-semibold text-primary-700 bg-primary-100/80 px-2 py-1 rounded-lg shrink-0 self-start">
+                Extra filters active
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select
               value={educationLevelFilter}
               onChange={(e) => setEducationLevelFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
+              className={filterInputClass}
               aria-label="Education level"
               title="Education level (e.g. Masters)"
             >
@@ -926,7 +949,7 @@ export default function DashboardApplicationsPage() {
               value={disciplineFilter}
               onChange={(e) => setDisciplineFilter(e.target.value)}
               placeholder="Discipline (e.g. Nursing)"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
+              className={filterInputClass}
               aria-label="Education discipline"
             />
             <input
@@ -934,72 +957,94 @@ export default function DashboardApplicationsPage() {
               value={certificateFilter}
               onChange={(e) => setCertificateFilter(e.target.value)}
               placeholder="Certificate (e.g. BioHacking)"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
+              className={filterInputClass}
               aria-label="Professional certificate name"
             />
-            <input
-              type="text"
-              value={membershipFilter}
-              onChange={(e) => setMembershipFilter(e.target.value)}
-              placeholder="Membership (e.g. KPMDU)"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Professional membership name"
-            />
-            <input
-              type="text"
-              value={nationalityFilter}
-              onChange={(e) => setNationalityFilter(e.target.value)}
-              placeholder="Nationality"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Nationality"
-            />
-            <input
-              type="text"
-              value={homeCountyFilter}
-              onChange={(e) => setHomeCountyFilter(e.target.value)}
-              placeholder="Home county"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Home county"
-            />
-            <select
-              value={employmentTypeFilter}
-              onChange={(e) => setEmploymentTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Employment type"
-            >
-              {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={minExperienceFilter}
-              onChange={(e) => setMinExperienceFilter(e.target.value)}
-              min={0}
-              placeholder="Min years exp"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Minimum work experience years"
-            />
-            <input
-              type="number"
-              value={maxExperienceFilter}
-              onChange={(e) => setMaxExperienceFilter(e.target.value)}
-              min={0}
-              placeholder="Max years exp"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm"
-              aria-label="Maximum work experience years"
-            />
-            <input
-              type="text"
-              value={employerCompanyFilter}
-              onChange={(e) => setEmployerCompanyFilter(e.target.value)}
-              placeholder="Worked at firm (e.g. Safaricom)"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm xl:col-span-2"
-              aria-label="Employer company name"
-            />
           </div>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setQualificationsExpanded((e) => !e)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-800 hover:text-primary-600 py-1.5 px-2 rounded-lg hover:bg-primary-100/50 transition-colors"
+              aria-expanded={qualificationsExpanded}
+              aria-controls="qualifications-extra-filters"
+            >
+              <ChevronDown
+                className={`w-4 h-4 shrink-0 transition-transform ${qualificationsExpanded ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+              {qualificationsExpanded ? 'Hide extra filters' : 'More filters — location, experience, employer'}
+            </button>
+          </div>
+          {qualificationsExpanded && (
+            <div
+              id="qualifications-extra-filters"
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-2 mt-2 border-t border-primary-100/60"
+            >
+              <input
+                type="text"
+                value={membershipFilter}
+                onChange={(e) => setMembershipFilter(e.target.value)}
+                placeholder="Membership (e.g. KPMDU)"
+                className={filterInputClass}
+                aria-label="Professional membership name"
+              />
+              <input
+                type="text"
+                value={nationalityFilter}
+                onChange={(e) => setNationalityFilter(e.target.value)}
+                placeholder="Nationality"
+                className={filterInputClass}
+                aria-label="Nationality"
+              />
+              <input
+                type="text"
+                value={homeCountyFilter}
+                onChange={(e) => setHomeCountyFilter(e.target.value)}
+                placeholder="Home county"
+                className={filterInputClass}
+                aria-label="Home county"
+              />
+              <select
+                value={employmentTypeFilter}
+                onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                className={filterInputClass}
+                aria-label="Employment type"
+              >
+                {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={minExperienceFilter}
+                onChange={(e) => setMinExperienceFilter(e.target.value)}
+                min={0}
+                placeholder="Min years exp"
+                className={filterInputClass}
+                aria-label="Minimum work experience years"
+              />
+              <input
+                type="number"
+                value={maxExperienceFilter}
+                onChange={(e) => setMaxExperienceFilter(e.target.value)}
+                min={0}
+                placeholder="Max years exp"
+                className={filterInputClass}
+                aria-label="Maximum work experience years"
+              />
+              <input
+                type="text"
+                value={employerCompanyFilter}
+                onChange={(e) => setEmployerCompanyFilter(e.target.value)}
+                placeholder="Worked at firm (e.g. Safaricom)"
+                className={`${filterInputClass} xl:col-span-2`}
+                aria-label="Employer company name"
+              />
+            </div>
+          )}
         </div>
       </div>
 

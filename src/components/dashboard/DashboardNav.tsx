@@ -21,10 +21,16 @@ import {
   Banknote,
   CalendarDays,
   Clock,
+  ClipboardList,
+  TrendingUp,
 } from 'lucide-react';
+
+const NAV_STORAGE_KEY = 'dashboard-nav-expanded';
+const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 interface DashboardNavProps {
   currentUserRole: UserRole | null;
+  collapsed: boolean;
 }
 
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -50,11 +56,22 @@ const accordionSections: AccordionSection[] = [
     ],
   },
   {
+    id: 'people-hr',
+    label: 'People & HR',
+    icon: Users,
+    items: [
+      { href: '/dashboard/staff-leave', label: 'Staff leave', icon: CalendarDays },
+      { href: '/dashboard/people/tasks', label: 'Assigned tasks', icon: ClipboardList },
+      { href: '/dashboard/people/performance', label: 'Performance', icon: TrendingUp },
+    ],
+  },
+  {
     id: 'outsourcing',
     label: 'Outsourcing',
     icon: Folder,
     items: [
       { href: '/dashboard/outsourcing/clients', label: 'Clients', icon: Building2 },
+      { href: '/dashboard/outsourcing/departments', label: 'Departments', icon: FolderOpen },
       { href: '/dashboard/outsourcing/employees', label: 'Employees', icon: Users },
       { href: '/dashboard/outsourcing/payroll', label: 'Payroll', icon: Banknote },
       { href: '/dashboard/outsourcing/leave', label: 'Leave Management', icon: CalendarDays },
@@ -83,26 +100,56 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-lg transition-colors focus:outline-none focus-visible:ring-0 ${
-        indent ? 'ml-4 pl-3 py-2.5' : 'px-4 py-3'
+      title={label}
+      className={`flex items-center gap-3 rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+        indent ? 'ml-2 pl-3 py-2.5' : 'px-3 py-2.5'
       } ${
         isActive
-          ? 'bg-primary-50 text-primary-900 font-medium'
-          : 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-900'
+          ? 'bg-primary-50 text-primary-900 font-semibold border border-primary-100'
+          : 'text-neutral-600 hover:bg-neutral-100/90 hover:text-primary-900 border border-transparent'
       }`}
     >
-      <Icon className="w-5 h-5 flex-shrink-0" />
-      <span>{label}</span>
+      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-700' : ''}`} />
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
 
-const STORAGE_KEY = 'dashboard-nav-expanded';
+function NavLinkIcon({
+  href,
+  label,
+  icon: Icon,
+  pathname,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  pathname: string;
+}) {
+  const isActive =
+    href === '/dashboard'
+      ? pathname === '/dashboard'
+      : pathname === href || pathname.startsWith(href + '/');
+  return (
+    <Link
+      href={href}
+      title={label}
+      aria-label={label}
+      className={`flex items-center justify-center w-11 h-11 mx-auto rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+        isActive
+          ? 'bg-primary-100 text-primary-900 shadow-sm'
+          : 'text-neutral-500 hover:bg-neutral-100 hover:text-primary-800'
+      }`}
+    >
+      <Icon className="w-5 h-5" />
+    </Link>
+  );
+}
 
 function getStoredExpanded(): Set<string> {
   if (typeof window === 'undefined') return new Set(accordionSections.map((s) => s.id));
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(NAV_STORAGE_KEY);
     if (!raw) return new Set(accordionSections.map((s) => s.id));
     const parsed = JSON.parse(raw) as string[];
     return new Set(Array.isArray(parsed) ? parsed : []);
@@ -113,19 +160,33 @@ function getStoredExpanded(): Set<string> {
 
 function setStoredExpanded(expanded: Set<string>) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...expanded]));
+    localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify([...expanded]));
   } catch {
     /* ignore */
   }
 }
 
-export default function DashboardNav({ currentUserRole }: DashboardNavProps) {
-  const pathname = usePathname();
-  const [expanded, setExpanded] = useState<Set<string>>(() =>
-    new Set(accordionSections.map((s) => s.id))
-  );
+export function readSidebarCollapsed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
-  // Hydrate from localStorage and auto-expand section containing current route
+export function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function DashboardNav({ currentUserRole, collapsed }: DashboardNavProps) {
+  const pathname = usePathname();
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(accordionSections.map((s) => s.id)));
+
   useEffect(() => {
     const stored = getStoredExpanded();
     const expandedSet = new Set(stored);
@@ -148,20 +209,37 @@ export default function DashboardNav({ currentUserRole }: DashboardNavProps) {
     });
   };
 
+  if (collapsed) {
+    const flatItems: NavItem[] = [
+      { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+      ...accordionSections.flatMap((s) => s.items),
+      { href: '/dashboard/insights', label: 'Insights', icon: BookOpen },
+      ...(currentUserRole === 'admin' ? [{ href: '/dashboard/staff', label: 'Staff', icon: UserCog }] : []),
+      { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+    ];
+    return (
+      <nav className="flex-1 py-2 px-1 overflow-y-auto overflow-x-hidden flex flex-col items-center gap-0.5">
+        {flatItems.map((item) => (
+          <NavLinkIcon key={item.href} {...item} pathname={pathname} />
+        ))}
+      </nav>
+    );
+  }
+
   return (
-    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+    <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+      <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Menu</p>
       <NavLink href="/dashboard" label="Overview" icon={LayoutDashboard} pathname={pathname} />
 
       {accordionSections.map((section) => {
         const isExpanded = expanded.has(section.id);
         const FolderIcon = isExpanded ? FolderOpen : section.icon;
-
         return (
-          <div key={section.id} className="pt-3">
+          <div key={section.id} className="pt-2">
             <button
               type="button"
               onClick={() => toggleSection(section.id)}
-              className="flex w-full items-center gap-2 px-4 py-2 rounded-lg text-left transition-colors text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
+              className="flex w-full items-center gap-2 px-3 py-2 rounded-xl text-left transition-colors text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80"
               aria-expanded={isExpanded}
               aria-controls={`nav-section-${section.id}`}
               id={`nav-trigger-${section.id}`}
@@ -172,19 +250,18 @@ export default function DashboardNav({ currentUserRole }: DashboardNavProps) {
                 }`}
               />
               <FolderIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1 text-xs font-semibold uppercase tracking-wider">
-                {section.label}
-              </span>
+              <span className="flex-1 text-[11px] font-bold uppercase tracking-widest">{section.label}</span>
             </button>
             <div
               id={`nav-section-${section.id}`}
               role="region"
               aria-labelledby={`nav-trigger-${section.id}`}
               className={`overflow-hidden transition-all duration-200 ${
-                isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                isExpanded ? 'max-h-[560px] opacity-100' : 'max-h-0 opacity-0'
               }`}
             >
-              <div className="mt-1 space-y-0.5">
+              {/* Right padding so active state (border) is not clipped by overflow-hidden */}
+              <div className="mt-1 space-y-0.5 border-l-2 border-neutral-100 ml-4 pl-2 pr-2.5 pb-0.5">
                 {section.items.map((item) => (
                   <NavLink key={item.href} {...item} pathname={pathname} indent />
                 ))}
@@ -194,14 +271,12 @@ export default function DashboardNav({ currentUserRole }: DashboardNavProps) {
         );
       })}
 
-      <div className="pt-1">
+      <div className="pt-2 border-t border-neutral-100 mt-2">
         <NavLink href="/dashboard/insights" label="Insights" icon={BookOpen} pathname={pathname} />
       </div>
-
       {currentUserRole === 'admin' && (
         <NavLink href="/dashboard/staff" label="Staff" icon={UserCog} pathname={pathname} />
       )}
-
       <NavLink href="/dashboard/analytics" label="Analytics" icon={BarChart3} pathname={pathname} />
     </nav>
   );

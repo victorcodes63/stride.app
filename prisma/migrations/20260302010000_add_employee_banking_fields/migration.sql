@@ -1,5 +1,5 @@
--- AlterTable
-ALTER TABLE "Employee" ADD COLUMN "employeeNumber" TEXT;
-ALTER TABLE "Employee" ADD COLUMN "bankName" TEXT;
-ALTER TABLE "Employee" ADD COLUMN "bankBranch" TEXT;
-ALTER TABLE "Employee" ADD COLUMN "bankAccountNumber" TEXT;
+-- AlterTable (idempotent)
+ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeNumber" TEXT;
+ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT;
+ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankBranch" TEXT;
+ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNumber" TEXT;

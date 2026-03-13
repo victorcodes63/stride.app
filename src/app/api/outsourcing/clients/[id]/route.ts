@@ -42,6 +42,9 @@ function mapClientToJson(c: {
   county: string | null;
   contractStartDate: Date | null;
   contractEndDate: Date | null;
+  employeeNumberPrefix?: string | null;
+  payrollFrequency?: string | null;
+  leavePayMode?: string | null;
   _count: { employees: number; departments: number };
 }) {
   return {
@@ -68,6 +71,9 @@ function mapClientToJson(c: {
     county: c.county ?? null,
     contractStartDate: c.contractStartDate?.toISOString().slice(0, 10) ?? null,
     contractEndDate: c.contractEndDate?.toISOString().slice(0, 10) ?? null,
+    employeeNumberPrefix: c.employeeNumberPrefix ?? null,
+    payrollFrequency: c.payrollFrequency ?? 'monthly',
+    leavePayMode: c.leavePayMode ?? 'none',
     employeeCount: c._count.employees,
     departmentCount: c._count.departments,
   };
@@ -131,6 +137,12 @@ export async function PATCH(
   const county = b.county !== undefined ? str(b, 'county') : undefined;
   const contractStartDate = b.contractStartDate !== undefined ? date(b, 'contractStartDate') : undefined;
   const contractEndDate = b.contractEndDate !== undefined ? date(b, 'contractEndDate') : undefined;
+  const employeeNumberPrefix =
+    b.employeeNumberPrefix !== undefined ? str(b, 'employeeNumberPrefix') : undefined;
+  const payrollFrequency =
+    b.payrollFrequency !== undefined ? str(b, 'payrollFrequency') : undefined;
+  const leavePayMode =
+    b.leavePayMode !== undefined ? str(b, 'leavePayMode') : undefined;
 
   const hasUpdate =
     name !== undefined ||
@@ -154,7 +166,10 @@ export async function PATCH(
     postalAddress !== undefined ||
     county !== undefined ||
     contractStartDate !== undefined ||
-    contractEndDate !== undefined;
+    contractEndDate !== undefined ||
+    employeeNumberPrefix !== undefined ||
+    payrollFrequency !== undefined ||
+    leavePayMode !== undefined;
 
   if (!hasUpdate) {
     return NextResponse.json({ error: 'Provide at least one field to update.' }, { status: 400 });
@@ -183,6 +198,9 @@ export async function PATCH(
   if (county !== undefined) data.county = county;
   if (contractStartDate !== undefined) data.contractStartDate = contractStartDate;
   if (contractEndDate !== undefined) data.contractEndDate = contractEndDate;
+  if (employeeNumberPrefix !== undefined) data.employeeNumberPrefix = employeeNumberPrefix || null;
+  if (payrollFrequency !== undefined) data.payrollFrequency = payrollFrequency || 'monthly';
+  if (leavePayMode !== undefined) data.leavePayMode = leavePayMode || 'none';
 
   try {
     if (!process.env.DATABASE_URL) {

@@ -16,10 +16,17 @@ export interface PayslipPdfData {
   allowances: { name: string; amount: number }[];
   deductions: { name: string; amount: number }[];
   grossPay: string;
+  /** Shown on payslip only when > 0 */
+  leavePay?: string;
   paye: string;
   nssf: string;
   nhif: string;
+  ahl: string;
   netPay: string;
+  biweekly?: boolean;
+  period1Gross?: string;
+  period2Gross?: string;
+  biweeklyAttendance?: { period1: string[]; period2: string[] };
 }
 
 const MONTH_NAMES = [
@@ -149,6 +156,63 @@ export async function generatePayslipPdf(
   }
   y -= infoBoxH + 24;
 
+  if (data.biweekly && data.biweeklyAttendance) {
+    const a = data.biweeklyAttendance;
+    const wd = (dates: string[]) =>
+      dates
+        .slice(0, 14)
+        .map((iso) => {
+          const [yy, mm, dd] = iso.split('-').map(Number);
+          const dt = new Date(yy, mm - 1, dd);
+          return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+        })
+        .join(', ') + (dates.length > 14 ? '…' : '');
+    page.drawText('Bi-weekly — days worked (Mon–Sat)', {
+      x: margin,
+      y,
+      size: 10,
+      font: helveticaBold,
+      color: PRIMARY,
+    });
+    y -= 12;
+    if (data.period1Gross)
+      page.drawText(`Period 1 gross: ${fmt(data.period1Gross)} · ${a.period1.length} day(s)`, {
+        x: margin,
+        y,
+        size: 9,
+        font: helvetica,
+        color: GRAY_600,
+      });
+    y -= 11;
+    const line1 = wd(a.period1) || '—';
+    page.drawText(line1.length > 90 ? line1.slice(0, 87) + '…' : line1, {
+      x: margin,
+      y,
+      size: 8,
+      font: helvetica,
+      color: GRAY_500,
+    });
+    y -= 12;
+    if (data.period2Gross)
+      page.drawText(`Period 2 gross: ${fmt(data.period2Gross)} · ${a.period2.length} day(s)`, {
+        x: margin,
+        y,
+        size: 9,
+        font: helvetica,
+        color: GRAY_600,
+      });
+    y -= 11;
+    const line2 = wd(a.period2) || '—';
+    page.drawText(line2.length > 90 ? line2.slice(0, 87) + '…' : line2, {
+      x: margin,
+      y,
+      size: 8,
+      font: helvetica,
+      color: GRAY_500,
+    });
+    y -= 18;
+  }
+
   // 4. Earnings section
   page.drawText('Earnings', {
     x: margin,
@@ -159,9 +223,11 @@ export async function generatePayslipPdf(
   });
   y -= 20;
 
+  const leavePayNum = Number(data.leavePay ?? 0);
   const earningsRows: [string, string][] = [
     ['Basic pay', fmt(data.basicPay)],
     ...(data.allowances ?? []).map((a) => [a.name, fmt(a.amount)]),
+    ...(leavePayNum > 0 ? ([['Leave pay', fmt(data.leavePay!)]] as [string, string][]) : []),
     ['Gross pay', fmt(data.grossPay)],
   ];
   const rowH = 14;
@@ -200,6 +266,7 @@ export async function generatePayslipPdf(
     ['PAYE', fmt(data.paye)],
     ['NSSF', fmt(data.nssf)],
     ['SHIF', fmt(data.nhif)],
+    ['AHL (1.5%)', fmt(data.ahl ?? 0)],
     ...(data.deductions ?? []).map((d) => [d.name, fmt(d.amount)]),
     ['Net pay', fmt(data.netPay)],
   ];

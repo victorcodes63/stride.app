@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
-import { Users, Search, Building2, Mail, Phone, Pencil, Download, Upload } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Users, Search, Building2, Mail, Phone, Pencil, Download, Upload, UserPlus } from 'lucide-react';
 
 interface EmployeeRecord {
   id: string;
@@ -31,7 +32,8 @@ interface ClientOption {
   name: string;
 }
 
-export default function OutsourcingEmployeesPage() {
+function OutsourcingEmployeesPageInner() {
+  const searchParams = useSearchParams();
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,11 @@ export default function OutsourcingEmployeesPage() {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  const urlClientId = searchParams.get('clientId')?.trim() ?? '';
+  useEffect(() => {
+    if (urlClientId) setClientFilter(urlClientId);
+  }, [urlClientId]);
 
   const fetchDepartments = async (cid: string) => {
     try {
@@ -181,15 +188,98 @@ export default function OutsourcingEmployeesPage() {
     });
   }, [employees, searchQuery]);
 
+  const toolbar = (
+    <div className="mb-5 flex flex-col sm:flex-row flex-wrap gap-3">
+      <div className="relative max-w-xs sm:max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+        <input
+          type="search"
+          placeholder="Search by name, email, EMP No., job…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+        />
+      </div>
+      <select
+        value={clientFilter}
+        onChange={(e) => {
+          setClientFilter(e.target.value);
+          setDepartmentFilter('');
+          setImportResult(null);
+        }}
+        className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 max-w-[220px]"
+      >
+        <option value="">All clients</option>
+        {clients.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={departmentFilter}
+        onChange={(e) => setDepartmentFilter(e.target.value)}
+        className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 max-w-[180px]"
+        disabled={!clientFilter.trim()}
+        title={!clientFilter.trim() ? 'Select a client first' : 'Filter by department'}
+      >
+        <option value="">All departments</option>
+        {departments.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={positionFilter}
+        onChange={(e) => setPositionFilter(e.target.value)}
+        className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white max-w-[180px]"
+      >
+        <option value="">All positions</option>
+        {uniquePositions.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={clientFilter.trim() ? `/dashboard/outsourcing/employees/new?clientId=${encodeURIComponent(clientFilter.trim())}` : '/dashboard/outsourcing/employees/new'}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-semibold hover:bg-primary-800 transition-colors"
+        >
+          <UserPlus className="w-4 h-4" />
+          Add employee
+        </Link>
+        <button
+          type="button"
+          onClick={handleDownloadTemplate}
+          className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+        >
+          <Download className="w-4 h-4" />
+          Template
+        </button>
+        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={!clientFilter.trim() || importing}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800 text-white rounded-lg text-sm font-medium hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Upload className="w-4 h-4" />
+          {importing ? 'Importing…' : 'Import Excel'}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 mb-1">
-            Employees
-          </h1>
-          <p className="text-neutral-600 text-sm sm:text-base">
-            Manage employees by client and department. View KRA PIN, NSSF, NHIF, and bank details.
+          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900">Outsourcing employees</h1>
+          <p className="text-neutral-600 text-sm mt-1 max-w-2xl">
+            Add people one by one or import a spreadsheet. Pick a client first for import—departments should match
+            names on the client page.
           </p>
         </div>
       </div>
@@ -208,20 +298,18 @@ export default function OutsourcingEmployeesPage() {
             <div className="h-4 bg-neutral-100 rounded w-5/6" />
           </div>
         </div>
-      ) : employees.length === 0 ? (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-8 sm:p-12 text-center">
-          <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-neutral-800 mb-2">No employees yet</h2>
+      ) : clients.length === 0 ? (
+        <div className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-10 text-center">
+          <Building2 className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-neutral-900 mb-2">No outsourcing clients yet</h2>
           <p className="text-neutral-600 text-sm max-w-md mx-auto mb-6">
-            Add employees to outsourcing clients from the client detail page, or run the seed script
-            to populate sample data.
+            Create a client first, then you can add departments and employees.
           </p>
           <Link
-            href="/dashboard/outsourcing/clients"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
+            href="/dashboard/outsourcing/clients/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-900 text-white rounded-xl text-sm font-semibold hover:bg-primary-800"
           >
-            <Building2 className="w-4 h-4" />
-            Go to outsourcing clients
+            Add outsourcing client
           </Link>
         </div>
       ) : (
@@ -250,87 +338,41 @@ export default function OutsourcingEmployeesPage() {
               </button>
             </div>
           )}
-          <div className="mb-5 flex flex-col sm:flex-row flex-wrap gap-3">
-            <div className="relative max-w-xs sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-              <input
-                type="search"
-                placeholder="Search by name, email, EMP No., job…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-              />
-            </div>
-            <select
-              value={clientFilter}
-              onChange={(e) => { setClientFilter(e.target.value); setDepartmentFilter(''); setImportResult(null); }}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent max-w-[200px]"
-            >
-              <option value="">All clients</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent max-w-[180px]"
-              disabled={!clientFilter.trim()}
-              title={!clientFilter.trim() ? 'Select a client first' : 'Filter by department'}
-            >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={positionFilter}
-              onChange={(e) => setPositionFilter(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent max-w-[180px]"
-              title="Filter by position"
-            >
-              <option value="">All positions</option>
-              {uniquePositions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                title={clientFilter.trim() ? 'Download Excel template for selected client' : 'Download generic Excel template (select client when importing)'}
-              >
-                <Download className="w-4 h-4" />
-                Download template
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleImportFile}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!clientFilter.trim() || importing}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                title={!clientFilter.trim() ? 'Select a client first' : 'Import employees from Excel'}
-              >
-                <Upload className="w-4 h-4" />
-                {importing ? 'Importing…' : 'Import'}
-              </button>
-            </div>
-          </div>
+          {toolbar}
 
-          {filteredEmployees.length === 0 ? (
+          {employees.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50/50 p-8 sm:p-10 text-center">
+              <Users className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-neutral-900 mb-2">No employees for this view</h2>
+              <p className="text-neutral-600 text-sm max-w-lg mx-auto mb-6">
+                {clientFilter.trim()
+                  ? 'Add someone with the button above, or import a filled template (select this client first).'
+                  : 'Choose a client in the dropdown, then add employees or import Excel.'}
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  href={
+                    clientFilter.trim()
+                      ? `/dashboard/outsourcing/employees/new?clientId=${encodeURIComponent(clientFilter.trim())}`
+                      : '/dashboard/outsourcing/employees/new'
+                  }
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-900 text-white rounded-xl text-sm font-semibold"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add employee
+                </Link>
+                {clientFilter.trim() && (
+                  <Link
+                    href={`/dashboard/outsourcing/clients/${clientFilter.trim()}#departments`}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-300 bg-white rounded-xl text-sm font-medium"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Manage departments
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : filteredEmployees.length === 0 ? (
             <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-8 sm:p-12 text-center">
               <Search className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-600">No employees match your search or filters.</p>
@@ -459,5 +501,13 @@ export default function OutsourcingEmployeesPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function OutsourcingEmployeesPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse h-40 bg-neutral-100 rounded-2xl" />}>
+      <OutsourcingEmployeesPageInner />
+    </Suspense>
   );
 }

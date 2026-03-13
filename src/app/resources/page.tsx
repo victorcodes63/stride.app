@@ -25,24 +25,24 @@ export default function ResourcesPage() {
     {
       id: 'gross-calculator',
       title: 'Gross Salary Calculator',
-      description: 'Calculate your gross salary from net pay with accurate tax deductions, NSSF, SHIF, and housing levy calculations for Kenya.',
+      description: 'Enter gross pay to see take-home (net) after PAYE, NSSF (optional Tier II), SHIF, and housing levy.',
       icon: Calculator,
       color: 'from-blue-600 to-blue-700',
       bgColor: 'from-blue-100 to-sky-200',
       link: '/resources/gross-calculator',
       category: 'Calculators',
-      features: ['PAYE Calculation', 'NSSF Contributions', 'SHIF Deduction', 'Housing Levy']
+      features: ['Gross to Net', 'PAYE', 'NSSF Tier I & II', 'SHIF & Housing Levy']
     },
     {
       id: 'net-calculator',
       title: 'Net Salary Calculator',
-      description: 'Calculate your take-home pay from gross salary with all statutory deductions and benefits included.',
+      description: 'Enter your net (take-home) pay to estimate gross salary—mortgage relief, optional Tier II NSSF, and full statutory stack.',
       icon: Calculator,
       color: 'from-green-600 to-green-700',
       bgColor: 'from-green-100 to-emerald-200',
       link: '/resources/net-calculator',
       category: 'Calculators',
-      features: ['Gross to Net', 'Tax Deductions', 'Benefits Calculation', 'Statutory Compliance']
+      features: ['Net to Gross', 'Allowable deductions', 'Tier II optional', 'Goal-seek gross']
     },
     {
       id: 'interview-checklist-employers',

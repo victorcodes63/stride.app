@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { dateTimeNairobi } from '@/lib/timezone';
+import { computeBulkInterviewStartTimesWithCustom } from '@/lib/bulk-interview-schedule';
 import type { InterviewWithDetails, InterviewType, InterviewDurationMinutes } from '@/types/dashboard';
 
 const MAX_PER_SCHEDULE = 10;
@@ -57,6 +58,12 @@ export async function POST(request: NextRequest) {
     applicationIds?: string[];
     locationOrLink?: string;
     notes?: string;
+    /** Per applicationId — overrides `type` for that interview (e.g. one video, rest onsite) */
+    typesByApplication?: Record<string, string>;
+    /** Per applicationId — start time HH:mm (Nairobi); omit or empty = chain after previous slot / breaks */
+    timesByApplication?: Record<string, string>;
+    /** Optional breaks same day (Nairobi time HH:mm) — created with interviews in one transaction */
+    breaks?: { time?: string; durationMinutes?: number; label?: string; notes?: string }[];
   };
   const jobId = typeof b.jobId === 'string' ? b.jobId.trim() : '';
   const dateStr = typeof b.date === 'string' ? b.date.trim() : '';
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
   const durationMinutes = b.durationMinutes != null && VALID_DURATIONS.includes(b.durationMinutes as InterviewDurationMinutes)
     ? (b.durationMinutes as InterviewDurationMinutes)
     : 45;
-  const type = (typeof b.type === 'string' ? b.type.trim().toLowerCase() : 'video') as InterviewType;
+  const type = (typeof b.type === 'string' ? b.type.trim().toLowerCase() : 'onsite') as InterviewType;
   const applicationIds = Array.isArray(b.applicationIds)
     ? b.applicationIds.filter((id): id is string => typeof id === 'string').slice(0, MAX_PER_SCHEDULE)
     : [];
@@ -112,15 +119,74 @@ export async function POST(request: NextRequest) {
         error: 'Some application IDs were not found or do not belong to this job.',
       }, { status: 400 });
     }
-    const created: InterviewWithDetails[] = [];
-    let slotStart = new Date(baseDate.getTime());
-    for (const app of applications) {
-      const interview = await prisma.interview.create({
+    const order = new Map(applicationIds.map((id, idx) => [id, idx] as const));
+    applications.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+    const breakRows = Array.isArray(b.breaks) ? b.breaks.slice(0, 20) : [];
+    const breakCreates: { scheduledAt: Date; durationMinutes: number; label: string; notes: string | null }[] = [];
+    for (const br of breakRows) {
+      const timeStr = typeof br.time === 'string' ? br.time.trim() : '';
+      if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) continue;
+      const dm = Math.min(180, Math.max(5, parseInt(String(br.durationMinutes ?? 15), 10) || 15));
+      const label =
+        typeof br.label === 'string' && br.label.trim() ? br.label.trim().slice(0, 120) : 'Break';
+      const notesBr =
+        typeof br.notes === 'string' && br.notes.trim() ? br.notes.trim().slice(0, 2000) : null;
+      const at = dateTimeNairobi(dateStr, timeStr);
+      if (Number.isNaN(at.getTime())) continue;
+      breakCreates.push({ scheduledAt: at, durationMinutes: dm, label, notes: notesBr });
+    }
+
+    const breaksPayloadForSchedule = breakRows
+      .filter((br) => {
+        const timeStr = typeof br.time === 'string' ? br.time.trim() : '';
+        return timeStr && /^\d{1,2}:\d{2}$/.test(timeStr);
+      })
+      .map((br) => ({
+        time: (typeof br.time === 'string' ? br.time.trim() : '') as string,
+        durationMinutes: Math.min(180, Math.max(5, parseInt(String(br.durationMinutes ?? 15), 10) || 15)),
+      }));
+
+    const timesByApp =
+      b.timesByApplication && typeof b.timesByApplication === 'object' && !Array.isArray(b.timesByApplication)
+        ? (b.timesByApplication as Record<string, string>)
+        : {};
+    const interviewStarts = computeBulkInterviewStartTimesWithCustom(
+      dateStr,
+      startTimeStr,
+      durationMinutes,
+      applicationIds,
+      breaksPayloadForSchedule,
+      timesByApp
+    );
+
+    /** Array $transaction uses root client (interactive `tx` can miss `interviewScheduleBreak` in some runtimes). */
+    const breakOps = breakCreates.map((br) =>
+      prisma.interviewScheduleBreak.create({
+        data: {
+          jobId,
+          scheduledAt: br.scheduledAt,
+          durationMinutes: br.durationMinutes,
+          label: br.label,
+          notes: br.notes,
+        },
+      })
+    );
+    const typesMap =
+      b.typesByApplication && typeof b.typesByApplication === 'object' && !Array.isArray(b.typesByApplication)
+        ? (b.typesByApplication as Record<string, string>)
+        : {};
+    const interviewOps = applications.map((app, i) => {
+      const raw = String(typesMap[app.id] ?? '')
+        .trim()
+        .toLowerCase();
+      const perType = VALID_TYPES.includes(raw as InterviewType) ? (raw as InterviewType) : type;
+      return prisma.interview.create({
         data: {
           applicationId: app.id,
-          scheduledAt: new Date(slotStart.getTime()),
+          scheduledAt: new Date(interviewStarts[i].getTime()),
           durationMinutes,
-          type,
+          type: perType,
           locationOrLink,
           notes,
         },
@@ -130,43 +196,43 @@ export async function POST(request: NextRequest) {
           },
         },
       });
-      created.push({
-        id: interview.id,
-        applicationId: interview.applicationId,
-        scheduledAt: interview.scheduledAt.toISOString(),
-        durationMinutes: interview.durationMinutes,
-        type: interview.type as InterviewType,
-        locationOrLink: interview.locationOrLink,
-        notes: interview.notes,
-        status: interview.status,
-        inviteSentAt: interview.inviteSentAt?.toISOString() ?? null,
-        officialLetterPath: interview.officialLetterPath,
-        confirmationStatus: interview.confirmationStatus ?? 'pending',
-        confirmationNotes: interview.confirmationNotes,
-        confirmationAt: interview.confirmationAt?.toISOString() ?? null,
-        createdAt: interview.createdAt.toISOString(),
-        updatedAt: interview.updatedAt.toISOString(),
-        application: {
-          id: interview.application.id,
-          status: interview.application.status,
-          candidate: {
-            id: interview.application.candidate.id,
-            firstName: interview.application.candidate.firstName,
-            lastName: interview.application.candidate.lastName,
-            email: interview.application.candidate.email,
-            phone: interview.application.candidate.phone,
-            location: interview.application.candidate.location,
-            experience: interview.application.candidate.experience,
-            education: interview.application.candidate.education,
-            resumePath: interview.application.candidate.resumePath,
-            createdAt: interview.application.candidate.createdAt.toISOString(),
-          },
-          job: jobToSummary(interview.application.job),
+    });
+    const results = await prisma.$transaction([...breakOps, ...interviewOps]);
+    const created: InterviewWithDetails[] = results.slice(breakCreates.length).map((interview) => ({
+      id: interview.id,
+      applicationId: interview.applicationId,
+      scheduledAt: interview.scheduledAt.toISOString(),
+      durationMinutes: interview.durationMinutes,
+      type: interview.type as InterviewType,
+      locationOrLink: interview.locationOrLink,
+      notes: interview.notes,
+      status: interview.status,
+      inviteSentAt: interview.inviteSentAt?.toISOString() ?? null,
+      officialLetterPath: interview.officialLetterPath,
+      confirmationStatus: interview.confirmationStatus ?? 'pending',
+      confirmationNotes: interview.confirmationNotes,
+      confirmationAt: interview.confirmationAt?.toISOString() ?? null,
+      createdAt: interview.createdAt.toISOString(),
+      updatedAt: interview.updatedAt.toISOString(),
+      application: {
+        id: interview.application.id,
+        status: interview.application.status,
+        candidate: {
+          id: interview.application.candidate.id,
+          firstName: interview.application.candidate.firstName,
+          lastName: interview.application.candidate.lastName,
+          email: interview.application.candidate.email,
+          phone: interview.application.candidate.phone,
+          location: interview.application.candidate.location,
+          experience: interview.application.candidate.experience,
+          education: interview.application.candidate.education,
+          resumePath: interview.application.candidate.resumePath,
+          createdAt: interview.application.candidate.createdAt.toISOString(),
         },
-      });
-      slotStart = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
-    }
-    return NextResponse.json(created);
+        job: jobToSummary(interview.application.job),
+      },
+    }));
+    return NextResponse.json({ interviews: created, breaksCreated: breakCreates.length });
   } catch (e) {
     console.error('POST /api/interviews/bulk error:', e);
     return NextResponse.json({ error: 'Failed to create interviews.' }, { status: 500 });

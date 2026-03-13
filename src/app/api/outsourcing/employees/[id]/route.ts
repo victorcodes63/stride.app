@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/lib/prisma';
 
 function str(b: Record<string, unknown>, key: string): string | null {
@@ -28,6 +29,7 @@ function mapEmployeeToJson(e: {
   bankName: string | null;
   bankBranch: string | null;
   bankAccountNumber: string | null;
+  baseSalary: unknown;
   outsourcingClientId: string;
   departmentId: string | null;
   createdAt: Date;
@@ -51,6 +53,7 @@ function mapEmployeeToJson(e: {
     bankName: e.bankName ?? null,
     bankBranch: e.bankBranch ?? null,
     bankAccountNumber: e.bankAccountNumber ?? null,
+    baseSalary: e.baseSalary != null ? Number(e.baseSalary as number) : null,
     clientId: e.outsourcingClientId,
     clientName: e.client.name,
     departmentId: e.departmentId,
@@ -148,6 +151,14 @@ export async function PATCH(
   if (bankBranch !== undefined) data.bankBranch = bankBranch;
   if (bankAccountNumber !== undefined) data.bankAccountNumber = bankAccountNumber;
   if (departmentId !== undefined) data.departmentId = departmentId;
+  if (b.baseSalary !== undefined) {
+    const raw = b.baseSalary;
+    if (raw === null || raw === '') data.baseSalary = null;
+    else {
+      const n = parseFloat(String(raw).replace(/,/g, ''));
+      if (!Number.isNaN(n) && n >= 0) data.baseSalary = new Decimal(n);
+    }
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Provide at least one field to update.' }, { status: 400 });

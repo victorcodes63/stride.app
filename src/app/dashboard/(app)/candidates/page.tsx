@@ -22,13 +22,14 @@ import {
   GraduationCap,
   Award,
   Download,
+  Calendar,
 } from 'lucide-react';
 import type { CandidateSummary } from '@/types/dashboard';
 import type { CandidateWithDetails } from '@/app/api/candidates/[id]/route';
 import { WorkExperienceTab, EducationTab, CertificationsTab } from '@/components/dashboard/CandidateDetailTabs';
 
-const inputBase =
-  'h-10 px-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm bg-white';
+const filterInputClass =
+  'px-3 py-2.5 border border-neutral-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300 transition-colors min-w-0';
 
 type CandidateDetailTab = 'general' | 'experience' | 'education' | 'certifications';
 
@@ -68,6 +69,24 @@ export default function DashboardCandidatesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloadingResumes, setDownloadingResumes] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [dbStats, setDbStats] = useState<{
+    total: number;
+    withResume: number;
+    avgExperienceYears: number;
+    addedLast30Days: number;
+    withLocation: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/candidates/stats')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.total === 'number') setDbStats(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,8 +187,14 @@ export default function DashboardCandidatesPage() {
   };
 
   const hasActiveFilters =
-    jobFilter || minExperience.trim() || maxExperience.trim() || educationFilter.trim() || employerCompanyFilter.trim();
+    !!searchQuery.trim() ||
+    !!jobFilter ||
+    !!minExperience.trim() ||
+    !!maxExperience.trim() ||
+    !!educationFilter.trim() ||
+    !!employerCompanyFilter.trim();
   const clearFilters = () => {
+    setSearchQuery('');
     setJobFilter('');
     setMinExperience('');
     setMaxExperience('');
@@ -179,66 +204,126 @@ export default function DashboardCandidatesPage() {
 
   return (
     <div className="w-full min-w-0">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 mb-1">
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary-900 tracking-tight mb-1.5">
           Candidates
         </h1>
-        <p className="text-neutral-600 text-sm sm:text-base">
-          Your candidate database. Search and view all applicants and talent pool.
+        <p className="text-neutral-600 text-sm sm:text-[15px] leading-relaxed max-w-2xl">
+          Applicant database: totals below are for everyone stored; the table respects your filters.
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden mb-6">
-        <div className="p-4 border-b border-neutral-100">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">
-            Search &amp; application
-          </p>
-          <div className="flex flex-col lg:flex-row gap-3 lg:items-center flex-wrap">
-            <div className="flex-1 relative min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                aria-label="Search candidates"
-              />
+      {dbStats && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6">
+          <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-primary-50 p-2.5 text-primary-700 hidden sm:block">
+              <Users className="w-4 h-4" strokeWidth={1.75} />
             </div>
-            <div className="flex flex-wrap gap-2 items-center">
-              <select
-                value={jobFilter}
-                onChange={(e) => setJobFilter(e.target.value)}
-                className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white min-w-[160px] max-w-[240px] text-sm truncate"
-                aria-label="Filter by job"
-              >
-                <option value="">All jobs</option>
-                {jobOptions.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title}
-                  </option>
-                ))}
-              </select>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Total profiles</p>
+            <p className="text-2xl sm:text-3xl font-bold text-primary-900 tabular-nums">{dbStats.total}</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-tight">In database</p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-indigo-50 p-2.5 text-indigo-700 hidden sm:block">
+              <FileText className="w-4 h-4" strokeWidth={1.75} />
+            </div>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">With resume</p>
+            <p className="text-2xl sm:text-3xl font-bold text-indigo-700 tabular-nums">{dbStats.withResume}</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-tight">
+              {dbStats.total ? `${Math.round((dbStats.withResume / dbStats.total) * 100)}%` : '—'} uploaded CV
+            </p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-amber-50 p-2.5 text-amber-700 hidden sm:block">
+              <Briefcase className="w-4 h-4" strokeWidth={1.75} />
+            </div>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Avg experience</p>
+            <p className="text-2xl sm:text-3xl font-bold text-amber-700 tabular-nums">{dbStats.avgExperienceYears}</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-tight">Years (profile)</p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-emerald-50 p-2.5 text-emerald-700 hidden sm:block">
+              <MapPin className="w-4 h-4" strokeWidth={1.75} />
+            </div>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">With location</p>
+            <p className="text-2xl sm:text-3xl font-bold text-emerald-700 tabular-nums">{dbStats.withLocation}</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-tight">Listed city/area</p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-sky-50 p-2.5 text-sky-700 hidden sm:block">
+              <Calendar className="w-4 h-4" strokeWidth={1.75} />
+            </div>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">New (30 days)</p>
+            <p className="text-2xl sm:text-3xl font-bold text-sky-700 tabular-nums">{dbStats.addedLast30Days}</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-tight">Profiles added</p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-primary-200/80 bg-primary-50/30 p-4 sm:p-5 shadow-sm min-w-0 ring-1 ring-primary-100/50">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-white/90 p-2.5 text-primary-800 hidden sm:block">
+              <Eye className="w-4 h-4" strokeWidth={1.75} />
+            </div>
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-primary-800/90 mb-1">In table</p>
+            <p className="text-2xl sm:text-3xl font-bold text-primary-900 tabular-nums">{loading ? '—' : filtered.length}</p>
+            <p className="text-[11px] text-primary-800/80 mt-1 leading-tight">
+              {hasActiveFilters ? 'After filters' : 'Same as total'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-neutral-200/90 bg-white shadow-sm overflow-hidden mb-6">
+        <div className="p-4 sm:p-5 border-b border-neutral-100 bg-gradient-to-b from-white to-neutral-50/40">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-0.5">
+                Search &amp; job
+              </p>
+              <p className="text-xs text-neutral-500">Find by name or email, optionally limit to one role.</p>
             </div>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors lg:ml-auto"
+                className="inline-flex items-center px-3 py-2 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors shrink-0 self-start sm:self-auto"
               >
                 Clear filters
               </button>
             )}
           </div>
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+            <div className="flex-1 relative min-w-0 max-w-xl">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by name or email…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl text-sm bg-neutral-50/80 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-300 transition-colors"
+                aria-label="Search candidates"
+              />
+            </div>
+            <select
+              value={jobFilter}
+              onChange={(e) => setJobFilter(e.target.value)}
+              className={`${filterInputClass} lg:min-w-[200px] lg:max-w-xs truncate py-2.5`}
+              aria-label="Filter by job"
+            >
+              <option value="">All jobs</option>
+              {jobOptions.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.title}
+                </option>
+              ))}
+            </select>
+          </div>
           {selectedIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-neutral-100">
-              <span className="text-sm text-neutral-600">{selectedIds.size} selected</span>
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-neutral-100/80">
+              <span className="text-sm font-medium text-neutral-700">{selectedIds.size} selected</span>
               {selectedWithResume.length > 0 && (
                 <button
                   type="button"
                   onClick={handleBulkDownloadResumes}
                   disabled={downloadingResumes}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 text-sm font-medium transition-colors disabled:opacity-50"
                   title="Download resumes for selected candidates"
                 >
                   {downloadingResumes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -248,7 +333,7 @@ export default function DashboardCandidatesPage() {
               <button
                 type="button"
                 onClick={() => { setSelectedIds(new Set()); setBulkResult(null); }}
-                className="inline-flex items-center px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
+                className="inline-flex items-center px-3 py-2 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 text-sm font-medium transition-colors"
               >
                 Clear selection
               </button>
@@ -259,30 +344,30 @@ export default function DashboardCandidatesPage() {
           )}
         </div>
 
-        <div className="p-4 bg-neutral-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-            Candidate &amp; qualifications
+        <div className="p-4 sm:p-5 bg-primary-50/25 border-t border-primary-100/50">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary-800/80 mb-1">
+            Experience &amp; education
           </p>
-          <p className="text-xs text-neutral-500 mb-3">
-            Narrow candidates by work experience range and education keyword.
+          <p className="text-xs text-neutral-600 mb-4 max-w-2xl">
+            Narrow by years of experience, education keywords, or past employer.
           </p>
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <input
               type="number"
-              placeholder="Min years"
+              placeholder="Min years exp"
               value={minExperience}
               onChange={(e) => setMinExperience(e.target.value)}
               min={0}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white w-[120px] text-sm"
+              className={filterInputClass}
               aria-label="Minimum experience in years"
             />
             <input
               type="number"
-              placeholder="Max years"
+              placeholder="Max years exp"
               value={maxExperience}
               onChange={(e) => setMaxExperience(e.target.value)}
               min={0}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white w-[120px] text-sm"
+              className={filterInputClass}
               aria-label="Maximum experience in years"
             />
             <input
@@ -291,7 +376,7 @@ export default function DashboardCandidatesPage() {
               value={educationFilter}
               onChange={(e) => setEducationFilter(e.target.value)}
               title="Filter by education field"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white min-w-[220px] text-sm"
+              className={filterInputClass}
               aria-label="Filter by education"
             />
             <input
@@ -300,55 +385,59 @@ export default function DashboardCandidatesPage() {
               value={employerCompanyFilter}
               onChange={(e) => setEmployerCompanyFilter(e.target.value)}
               title="Filter by employer company name from employment history"
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white min-w-[220px] text-sm"
+              className={`${filterInputClass} lg:col-span-1 sm:col-span-2`}
               aria-label="Filter by employer company"
             />
           </div>
         </div>
       </div>
 
-      {!loading && (
-        <p className="mb-4 text-xs text-neutral-500">
-          {filtered.length === 0
-            ? hasActiveFilters
-              ? 'No candidates match your filters.'
-              : 'No candidates yet.'
-            : `${filtered.length} candidate${filtered.length !== 1 ? 's' : ''}`}
-        </p>
-      )}
-
       {loading ? (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-12 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+        <div className="rounded-2xl border border-neutral-200 bg-white p-14 flex flex-col items-center justify-center gap-4 shadow-sm">
+          <Loader2 className="w-9 h-9 text-primary-600 animate-spin" />
+          <p className="text-sm text-neutral-500">Loading candidates…</p>
         </div>
       ) : error ? (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-8 sm:p-12 text-center">
-          <p className="text-red-600">{error}</p>
+        <div className="rounded-2xl border border-red-100 bg-red-50/50 p-8 sm:p-10 text-center shadow-sm">
+          <p className="text-red-800 font-medium">{error}</p>
         </div>
       ) : candidates.length === 0 ? (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-8 sm:p-12 text-center">
-          <Users className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-          <p className="text-neutral-600 mb-4">
-            {hasActiveFilters
-              ? 'No candidates match your filters. Try adjusting or clearing the filters above.'
-              : 'No candidates in the database yet. Candidates will appear here once applications are submitted.'}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-10 sm:p-14 text-center shadow-sm">
+          <div className="inline-flex rounded-2xl bg-neutral-100 p-4 mb-5">
+            <Users className="w-10 h-10 text-neutral-400" strokeWidth={1.25} />
+          </div>
+          <p className="text-neutral-800 font-medium mb-1">
+            {hasActiveFilters ? 'No matches' : 'No candidates yet'}
           </p>
-          {!hasActiveFilters && (
+          <p className="text-sm text-neutral-500 mb-6 max-w-md mx-auto">
+            {hasActiveFilters
+              ? 'Try clearing filters or broadening search.'
+              : 'Candidates appear here after people apply.'}
+          </p>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center px-4 py-2.5 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Clear filters
+            </button>
+          ) : (
             <Link
               href="/dashboard/applications"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-900 text-white rounded-lg font-medium hover:bg-primary-800 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-900 text-white rounded-xl text-sm font-semibold hover:bg-primary-800 transition-colors shadow-sm shadow-primary-900/10"
             >
               View applications
             </Link>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden min-w-0">
+        <div className="rounded-2xl border border-neutral-200/90 bg-white shadow-sm overflow-hidden min-w-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px]">
+            <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50/80">
-                <th className="w-10 px-5 py-3">
+              <tr className="bg-neutral-50/95 border-b border-neutral-200">
+                <th className="w-10 px-4 sm:px-5 py-3.5">
                   <input
                     type="checkbox"
                     checked={filtered.length > 0 && selectedIds.size === filtered.length}
@@ -357,27 +446,34 @@ export default function DashboardCandidatesPage() {
                     aria-label="Select all"
                   />
                 </th>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 px-5 py-3">
+                <th className="text-left text-[11px] font-bold uppercase tracking-widest text-neutral-500 px-4 sm:px-5 py-3.5">
                   Candidate
                 </th>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 px-5 py-3">
+                <th className="text-left text-[11px] font-bold uppercase tracking-widest text-neutral-500 px-4 sm:px-5 py-3.5">
                   Email
                 </th>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 px-5 py-3">
-                  Work Experience
+                <th className="text-left text-[11px] font-bold uppercase tracking-widest text-neutral-500 px-4 sm:px-5 py-3.5">
+                  Experience
                 </th>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 px-5 py-3">
+                <th className="text-left text-[11px] font-bold uppercase tracking-widest text-neutral-500 px-4 sm:px-5 py-3.5">
                   Education
                 </th>
-                <th className="text-right text-xs font-semibold uppercase tracking-wider text-neutral-500 px-5 py-3">
+                <th className="text-right text-[11px] font-bold uppercase tracking-widest text-neutral-500 px-4 sm:px-5 py-3.5">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {filtered.map((candidate) => (
-                <tr key={candidate.id} className="hover:bg-neutral-50/70 transition-colors">
-                  <td className="px-5 py-3">
+            <tbody className="divide-y divide-primary-200/20">
+              {filtered.map((candidate, index) => (
+                <tr
+                  key={candidate.id}
+                  className={`transition-colors group ${
+                    index % 2 === 0
+                      ? 'bg-white hover:bg-primary-50/90'
+                      : 'bg-primary-600/[0.07] hover:bg-primary-600/[0.12] backdrop-blur-[6px]'
+                  }`}
+                >
+                  <td className="px-4 sm:px-5 py-3.5 align-middle">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(candidate.id)}
@@ -386,46 +482,46 @@ export default function DashboardCandidatesPage() {
                       aria-label={`Select ${candidate.firstName} ${candidate.lastName}`}
                     />
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-4 sm:px-5 py-3.5 align-middle">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-semibold text-primary-700">
+                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm">
+                        <span className="text-sm font-semibold text-primary-800">
                           {candidate.firstName[0]}
                           {candidate.lastName[0]}
                         </span>
                       </div>
-                      <div>
-                        <p className="font-medium text-primary-900 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-primary-900 text-sm truncate">
                           {candidate.firstName} {candidate.lastName}
                         </p>
                         {candidate.location && (
-                          <p className="text-xs text-neutral-500 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
+                          <p className="text-xs text-neutral-500 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 shrink-0" />
                             {candidate.location}
                           </p>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-neutral-600 text-sm">
+                  <td className="px-4 sm:px-5 py-3.5 text-neutral-600 text-xs sm:text-sm align-middle">
                     <span className="truncate max-w-[200px] block">{candidate.email}</span>
                   </td>
-                  <td className="px-5 py-3 text-neutral-600 text-sm">
-                    {candidate.experience} years
+                  <td className="px-4 sm:px-5 py-3.5 text-neutral-700 tabular-nums font-medium align-middle">
+                    {candidate.experience} yrs
                   </td>
-                  <td className="px-5 py-3 text-neutral-600 text-sm">
+                  <td className="px-4 sm:px-5 py-3.5 text-neutral-600 align-middle max-w-[14rem]">
                     {candidate.education ? (
-                      <span className="line-clamp-2">{candidate.education}</span>
+                      <span className="line-clamp-2 text-xs sm:text-sm">{candidate.education}</span>
                     ) : (
-                      <span className="text-neutral-400">—</span>
+                      <span className="text-neutral-300">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-4 sm:px-5 py-3.5 text-right align-middle">
+                    <div className="flex items-center justify-end gap-1 opacity-90 group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() => setSelectedCandidate(candidate)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-white border border-transparent hover:border-primary-100 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         View
@@ -435,7 +531,7 @@ export default function DashboardCandidatesPage() {
                           href={candidate.resumePath}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary-700 hover:bg-white border border-transparent hover:border-primary-100 transition-colors"
                         >
                           <FileText className="w-3.5 h-3.5" />
                           Resume
@@ -448,6 +544,12 @@ export default function DashboardCandidatesPage() {
             </tbody>
           </table>
         </div>
+          <div className="px-4 sm:px-5 py-3 border-t border-neutral-100 bg-neutral-50/50 text-xs text-neutral-500">
+            <span>
+              Showing <strong className="text-neutral-700">{filtered.length}</strong> candidate
+              {filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
       )}
 

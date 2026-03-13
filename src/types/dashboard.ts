@@ -188,6 +188,20 @@ export interface BulkCreateInterviewsBody {
   type: InterviewType;
   applicationIds: string[]; // max 10
   locationOrLink?: string;
+  /** Same calendar day as date; Nairobi time */
+  breaks?: { time: string; durationMinutes: number; label?: string; notes?: string }[];
+}
+
+/** Lunch / buffer blocks on the interview schedule (same job, merged in UI + export). */
+export interface InterviewScheduleBreak {
+  id: string;
+  jobId: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  label: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Staff / User management (no password in API responses)

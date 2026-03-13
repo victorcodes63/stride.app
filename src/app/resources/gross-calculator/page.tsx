@@ -4,31 +4,33 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { Calculator, DollarSign, TrendingUp, Info, AlertCircle } from 'lucide-react';
+import { Calculator, DollarSign, TrendingDown } from 'lucide-react';
 
+/** Gross calculator URL: enter gross → take-home (net) breakdown. */
 export default function GrossSalaryCalculator() {
-  const [netPay, setNetPay] = useState<string>('');
+  const [grossPay, setGrossPay] = useState<string>('');
   const [nonCashBenefits, setNonCashBenefits] = useState<string>('');
-  const [allowableDeductions, setAllowableDeductions] = useState<string>('');
   const [housingValue, setHousingValue] = useState<string>('');
   const [rentPaid, setRentPaid] = useState<string>('');
-  const [ignoreFirst5000, setIgnoreFirst5000] = useState<boolean>(true);
+  const [ignoreFirst5000, setIgnoreFirst5000] = useState<boolean>(false);
+  const [deductTierI, setDeductTierI] = useState<boolean>(true);
   const [deductTierII, setDeductTierII] = useState<boolean>(true);
   const [deductSHIF, setDeductSHIF] = useState<boolean>(true);
   const [deductHousingLevy, setDeductHousingLevy] = useState<boolean>(true);
-  
+
   const [results, setResults] = useState({
-    grossPay: 0,
+    netPay: 0,
+    totalTaxableIncome: 0,
     taxablePay: 0,
     paye: 0,
     shif: 0,
     nssfTierI: 0,
     nssfTierII: 0,
     housingLevy: 0,
-    netPayCalculated: 0
+    rent: 0,
+    totalDeductions: 0,
   });
 
-  // Same logic as Net Pay calculator - Kenya 2024/2026
   const PAYE_BRACKETS = [
     { max: 24_000, rate: 0.1 },
     { max: 32_333, rate: 0.25 },
@@ -40,95 +42,104 @@ export default function GrossSalaryCalculator() {
 
   const calcNSSF = (gross: number) => {
     const pensionable = Math.min(gross, 108_000);
-    const tierI = Math.min(pensionable, 9_000) * 0.06;
+    const tierI = deductTierI ? Math.min(pensionable, 9_000) * 0.06 : 0;
     const tierII = deductTierII ? Math.max(0, Math.min(pensionable - 9_000, 99_000)) * 0.06 : 0;
     return { tierI: Math.round(tierI), tierII: Math.round(tierII) };
   };
 
-  const calcDeductions = (gross: number, taxableBenefits: number, allowable: number) => {
-    const totalTaxable = Math.max(0, gross + taxableBenefits - allowable);
-    const nssf = calcNSSF(gross);
-    const shif = deductSHIF ? gross * 0.0275 : 0;
-    const housingLevy = deductHousingLevy ? gross * 0.015 : 0;
-    const taxablePay = Math.max(0, totalTaxable - nssf.tierI - nssf.tierII - shif - housingLevy);
-    let paye = 0, r = taxablePay, prev = 0;
-    for (const b of PAYE_BRACKETS) {
-      const band = Math.min(r, b.max - prev);
-      if (band > 0) paye += band * b.rate;
-      r -= band;
-      prev = b.max;
-    }
-    paye = Math.max(0, paye - PERSONAL_RELIEF);
-    return { paye, shif, nssf, housingLevy, taxablePay };
-  };
+  const calculateNetSalary = () => {
+    const grossPayValue = parseFloat(grossPay.replace(/,/g, '')) || 0;
+    const nonCashBenefitsValue = parseFloat(nonCashBenefits.replace(/,/g, '')) || 0;
+    const housingValueAmount = parseFloat(housingValue.replace(/,/g, '')) || 0;
+    const rentPaidAmount = parseFloat(rentPaid.replace(/,/g, '')) || 0;
 
-  const calculateGrossSalary = () => {
-    const netPayValue = parseFloat(String(netPay).replace(/,/g, '')) || 0;
-    let taxableBenefits = parseFloat(String(nonCashBenefits).replace(/,/g, '')) || 0;
+    let taxableBenefits = nonCashBenefitsValue;
     if (ignoreFirst5000 && taxableBenefits > 5000) taxableBenefits -= 5000;
-    taxableBenefits += Math.max(0, (parseFloat(String(housingValue).replace(/,/g, '')) || 0) - (parseFloat(String(rentPaid).replace(/,/g, '')) || 0));
-    const rent = parseFloat(String(rentPaid).replace(/,/g, '')) || 0;
-    const allowable = parseFloat(String(allowableDeductions).replace(/,/g, '')) || 0;
+    const housingBenefitTaxable = Math.max(0, housingValueAmount - rentPaidAmount);
+    taxableBenefits += housingBenefitTaxable;
 
-    // Goal Seek: find gross such that netPay = gross - totalDeductions
-    // Allowable reduces taxable income (tax relief), not deducted from net
-    let gross = netPayValue + rent + (netPayValue * 0.4); // initial guess
-    for (let i = 0; i < 40; i++) {
-      const d = calcDeductions(gross, taxableBenefits, allowable);
-      const totalDed = d.paye + d.shif + d.nssf.tierI + d.nssf.tierII + d.housingLevy + rent;
-      const netCalc = gross - totalDed;
-      if (Math.abs(netCalc - netPayValue) < 0.02) break;
-      gross = gross + (netPayValue - netCalc);
-      if (gross < netPayValue) gross = netPayValue + 1000;
+    const totalTaxableIncome = grossPayValue + taxableBenefits;
+
+    const nssf = calcNSSF(grossPayValue);
+
+    const shif = deductSHIF ? grossPayValue * 0.0275 : 0;
+    const housingLevy = deductHousingLevy ? grossPayValue * 0.015 : 0;
+    const nssfTotal = nssf.tierI + nssf.tierII;
+
+    const taxablePay = Math.max(0, totalTaxableIncome - nssfTotal - shif - housingLevy);
+
+    let payeBeforeRelief = 0;
+    let remaining = taxablePay;
+    let prevMax = 0;
+    for (const b of PAYE_BRACKETS) {
+      if (remaining <= 0) break;
+      const band = Math.min(remaining, b.max - prevMax);
+      if (band > 0) payeBeforeRelief += band * b.rate;
+      remaining -= band;
+      prevMax = b.max;
     }
+    const paye = Math.max(0, payeBeforeRelief - PERSONAL_RELIEF);
 
-    const d = calcDeductions(gross, taxableBenefits, allowable);
-    const totalDed = d.paye + d.shif + d.nssf.tierI + d.nssf.tierII + d.housingLevy + rent;
-    const netPayCalculated = gross - totalDed;
+    const totalDeductions = paye + shif + nssf.tierI + nssf.tierII + housingLevy + rentPaidAmount;
+    const netPay = grossPayValue - totalDeductions;
 
     setResults({
-      grossPay: Math.round(gross * 100) / 100,
-      taxablePay: Math.round(d.taxablePay * 100) / 100,
-      paye: Math.round(d.paye * 100) / 100,
-      shif: Math.round(d.shif * 100) / 100,
-      nssfTierI: d.nssf.tierI,
-      nssfTierII: d.nssf.tierII,
-      housingLevy: Math.round(d.housingLevy * 100) / 100,
-      netPayCalculated: Math.round(netPayCalculated * 100) / 100,
+      netPay: Math.round(netPay * 100) / 100,
+      totalTaxableIncome: Math.round(totalTaxableIncome * 100) / 100,
+      taxablePay: Math.round(taxablePay * 100) / 100,
+      paye,
+      shif: Math.round(shif * 100) / 100,
+      nssfTierI: nssf.tierI,
+      nssfTierII: nssf.tierII,
+      housingLevy: Math.round(housingLevy * 100) / 100,
+      rent: rentPaidAmount,
+      totalDeductions: Math.round(totalDeductions * 100) / 100,
     });
   };
 
   useEffect(() => {
-    if (netPay) {
-      calculateGrossSalary();
-    }
-  }, [netPay, nonCashBenefits, allowableDeductions, housingValue, rentPaid, ignoreFirst5000, deductTierII, deductSHIF, deductHousingLevy]);
+    if (grossPay) calculateNetSalary();
+  }, [
+    grossPay,
+    nonCashBenefits,
+    housingValue,
+    rentPaid,
+    ignoreFirst5000,
+    deductTierI,
+    deductTierII,
+    deductSHIF,
+    deductHousingLevy,
+  ]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency: 'KES',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
-  };
+
+  const formatPaye = (amount: number) =>
+    new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
 
   return (
     <main className="min-h-screen min-w-0 overflow-x-hidden bg-gradient-to-br from-neutral-50 to-white">
       <Navbar />
-      
-      {/* Hero Section */}
+
       <section className="relative pt-32 pb-20 min-h-[60vh] flex flex-col justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <div 
+          <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 blur-sm"
-            style={{
-              backgroundImage: 'url(/images/hero/Reception_comp.webp)'
-            }}
+            style={{ backgroundImage: 'url(/images/hero/Reception_comp.webp)' }}
           />
           <div className="absolute inset-0 bg-white/70" />
         </div>
-        
+
         <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -143,39 +154,36 @@ export default function GrossSalaryCalculator() {
               className="inline-flex items-center px-4 py-2 bg-primary-100 text-primary-900 rounded-full text-sm font-medium mb-6"
             >
               <Calculator className="w-4 h-4 mr-2" />
-              Salary Calculator
+              Gross Salary Calculator
             </motion.div>
-            
+
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
               className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold mb-6 text-primary-900"
             >
-              Gross Salary Calculator
-              <span className="block text-secondary-500">Kenya 2026</span>
+              Gross to net take-home
+              <span className="block text-secondary-500">Kenya 2025</span>
             </motion.h1>
-            
+
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
               className="text-xl text-neutral-700 leading-relaxed mb-8"
             >
-              Calculate your gross salary from net pay with accurate tax deductions, 
-              NSSF, SHIF, and housing levy calculations for Kenya.
+              Enter your gross salary to see take-home pay with PAYE, NSSF (optional Tier II), SHIF, and housing
+              levy.
             </motion.p>
           </motion.div>
         </div>
       </section>
 
-      {/* Calculator Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12">
-              
-              {/* Input Form */}
               <motion.div
                 initial={{ opacity: 0, x: -30 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -189,21 +197,19 @@ export default function GrossSalaryCalculator() {
                 </h2>
 
                 <div className="space-y-4 md:space-y-6">
-                  {/* Net Pay */}
                   <div>
                     <label className="block text-sm font-semibold text-primary-900 mb-2">
-                      Net Pay (Ksh)
+                      Gross Pay (Ksh)
                     </label>
                     <input
                       type="number"
-                      value={netPay}
-                      onChange={(e) => setNetPay(e.target.value)}
-                      placeholder="Enter your net salary"
+                      value={grossPay}
+                      onChange={(e) => setGrossPay(e.target.value)}
+                      placeholder="Enter your gross salary"
                       className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-lg"
                     />
                   </div>
 
-                  {/* Non-Cash Benefits */}
                   <div>
                     <label className="block text-sm font-semibold text-primary-900 mb-2">
                       Non-Cash Benefits (Ksh)
@@ -217,21 +223,6 @@ export default function GrossSalaryCalculator() {
                     />
                   </div>
 
-                  {/* Allowable Deductions */}
-                  <div>
-                    <label className="block text-sm font-semibold text-primary-900 mb-2">
-                      Other Allowable Deductions e.g. Mortgage (Ksh)
-                    </label>
-                    <input
-                      type="number"
-                      value={allowableDeductions}
-                      onChange={(e) => setAllowableDeductions(e.target.value)}
-                      placeholder="e.g. mortgage, loan repayments"
-                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-lg"
-                    />
-                  </div>
-
-                  {/* Housing Value */}
                   <div>
                     <label className="block text-sm font-semibold text-primary-900 mb-2">
                       Housing Value Provided (Ksh)
@@ -245,7 +236,6 @@ export default function GrossSalaryCalculator() {
                     />
                   </div>
 
-                  {/* Rent Paid */}
                   <div>
                     <label className="block text-sm font-semibold text-primary-900 mb-2">
                       Rent Paid to Employer (Ksh)
@@ -259,10 +249,8 @@ export default function GrossSalaryCalculator() {
                     />
                   </div>
 
-                  {/* Options */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-primary-900">Calculation Options</h3>
-                    
                     <div className="space-y-3">
                       <label className="flex items-center space-x-3">
                         <input
@@ -273,7 +261,17 @@ export default function GrossSalaryCalculator() {
                         />
                         <span className="text-sm text-neutral-700">Ignore first Ksh 5,000 of benefits</span>
                       </label>
-
+                      <label className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={deductTierI}
+                          onChange={(e) => setDeductTierI(e.target.checked)}
+                          className="w-4 h-4 text-primary-600 border-primary-300 rounded focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-neutral-700">
+                          Deduct Tier I NSSF (6% of first 9k) — uncheck if you pay Tier I elsewhere
+                        </span>
+                      </label>
                       <label className="flex items-center space-x-3">
                         <input
                           type="checkbox"
@@ -281,9 +279,10 @@ export default function GrossSalaryCalculator() {
                           onChange={(e) => setDeductTierII(e.target.checked)}
                           className="w-4 h-4 text-primary-600 border-primary-300 rounded focus:ring-primary-500"
                         />
-                        <span className="text-sm text-neutral-700">Deduct Tier II NSSF (3%)</span>
+                        <span className="text-sm text-neutral-700">
+                          Deduct Tier II NSSF (6% of next 99k) — uncheck if you pay Tier II elsewhere
+                        </span>
                       </label>
-
                       <label className="flex items-center space-x-3">
                         <input
                           type="checkbox"
@@ -293,7 +292,6 @@ export default function GrossSalaryCalculator() {
                         />
                         <span className="text-sm text-neutral-700">Deduct SHIF (2.75%)</span>
                       </label>
-
                       <label className="flex items-center space-x-3">
                         <input
                           type="checkbox"
@@ -308,7 +306,6 @@ export default function GrossSalaryCalculator() {
                 </div>
               </motion.div>
 
-              {/* Results */}
               <motion.div
                 initial={{ opacity: 0, x: 30 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -317,70 +314,78 @@ export default function GrossSalaryCalculator() {
                 className="bg-white border border-neutral-200 rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg"
               >
                 <h2 className="text-2xl font-heading font-bold mb-6 flex items-center text-primary-900">
-                  <TrendingUp className="w-6 h-6 mr-3 text-secondary-500" />
-                  Estimated Gross Pay Breakdown
+                  <TrendingDown className="w-6 h-6 mr-3 text-secondary-500" />
+                  Net Pay Breakdown
                 </h2>
 
                 <div className="space-y-4">
                   <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <span className="text-primary-900 font-semibold">Gross Pay:</span>
-                      <span className="text-2xl font-bold text-secondary-500">
-                        {formatCurrency(results.grossPay)}
+                      <span className="text-xl font-bold text-primary-900">
+                        {formatCurrency(parseFloat(String(grossPay).replace(/,/g, '')) || 0)}
                       </span>
                     </div>
                   </div>
 
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
                     <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-700">Total Taxable Income:</span>
+                        <span className="font-semibold text-neutral-900">
+                          {formatCurrency(results.totalTaxableIncome)}
+                        </span>
+                      </div>
                       <div className="flex justify-between text-sm text-neutral-500">
-                        <span>Taxable Pay:</span>
+                        <span>Taxable Pay (for PAYE):</span>
                         <span>{formatCurrency(results.taxablePay)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">PAYE:</span>
-                        <span className="font-semibold text-neutral-900">{formatCurrency(results.paye)}</span>
+                        <span className="text-neutral-700">PAYE (incl. relief, 2 d.p.):</span>
+                        <span className="font-semibold text-neutral-900 tabular-nums">
+                          {formatPaye(results.paye)}
+                        </span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">SHIF:</span>
+                        <span className="text-neutral-700">SHIF (2.75%):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.shif)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">NSSF Tier I:</span>
+                        <span className="text-neutral-700">NSSF Tier I (6% of first 9k):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.nssfTierI)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
                         <span className="text-neutral-700">NSSF Tier II:</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.nssfTierII)}</span>
                       </div>
-                      
                       <div className="flex justify-between">
-                        <span className="text-neutral-700">Housing Levy:</span>
+                        <span className="text-neutral-700">Housing Levy (1.5%):</span>
                         <span className="font-semibold text-neutral-900">{formatCurrency(results.housingLevy)}</span>
                       </div>
+                      {results.rent > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-700">Rent (to employer):</span>
+                          <span className="font-semibold text-neutral-900">{formatCurrency(results.rent)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-red-900 font-semibold">Total Deductions:</span>
+                      <span className="text-xl font-bold text-red-600">
+                        {formatCurrency(results.totalDeductions)}
+                      </span>
                     </div>
                   </div>
 
                   <div className="bg-secondary-50 border border-secondary-200 rounded-lg p-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-primary-900 font-semibold">Net Pay (Calculated):</span>
-                      <span className="text-xl font-bold text-secondary-500">
-                        {formatCurrency(results.netPayCalculated)}
+                      <span className="text-primary-900 font-semibold">Net Pay (Take Home):</span>
+                      <span className="text-2xl font-bold text-secondary-500">
+                        {formatCurrency(results.netPay)}
                       </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Info Box */}
-                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <Info className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-neutral-700">
-                      <p className="font-semibold mb-1 text-primary-900">Calculation Note:</p>
-                      <p>Based on Kenya 2024/2026: Goal Seek to find gross from net. Uses PAYE, NSSF (Tier I & II), SHIF 2.75%, Housing Levy 1.5%. Estimates only.</p>
                     </div>
                   </div>
                 </div>
@@ -390,7 +395,6 @@ export default function GrossSalaryCalculator() {
         </div>
       </section>
 
-      {/* Additional Information */}
       <section className="py-20 bg-gradient-to-br from-neutral-50 to-white">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
@@ -404,10 +408,9 @@ export default function GrossSalaryCalculator() {
                 Need Professional HR Support?
               </h2>
               <p className="text-lg text-neutral-700 mb-8 leading-relaxed">
-                Our HR experts can help you with comprehensive payroll management, 
-                tax compliance, and employee benefits administration.
+                Our HR experts can help you with comprehensive payroll management, tax compliance, and employee
+                benefits administration.
               </p>
-              
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
                   href="/contact"
@@ -415,7 +418,6 @@ export default function GrossSalaryCalculator() {
                 >
                   Get HR Consultation
                 </a>
-                
                 <a
                   href="/services"
                   className="inline-flex items-center px-8 py-4 border-2 border-primary-900 text-primary-900 rounded-lg font-semibold text-lg hover:bg-primary-900 hover:text-white transition-all duration-300"

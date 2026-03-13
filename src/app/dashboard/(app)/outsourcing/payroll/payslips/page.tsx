@@ -18,11 +18,17 @@ interface PayrollRecord {
   allowances: { name: string; amount: number }[];
   deductions: { name: string; amount: number }[];
   grossPay: string;
+  leavePay?: string;
   paye: string;
   nssf: string;
   nhif: string;
+  ahl: string;
   netPay: string;
   status: string;
+  payrollFrequency?: string;
+  period1Gross?: string | null;
+  period2Gross?: string | null;
+  biweeklyAttendance?: { period1: string[]; period2: string[] } | null;
 }
 
 const MONTHS = [
@@ -211,6 +217,35 @@ function PayslipsContent() {
                   </div>
                 </div>
 
+                {p.payrollFrequency === 'biweekly' &&
+                  p.period1Gross != null &&
+                  p.period2Gross != null &&
+                  p.biweeklyAttendance && (
+                    <div className="mb-4 p-3 rounded-lg border border-secondary-200 bg-secondary-50/80 print:p-2 print:mb-2 print:text-[8px]">
+                      <p className="text-xs font-semibold text-primary-900 print:text-[8px] mb-1">
+                        Days worked (Mon–Sat)
+                      </p>
+                      <p className="text-[10px] text-neutral-700 print:text-[7px]">
+                        <strong>P1</strong> {p.biweeklyAttendance.period1.length}d · KES {formatAmount(p.period1Gross)} —{' '}
+                        {p.biweeklyAttendance.period1
+                          .map((iso) => {
+                            const [y, m, d] = iso.split('-').map(Number);
+                            return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+                          })
+                          .join(', ') || '—'}
+                      </p>
+                      <p className="text-[10px] text-neutral-700 print:text-[7px] mt-1">
+                        <strong>P2</strong> {p.biweeklyAttendance.period2.length}d · KES {formatAmount(p.period2Gross)} —{' '}
+                        {p.biweeklyAttendance.period2
+                          .map((iso) => {
+                            const [y, m, d] = iso.split('-').map(Number);
+                            return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+                          })
+                          .join(', ') || '—'}
+                      </p>
+                    </div>
+                  )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 print:gap-2 print:grid-cols-2">
                   <div className="border border-neutral-200 rounded-lg p-4 print:border-neutral-300 print:p-2 print:rounded-sm">
                     <h2 className="text-xs font-semibold uppercase text-neutral-600 mb-3 print:mb-1 print:text-[8px]">Earnings</h2>
@@ -226,6 +261,12 @@ function PayslipsContent() {
                             <td className="text-right tabular-nums">KES {formatAmount(a.amount)}</td>
                           </tr>
                         ))}
+                        {Number(p.leavePay ?? 0) > 0 && (
+                          <tr>
+                            <td className="py-1 print:py-0">Leave pay</td>
+                            <td className="text-right tabular-nums">KES {formatAmount(p.leavePay!)}</td>
+                          </tr>
+                        )}
                         <tr className="border-t border-neutral-200 font-semibold print:border-t-neutral-300">
                           <td className="py-2 print:py-0.5">Gross</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.grossPay)}</td>
@@ -248,6 +289,10 @@ function PayslipsContent() {
                         <tr>
                           <td className="py-1 print:py-0">SHIF</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.nhif)}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 print:py-0">AHL (1.5%)</td>
+                          <td className="text-right tabular-nums">KES {formatAmount(p.ahl ?? 0)}</td>
                         </tr>
                         {Array.isArray(p.deductions) && p.deductions.length > 0 && p.deductions.map((d, i) => (
                           <tr key={i}>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendPayslipEmail } from '@/lib/email';
+import { normalizeAttendance } from '@/lib/biweekly-attendance';
+import { isBiweeklyClient } from '@/lib/biweekly-payroll';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
             firstName: true,
             lastName: true,
             employeeNumber: true,
-            client: { select: { name: true } },
+            client: { select: { name: true, payrollFrequency: true } },
             department: { select: { name: true } },
           },
         },
@@ -62,6 +64,10 @@ export async function POST(request: NextRequest) {
         skipped.push(employeeName);
         continue;
       }
+      const biweekly =
+        isBiweeklyClient(p.employee.client.payrollFrequency) &&
+        p.period1Gross != null &&
+        p.period2Gross != null;
       const result = await sendPayslipEmail({
         to: email,
         employeeName,
@@ -76,10 +82,20 @@ export async function POST(request: NextRequest) {
           allowances: (p.allowances as { name: string; amount: number }[]) ?? [],
           deductions: (p.deductions as { name: string; amount: number }[]) ?? [],
           grossPay: String(p.grossPay),
+          leavePay: String(p.leavePay ?? 0),
           paye: String(p.paye),
           nssf: String(p.nssf),
           nhif: String(p.nhif),
+          ahl: String(p.ahl ?? 0),
           netPay: String(p.netPay),
+          ...(biweekly
+            ? {
+                biweekly: true,
+                period1Gross: String(p.period1Gross),
+                period2Gross: String(p.period2Gross),
+                biweeklyAttendance: normalizeAttendance(p.biweeklyAttendance, year, month),
+              }
+            : {}),
         },
       });
       if (result.sent) {

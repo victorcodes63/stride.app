@@ -93,14 +93,14 @@ const Navbar = () => {
   const resources = [
     {
       title: 'Gross Salary Calculator',
-      description: 'Calculate gross salary from net pay',
+      description: 'Gross pay → take-home (net)',
       href: '/resources/gross-calculator',
       icon: BarChart3,
       isNew: true
     },
     {
       title: 'Net Salary Calculator',
-      description: 'Calculate take-home pay from gross',
+      description: 'Net pay → estimated gross',
       href: '/resources/net-calculator',
       icon: Calculator,
       isNew: false

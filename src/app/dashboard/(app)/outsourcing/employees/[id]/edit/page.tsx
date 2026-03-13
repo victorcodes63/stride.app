@@ -32,6 +32,7 @@ export default function EditEmployeePage() {
     bankName: '',
     bankBranch: '',
     bankAccountNumber: '',
+    baseSalary: '',
     departmentId: '',
   });
   const [clientName, setClientName] = useState('');
@@ -69,6 +70,7 @@ export default function EditEmployeePage() {
           bankName: emp.bankName ?? '',
           bankBranch: emp.bankBranch ?? '',
           bankAccountNumber: emp.bankAccountNumber ?? '',
+          baseSalary: emp.baseSalary != null ? String(emp.baseSalary) : '',
           departmentId: emp.departmentId ?? '',
         });
         setClientName(emp.clientName ?? '');
@@ -133,6 +135,7 @@ export default function EditEmployeePage() {
       bankBranch: form.bankBranch.trim() || null,
       bankAccountNumber: form.bankAccountNumber.trim() || null,
       departmentId: form.departmentId.trim() || null,
+      baseSalary: form.baseSalary.trim() ? parseFloat(form.baseSalary.replace(/,/g, '')) : null,
     };
     try {
       const res = await fetch(`/api/outsourcing/employees/${id}`, {
@@ -236,6 +239,22 @@ export default function EditEmployeePage() {
             <div>
               <label htmlFor="dateOfJoining" className="block text-sm font-medium text-primary-900 mb-2">Date of joining</label>
               <input id="dateOfJoining" type="date" value={form.dateOfJoining} onChange={update('dateOfJoining')} className={inputClass} />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="baseSalary" className="block text-sm font-medium text-primary-900 mb-2">
+                Monthly basic salary (KES)
+              </label>
+              <input
+                id="baseSalary"
+                type="number"
+                min={0}
+                step={1}
+                value={form.baseSalary}
+                onChange={update('baseSalary')}
+                placeholder="Pre-fills payroll when you generate a month"
+                className={inputClass}
+              />
+              <p className="text-xs text-neutral-500 mt-1">Leave blank if pay varies every month; use payroll screen only.</p>
             </div>
           </div>
 

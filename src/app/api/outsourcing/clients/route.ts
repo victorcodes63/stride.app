@@ -48,6 +48,7 @@ function parseClientBody(b: Record<string, unknown>) {
     county: str(b, 'county') ?? undefined,
     contractStartDate: date(b, 'contractStartDate'),
     contractEndDate: date(b, 'contractEndDate'),
+    employeeNumberPrefix: str(b, 'employeeNumberPrefix') ?? undefined,
   };
 }
 
@@ -76,6 +77,7 @@ function mapClientToJson(c: ClientWithCounts) {
     county: c.county ?? null,
     contractStartDate: c.contractStartDate?.toISOString().slice(0, 10) ?? null,
     contractEndDate: c.contractEndDate?.toISOString().slice(0, 10) ?? null,
+    employeeNumberPrefix: c.employeeNumberPrefix ?? null,
     employeeCount: c._count.employees,
     departmentCount: c._count.departments,
   };

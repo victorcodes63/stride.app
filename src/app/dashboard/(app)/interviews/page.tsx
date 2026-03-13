@@ -3,8 +3,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { CalendarCheck, Plus, Loader2, FileDown, Send, Filter, Pencil, Trash2, X, Video, ExternalLink, Search } from 'lucide-react';
-import type { InterviewWithDetails, InterviewStatus, InterviewType, InterviewDurationMinutes } from '@/types/dashboard';
+import { CalendarCheck, Plus, Loader2, FileDown, Send, Filter, Pencil, Trash2, X, Video, ExternalLink, Search, Coffee } from 'lucide-react';
+import type {
+  InterviewWithDetails,
+  InterviewStatus,
+  InterviewType,
+  InterviewDurationMinutes,
+  InterviewScheduleBreak,
+} from '@/types/dashboard';
 import { formatInNairobi, parseDateTimeAsNairobi, toDateTimeLocalNairobi } from '@/lib/timezone';
 import type { UserSummary } from '@/types/dashboard';
 
@@ -60,7 +66,7 @@ export default function DashboardInterviewsPage() {
   }>({
     scheduledAt: '',
     durationMinutes: 45,
-    type: 'video',
+    type: 'onsite',
     locationOrLink: '',
     notes: '',
     status: 'scheduled',
@@ -88,6 +94,16 @@ export default function DashboardInterviewsPage() {
   const [exportDate, setExportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [exportDownloading, setExportDownloading] = useState<'date' | 'selected' | null>(null);
   const [exportPreviewing, setExportPreviewing] = useState<'date' | 'selected' | null>(null);
+  const [scheduleBreaks, setScheduleBreaks] = useState<InterviewScheduleBreak[]>([]);
+  const [breaksLoading, setBreaksLoading] = useState(false);
+  const [breakModal, setBreakModal] = useState<'add' | InterviewScheduleBreak | null>(null);
+  const [breakForm, setBreakForm] = useState({
+    scheduledAt: '',
+    durationMinutes: 30,
+    label: 'Break',
+    notes: '',
+  });
+  const [breakSaving, setBreakSaving] = useState(false);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -104,6 +120,20 @@ export default function DashboardInterviewsPage() {
     () => (selectedJobView && selectedJobView !== 'all' ? jobs.find((j) => j.id === selectedJobView)?.title : null),
     [selectedJobView, jobs]
   );
+
+  const scheduleUrlForJob = (jobId: string, clientId?: string | null) => {
+    const p = new URLSearchParams();
+    p.set('jobId', jobId);
+    p.set('preselect', '1');
+    if (clientId) p.set('clientId', clientId);
+    return `/dashboard/interviews/schedule?${p.toString()}`;
+  };
+
+  const scheduleUrlCurrentJob = useMemo(() => {
+    if (!selectedJobView || selectedJobView === 'all') return '/dashboard/interviews/schedule';
+    const row = jobsWithShortlisted.find((j) => j.id === selectedJobView);
+    return scheduleUrlForJob(selectedJobView, row?.clientId ?? undefined);
+  }, [selectedJobView, jobsWithShortlisted]);
 
   useEffect(() => {
     if (selectedJobView === '') {
@@ -131,6 +161,52 @@ export default function DashboardInterviewsPage() {
       });
     return () => { cancelled = true; };
   }, [selectedJobView, queryString]);
+
+  const breaksQueryString = useMemo(() => {
+    if (!selectedJobView || selectedJobView === 'all') return '';
+    const p = new URLSearchParams();
+    p.set('jobId', selectedJobView);
+    if (filterDateFrom) p.set('dateFrom', filterDateFrom);
+    if (filterDateTo) p.set('dateTo', filterDateTo);
+    return p.toString();
+  }, [selectedJobView, filterDateFrom, filterDateTo]);
+
+  useEffect(() => {
+    if (!breaksQueryString) {
+      setScheduleBreaks([]);
+      return;
+    }
+    let cancelled = false;
+    setBreaksLoading(true);
+    fetch(`/api/interviews/schedule-breaks?${breaksQueryString}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setScheduleBreaks(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setScheduleBreaks([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBreaksLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [breaksQueryString]);
+
+  const scheduleTimeline = useMemo(() => {
+    type Row =
+      | { kind: 'interview'; i: InterviewWithDetails }
+      | { kind: 'break'; b: InterviewScheduleBreak };
+    const rows: Row[] = [
+      ...interviews.map((i) => ({ kind: 'interview' as const, i })),
+      ...scheduleBreaks.map((b) => ({ kind: 'break' as const, b })),
+    ];
+    rows.sort((a, b) => {
+      const ta = a.kind === 'interview' ? new Date(a.i.scheduledAt).getTime() : new Date(a.b.scheduledAt).getTime();
+      const tb = b.kind === 'interview' ? new Date(b.i.scheduledAt).getTime() : new Date(b.b.scheduledAt).getTime();
+      return ta - tb;
+    });
+    return rows;
+  }, [interviews, scheduleBreaks]);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +301,7 @@ export default function DashboardInterviewsPage() {
     setEditForm({
       scheduledAt: '',
       durationMinutes: 45,
-      type: 'video',
+      type: 'onsite',
       locationOrLink: '',
       notes: '',
       status: 'scheduled',
@@ -551,7 +627,7 @@ export default function DashboardInterviewsPage() {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link
-            href="/dashboard/interviews/schedule"
+            href={scheduleUrlCurrentJob}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-900 text-white rounded-lg hover:bg-primary-800 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
@@ -690,43 +766,56 @@ export default function DashboardInterviewsPage() {
                 </p>
               ) : null}
               {filteredJobCards.map((j) => (
-                <motion.button
+                <motion.div
                   key={j.id}
-                  type="button"
-                  onClick={() => setSelectedJobView(j.id)}
-                  className="text-left bg-white rounded-xl border border-neutral-200 shadow-sm hover:shadow-md hover:border-primary-300 p-4 sm:p-5 transition-all group"
+                  className="text-left bg-white rounded-xl border border-neutral-200 shadow-sm hover:shadow-md hover:border-primary-300 transition-all group flex flex-col"
                   whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
                 >
-                  <h3 className="font-semibold text-primary-900 group-hover:text-primary-700 truncate">
-                    {j.title}
-                  </h3>
-                  {j.company && (
-                    <p className="text-sm text-neutral-600 mt-0.5 truncate">{j.company}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-3 text-sm">
-                    <span className="inline-flex items-center gap-1.5 text-indigo-700 font-medium">
-                      <span>{j.shortlistedCount}</span>
-                      <span>shortlisted</span>
-                    </span>
-                    {j.scheduledCount > 0 && (
-                      <span className="text-neutral-500">
-                        {j.scheduledCount} scheduled
-                      </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJobView(j.id)}
+                    className="text-left p-4 sm:p-5 pb-3 w-full rounded-t-xl hover:bg-neutral-50/80 transition-colors"
+                  >
+                    <h3 className="font-semibold text-primary-900 group-hover:text-primary-700 truncate">
+                      {j.title}
+                    </h3>
+                    {j.company && (
+                      <p className="text-sm text-neutral-600 mt-0.5 truncate">{j.company}</p>
                     )}
+                    <div className="flex items-center gap-4 mt-3 text-sm">
+                      <span className="inline-flex items-center gap-1.5 text-indigo-700 font-medium">
+                        <span>{j.shortlistedCount}</span>
+                        <span>shortlisted</span>
+                      </span>
+                      {j.scheduledCount > 0 && (
+                        <span className="text-neutral-500">
+                          {j.scheduledCount} scheduled
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs text-primary-600 font-medium">
+                      {j.scheduledCount > 0 ? 'View schedule & invites' : 'Open job workspace'} →
+                    </p>
+                  </button>
+                  <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
+                    <Link
+                      href={scheduleUrlForJob(j.id, j.clientId)}
+                      className="inline-flex items-center justify-center w-full gap-2 px-3 py-2.5 bg-primary-900 text-white rounded-lg hover:bg-primary-800 text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4 shrink-0" />
+                      Schedule interviews
+                    </Link>
                   </div>
-                  <p className="mt-2 text-xs text-primary-600 font-medium group-hover:underline">
-                    {j.scheduledCount > 0 ? 'View scheduled interviews' : 'Schedule interviews'} →
-                  </p>
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           )}
         </div>
       ) : (
         <div className="mb-6 space-y-4">
-          {/* Filters section */}
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-4">
+          {/* Filters + export by day (single toolbar) */}
+          <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-neutral-100">
             <h3 className="text-sm font-semibold text-primary-900 mb-4">Filters</h3>
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="min-w-0 flex-1 sm:max-w-[280px]">
@@ -812,34 +901,29 @@ export default function DashboardInterviewsPage() {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {selectedJobView !== '' && !loading && interviews.length > 0 && (
-        <>
-          {/* Export schedule section */}
-          <div className="mb-4 bg-white rounded-xl border border-neutral-200 shadow-sm p-4 space-y-6">
-            <h3 className="text-sm font-semibold text-primary-900">Export schedule</h3>
-
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-neutral-500 mb-2">Export a specific day&apos;s schedule as PDF</p>
-                <div className="flex flex-wrap items-center gap-2">
+            </div>
+            {/* Export by day — same card, below filters */}
+            <div className="px-4 sm:px-5 py-4 bg-neutral-50/80">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-1.5">Export by day</h3>
+                  <p className="text-xs text-neutral-500 hidden sm:block">PDF for everything scheduled on that date (current job filter).</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                   <label htmlFor="export-date" className="sr-only">Date for export</label>
                   <input
                     id="export-date"
                     type="date"
                     value={exportDate}
                     onChange={(e) => setExportDate(e.target.value)}
-                    className="px-3 py-2.5 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     aria-label="Date for export"
                   />
                   <button
                     type="button"
                     onClick={() => handlePreviewPdf(exportScheduleUrl, 'date')}
                     disabled={!!exportPreviewing || !!exportDownloading}
-                    className="inline-flex items-center gap-2 px-3 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                   >
                     {exportPreviewing === 'date' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
                     Preview
@@ -848,70 +932,77 @@ export default function DashboardInterviewsPage() {
                     type="button"
                     onClick={() => handleDownloadPdf(exportScheduleUrl, 'date')}
                     disabled={!!exportDownloading || !!exportPreviewing}
-                    className="inline-flex items-center gap-2 px-3 py-2.5 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                   >
                     {exportDownloading === 'date' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                     Download PDF
                   </button>
                 </div>
               </div>
-
-              {exportSelectedUrl && (
-                <div className="pt-3 border-t border-neutral-100">
-                  <p className="text-xs text-neutral-500 mb-2">Export only the interviews you&apos;ve selected in the table</p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handlePreviewPdf(exportSelectedUrl, 'selected')}
-                      disabled={!!exportPreviewing || !!exportDownloading}
-                      className="inline-flex items-center gap-2 px-3 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {exportPreviewing === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                      Preview selected
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadPdf(exportSelectedUrl, 'selected')}
-                      disabled={!!exportDownloading || !!exportPreviewing}
-                      className="inline-flex items-center gap-2 px-3 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {exportDownloading === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-                      Download selected ({selectedCount}) as PDF
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Bulk actions — only when rows selected */}
-          {selectedCount > 0 && (
-            <div className="mb-4 bg-white rounded-xl border border-neutral-200 shadow-sm p-4">
-              <h3 className="text-sm font-semibold text-primary-900 mb-3">Bulk actions</h3>
-              <p className="text-xs text-neutral-500 mb-3">{selectedCount} interview{selectedCount !== 1 ? 's' : ''} selected</p>
-              <div className="flex flex-wrap items-center gap-2">
+      {selectedJobView !== '' &&
+        !loading &&
+        (interviews.length > 0 || (selectedJobView !== 'all' && scheduleBreaks.length > 0)) && (
+        <>
+          {/* Single bar: everything for current table selection */}
+          {selectedCount > 0 && exportSelectedUrl && (
+            <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50/40 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-primary-100/80 flex flex-wrap items-center gap-2 justify-between gap-y-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-primary-900">Selected in table</h3>
+                  <p className="text-xs text-neutral-600 mt-0.5">
+                    {selectedCount} interview{selectedCount !== 1 ? 's' : ''} — PDF, edit, delete, or send invites
+                  </p>
+                </div>
+              </div>
+              <div className="px-4 py-3 sm:px-5 sm:py-4 flex flex-wrap items-center gap-2 bg-white/70">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400 w-full sm:w-auto sm:mr-1">PDF</span>
+                <button
+                  type="button"
+                  onClick={() => handlePreviewPdf(exportSelectedUrl, 'selected')}
+                  disabled={!!exportPreviewing || !!exportDownloading}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {exportPreviewing === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                  Preview PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf(exportSelectedUrl, 'selected')}
+                  disabled={!!exportDownloading || !!exportPreviewing}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {exportDownloading === 'selected' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                  Download PDF ({selectedCount})
+                </button>
+                <span className="hidden sm:inline w-px h-6 bg-neutral-200 mx-1 self-center" aria-hidden />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400 w-full sm:w-auto sm:ml-2 sm:mr-1">Actions</span>
                 <button
                   type="button"
                   onClick={openEditBulk}
-                  className="inline-flex items-center gap-2 px-3 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 transition-colors"
                 >
                   <Pencil className="w-4 h-4" />
-                  Edit selected
+                  Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeleteConfirm({ bulk: selectedCount })}
-                  className="inline-flex items-center gap-2 px-3 py-2.5 border border-red-200 rounded-lg text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete selected
+                  Delete
                 </button>
                 {selectedForInvite.length > 0 && (
                   <button
                     type="button"
                     onClick={handleBulkSendInvites}
                     disabled={sendingInvites}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 disabled:opacity-50 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-medium hover:bg-primary-800 disabled:opacity-50 transition-colors sm:ml-auto"
                   >
                     {sendingInvites ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     Send {selectedForInvite.length} invite{selectedForInvite.length !== 1 ? 's' : ''}
@@ -935,7 +1026,12 @@ export default function DashboardInterviewsPage() {
         </div>
       )}
 
-      {selectedJobView !== '' && !loading && !error && interviews.length === 0 && (
+      {selectedJobView !== '' &&
+        !loading &&
+        !error &&
+        interviews.length === 0 &&
+        scheduleBreaks.length === 0 &&
+        !breaksLoading && (
         <motion.div
           className="bg-white rounded-xl border border-neutral-200 shadow-sm p-8 sm:p-12 text-center"
           initial={{ opacity: 0 }}
@@ -943,19 +1039,41 @@ export default function DashboardInterviewsPage() {
         >
           <CalendarCheck className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
           <p className="text-neutral-600 text-sm sm:text-base mb-4">
-            {selectedJobView === 'all' ? 'No interviews scheduled across any job.' : 'No interviews scheduled for this job.'}
+            {selectedJobView === 'all'
+              ? 'No interviews scheduled across any job.'
+              : 'No interviews scheduled for this job.'}
           </p>
-          <Link
-            href="/dashboard/interviews/schedule"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Schedule interviews
-          </Link>
+          <div className="flex flex-wrap gap-3 justify-center">
+            {selectedJobView !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBreakForm({
+                    scheduledAt: toDateTimeLocalNairobi(new Date().toISOString()),
+                    durationMinutes: 30,
+                    label: 'Break',
+                    notes: '',
+                  });
+                  setBreakModal('add');
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-amber-300 bg-amber-50 text-amber-900 rounded-lg hover:bg-amber-100 text-sm font-medium"
+              >
+                <Coffee className="w-4 h-4" />
+                Add schedule break
+              </button>
+            )}
+            <Link
+              href={scheduleUrlCurrentJob}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Schedule interviews
+            </Link>
+          </div>
         </motion.div>
       )}
 
-      {selectedJobView !== '' && !loading && !error && interviews.length > 0 && (
+      {selectedJobView !== '' && !loading && !error && scheduleTimeline.length > 0 && (
         <motion.div
           className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden"
           initial={{ opacity: 0 }}
@@ -968,10 +1086,12 @@ export default function DashboardInterviewsPage() {
                   <th className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
-                      checked={interviews.length > 0 && selectedIds.size === interviews.length}
+                      checked={
+                        interviews.length > 0 && selectedIds.size === interviews.length
+                      }
                       onChange={toggleSelectAll}
                       className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                      aria-label="Select all"
+                      aria-label="Select all interviews"
                     />
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wider">
@@ -1007,7 +1127,69 @@ export default function DashboardInterviewsPage() {
                 </tr>
               </thead>
               <tbody>
-                {interviews.map((i) => (
+                {scheduleTimeline.map((row) =>
+                  row.kind === 'break' ? (
+                    <tr
+                      key={`break-${row.b.id}`}
+                      className="border-b border-amber-100 bg-amber-50/80 hover:bg-amber-50"
+                    >
+                      <td className="px-4 py-3 w-10 align-middle">
+                        <Coffee className="w-4 h-4 text-amber-700" aria-hidden />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-amber-900 font-medium whitespace-nowrap">
+                        {formatDateTime(row.b.scheduledAt)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-amber-800">{row.b.durationMinutes} min</td>
+                      <td className="px-4 py-3 text-sm text-amber-900 font-semibold" colSpan={1}>
+                        {row.b.label}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-amber-800">—</td>
+                      <td className="px-4 py-3 text-sm text-amber-700">Break</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800">
+                          break
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-400">—</td>
+                      <td className="px-4 py-3 text-neutral-400">—</td>
+                      <td className="px-4 py-3 text-sm text-amber-800 max-w-[180px] truncate" title={row.b.notes ?? ''}>
+                        {row.b.notes || '—'}
+                      </td>
+                      <td className="px-4 py-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBreakForm({
+                              scheduledAt: toDateTimeLocalNairobi(row.b.scheduledAt),
+                              durationMinutes: row.b.durationMinutes,
+                              label: row.b.label,
+                              notes: row.b.notes ?? '',
+                            });
+                            setBreakModal(row.b);
+                          }}
+                          className="text-xs font-medium text-amber-800 hover:text-amber-950 inline-flex items-center gap-1"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm('Remove this break from the schedule?')) return;
+                            await fetch(`/api/interviews/schedule-breaks/${row.b.id}`, { method: 'DELETE' });
+                            setScheduleBreaks((prev) => prev.filter((x) => x.id !== row.b.id));
+                          }}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                (() => {
+                  const i = row.i;
+                  return (
                   <tr key={i.id} className="border-b border-neutral-100 hover:bg-neutral-50/50">
                     <td className="px-4 py-3 w-10">
                       <input
@@ -1115,12 +1297,149 @@ export default function DashboardInterviewsPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })()
+                )
+                )}
               </tbody>
             </table>
           </div>
         </motion.div>
       )}
+
+      {/* Add / edit schedule break */}
+      <AnimatePresence>
+        {breakModal && selectedJobView && selectedJobView !== 'all' && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !breakSaving && setBreakModal(null)}
+          >
+            <motion.div
+              className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-neutral-200"
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-primary-900 mb-4 flex items-center gap-2">
+                <Coffee className="w-5 h-5 text-amber-600" />
+                {breakModal === 'add' ? 'Add schedule break' : 'Edit break'}
+              </h3>
+              <p className="text-sm text-neutral-600 mb-4">
+                Breaks appear in the timetable and on PDF/HTML exports (lunch, buffers, etc.). Times are Nairobi.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-900 mb-1">Start</label>
+                  <input
+                    type="datetime-local"
+                    value={breakForm.scheduledAt}
+                    onChange={(e) => setBreakForm((f) => ({ ...f, scheduledAt: e.target.value }))}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-900 mb-1">Duration (minutes)</label>
+                  <select
+                    value={breakForm.durationMinutes}
+                    onChange={(e) =>
+                      setBreakForm((f) => ({ ...f, durationMinutes: parseInt(e.target.value, 10) }))
+                    }
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white"
+                  >
+                    {[15, 30, 45, 60, 90, 120].map((m) => (
+                      <option key={m} value={m}>
+                        {m} min
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-900 mb-1">Label</label>
+                  <input
+                    type="text"
+                    value={breakForm.label}
+                    onChange={(e) => setBreakForm((f) => ({ ...f, label: e.target.value }))}
+                    placeholder="e.g. Lunch, Coffee break"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-900 mb-1">Notes (optional)</label>
+                  <textarea
+                    value={breakForm.notes}
+                    onChange={(e) => setBreakForm((f) => ({ ...f, notes: e.target.value }))}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm resize-y"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  type="button"
+                  disabled={breakSaving}
+                  onClick={() => setBreakModal(null)}
+                  className="px-4 py-2 text-sm font-medium border border-neutral-300 rounded-lg hover:bg-neutral-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={breakSaving || !breakForm.scheduledAt.trim()}
+                  onClick={async () => {
+                    setBreakSaving(true);
+                    try {
+                      if (breakModal === 'add') {
+                        const res = await fetch('/api/interviews/schedule-breaks', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            jobId: selectedJobView,
+                            scheduledAt: breakForm.scheduledAt,
+                            durationMinutes: breakForm.durationMinutes,
+                            label: breakForm.label,
+                            notes: breakForm.notes || undefined,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed');
+                        setScheduleBreaks((prev) => [...prev, data].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)));
+                      } else {
+                        const res = await fetch(`/api/interviews/schedule-breaks/${breakModal.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            scheduledAt: breakForm.scheduledAt,
+                            durationMinutes: breakForm.durationMinutes,
+                            label: breakForm.label,
+                            notes: breakForm.notes || null,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed');
+                        setScheduleBreaks((prev) =>
+                          prev.map((x) => (x.id === breakModal.id ? data : x)).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
+                        );
+                      }
+                      setBreakModal(null);
+                    } catch {
+                      alert('Could not save break.');
+                    } finally {
+                      setBreakSaving(false);
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {breakSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Edit modal (single or bulk) */}
       <AnimatePresence>

@@ -12,6 +12,12 @@ import {
   Handshake,
   CalendarCheck,
   Loader2,
+  Building2,
+  Banknote,
+  BarChart3,
+  BookOpen,
+  UserCog,
+  LayoutGrid,
 } from 'lucide-react';
 import type { ApplicationWithDetails, ApplicationStatus } from '@/types/dashboard';
 import type { InterviewWithDetails } from '@/types/dashboard';
@@ -47,6 +53,48 @@ const STATUS_STYLES: Record<ApplicationStatus, string> = {
 type JobItem = { id: string; title: string; company: string; isActive: boolean };
 type ClientItem = { id: string; name: string; jobCount: number };
 type CandidateItem = { id: string; firstName: string; lastName: string; email: string };
+
+const capabilitySections: {
+  title: string;
+  blurb: string;
+  items: { href: string; label: string; desc: string }[];
+}[] = [
+  {
+    title: 'Recruitment (ATS)',
+    blurb: 'End-to-end hiring: clients, roles, applications, talent pool, and interviews.',
+    items: [
+      { href: '/dashboard/clients', label: 'Clients', desc: 'Client companies & contacts' },
+      { href: '/dashboard/jobs', label: 'Job openings', desc: 'Post roles, careers page, categories' },
+      { href: '/dashboard/applications', label: 'Applications', desc: 'Pipeline, filters, export, bulk CVs & rejections' },
+      { href: '/dashboard/candidates', label: 'Candidates', desc: 'Searchable database, resumes, profiles' },
+      {
+        href: '/dashboard/interviews',
+        label: 'Interview management',
+        desc: 'Bulk schedule, breaks, invites, PDF/HTML schedules',
+      },
+    ],
+  },
+  {
+    title: 'Outsourcing',
+    blurb: 'Deployed staff: clients, roster, payroll, leave, and attendance.',
+    items: [
+      { href: '/dashboard/outsourcing/clients', label: 'Clients', desc: 'Outsourcing client accounts' },
+      { href: '/dashboard/outsourcing/employees', label: 'Employees', desc: 'Roster, imports, banking' },
+      { href: '/dashboard/outsourcing/payroll', label: 'Payroll', desc: 'Runs & payslips' },
+      { href: '/dashboard/outsourcing/leave', label: 'Leave', desc: 'Leave management' },
+      { href: '/dashboard/outsourcing/attendance', label: 'Attendance', desc: 'Attendance tracking' },
+    ],
+  },
+  {
+    title: 'Content & admin',
+    blurb: 'Insights, access control, and reporting.',
+    items: [
+      { href: '/dashboard/insights', label: 'Insights', desc: 'Articles & resources' },
+      { href: '/dashboard/staff', label: 'Staff', desc: 'Team accounts (admin)' },
+      { href: '/dashboard/analytics', label: 'Analytics', desc: 'Dashboard metrics' },
+    ],
+  },
+];
 
 export default function DashboardOverviewPage() {
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -108,10 +156,7 @@ export default function DashboardOverviewPage() {
     };
   }, [jobs, clients, candidates, applications, interviews]);
 
-  const recentApplications = useMemo(
-    () => applications.slice(0, 5),
-    [applications]
-  );
+  const recentApplications = useMemo(() => applications.slice(0, 5), [applications]);
 
   const upcomingInterviewsList = useMemo(() => {
     const now = new Date();
@@ -123,215 +168,223 @@ export default function DashboardOverviewPage() {
 
   if (loading) {
     return (
-      <div className="w-full min-w-0 flex items-center justify-center py-24">
-        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+      <div className="w-full min-w-0 flex flex-col items-center justify-center py-24 gap-4">
+        <Loader2 className="w-9 h-9 text-primary-600 animate-spin" />
+        <p className="text-sm text-neutral-500">Loading overview…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full min-w-0">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 mb-1">
-            Overview
-          </h1>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800 text-sm">
-          {error}
-        </div>
+      <div className="w-full min-w-0 max-w-lg">
+        <h1 className="text-2xl font-bold text-primary-900 mb-4">Overview</h1>
+        <div className="rounded-2xl border border-red-100 bg-red-50/80 p-5 text-red-800 text-sm">{error}</div>
       </div>
     );
   }
 
+  const statCards = [
+    {
+      label: 'Active jobs',
+      value: stats.jobs,
+      sub: stats.jobsTotal !== stats.jobs ? `of ${stats.jobsTotal} total` : 'On careers page',
+      icon: Briefcase,
+      tone: 'primary' as const,
+    },
+    { label: 'Clients', value: stats.clients, sub: 'Recruitment', icon: Handshake, tone: 'primary' as const },
+    { label: 'Candidates', value: stats.candidates, sub: 'In database', icon: Users, tone: 'primary' as const },
+    {
+      label: 'Applications',
+      value: stats.applications,
+      sub: 'All statuses',
+      icon: FileCheck,
+      tone: 'primary' as const,
+    },
+    {
+      label: 'Interviews',
+      value: stats.interviewsScheduled,
+      sub: 'Scheduled',
+      icon: CalendarCheck,
+      tone: 'indigo' as const,
+    },
+  ];
+
   return (
-    <div className="w-full min-w-0">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 mb-1">
-          Overview
-        </h1>
-        <p className="text-neutral-600 text-sm sm:text-base max-w-prose">
-          Snapshot of job openings, clients, candidates, applications, and interviews.
-        </p>
+    <div className="w-full min-w-0 space-y-8 sm:space-y-10">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-neutral-200/80 bg-white p-6 sm:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-50/50 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-600 rounded-l-2xl" aria-hidden />
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pl-1 sm:pl-2">
+          <div className="min-w-0 space-y-3">
+            <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-700">
+              Dashboard home
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight">
+              Overview
+            </h1>
+            <p className="text-neutral-600 text-sm sm:text-[15px] max-w-2xl leading-relaxed">
+              Live snapshot of recruitment activity. Use the sidebar for ATS, outsourcing, insights, and analytics.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/applications"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-900 text-white text-sm font-semibold shadow-md shadow-primary-900/15 hover:bg-primary-800 hover:shadow-lg hover:shadow-primary-900/20 transition-all shrink-0"
+          >
+            <LayoutGrid className="w-4 h-4 opacity-90" />
+            Jump to applications
+          </Link>
+        </div>
       </div>
 
-      {/* Top-level stats: Jobs, Clients, Candidates, Applications, Interviews */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
-        >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">
-                Job openings
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-primary-900">
-                {stats.jobs}
-                {stats.jobsTotal !== stats.jobs && (
-                  <span className="text-sm font-normal text-neutral-500"> / {stats.jobsTotal}</span>
-                )}
-              </p>
-            </div>
-            <Briefcase className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 opacity-80 shrink-0" />
+      {/* What’s in the platform */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 border-b border-neutral-200 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">What you can do here</h2>
+            <p className="text-sm text-neutral-500 mt-1 max-w-2xl">
+              Hiring and outsourcing in one place—each link matches the sidebar.
+            </p>
           </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.03 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
-        >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Clients</p>
-              <p className="text-xl sm:text-2xl font-bold text-primary-900">{stats.clients}</p>
-            </div>
-            <Handshake className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 opacity-80 shrink-0" />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.06 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
-        >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">Candidates</p>
-              <p className="text-xl sm:text-2xl font-bold text-primary-900">{stats.candidates}</p>
-            </div>
-            <Users className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 opacity-80 shrink-0" />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.09 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
-        >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">
-                Applications
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-primary-900">{stats.applications}</p>
-            </div>
-            <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-primary-600 opacity-80 shrink-0" />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="bg-white rounded-xl p-4 sm:p-5 border border-neutral-200 shadow-sm min-w-0"
-        >
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-600 truncate">
-                Interviews
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-indigo-600">
-                {stats.interviewsScheduled}
-              </p>
-            </div>
-            <CalendarCheck className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-600 opacity-80 shrink-0" />
-          </div>
-        </motion.div>
-      </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+          {capabilitySections.map((section, idx) => (
+            <motion.div
+              key={section.title}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6 flex flex-col min-h-0 hover:border-neutral-300 transition-colors"
+            >
+              <h3 className="text-xs font-bold text-primary-800 uppercase tracking-wider mb-2">{section.title}</h3>
+              <p className="text-sm text-neutral-600 mb-4 leading-relaxed">{section.blurb}</p>
+              <ul className="space-y-1 flex-1 border-t border-neutral-100 pt-4">
+                {section.items.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="group flex items-start gap-3 rounded-lg px-2 py-2.5 -mx-2 hover:bg-primary-50/60 transition-colors"
+                    >
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary-400 shrink-0 group-hover:bg-primary-600 transition-colors" />
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold text-sm text-neutral-900 group-hover:text-primary-800 flex items-center gap-1">
+                          {item.label}
+                          <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary-600" />
+                        </span>
+                        <span className="block text-xs text-neutral-500 mt-0.5 leading-snug">{item.desc}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          ))}
+        </div>
+      </section>
 
-      {/* Application pipeline breakdown */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-amber-50 rounded-xl p-4 border border-amber-200 min-w-0"
-        >
-          <p className="text-xs sm:text-sm font-medium text-amber-800">Pending</p>
-          <p className="text-xl sm:text-2xl font-bold text-amber-700">{stats.pending}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="bg-indigo-50 rounded-xl p-4 border border-indigo-200 min-w-0"
-        >
-          <p className="text-xs sm:text-sm font-medium text-indigo-800">Shortlisted</p>
-          <p className="text-xl sm:text-2xl font-bold text-indigo-700">{stats.shortlisted}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.14 }}
-          className="bg-emerald-50 rounded-xl p-4 border border-emerald-200 min-w-0"
-        >
-          <p className="text-xs sm:text-sm font-medium text-emerald-800">Hired</p>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-700">{stats.hired}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.16 }}
-          className="bg-neutral-50 rounded-xl p-4 border border-neutral-200 min-w-0"
-        >
-          <p className="text-xs sm:text-sm font-medium text-neutral-600">Upcoming interviews</p>
-          <p className="text-xl sm:text-2xl font-bold text-neutral-800">
-            {stats.upcomingInterviews.length}
-          </p>
-        </motion.div>
-      </div>
+      {/* Live stats */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-neutral-900 pb-1 border-b border-neutral-200">Live snapshot</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          {statCards.map((s, i) => {
+            const Icon = s.icon;
+            const iconBg =
+              s.tone === 'indigo' ? 'bg-indigo-100/80 text-indigo-700' : 'bg-primary-100/80 text-primary-800';
+            return (
+              <motion.div
+                key={s.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 hover:border-neutral-300 transition-colors"
+              >
+                <div className={`inline-flex rounded-lg p-2 mb-3 ${iconBg}`}>
+                  <Icon className="w-4 h-4" strokeWidth={1.75} />
+                </div>
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-1">
+                  {s.label}
+                </p>
+                <p
+                  className={`text-2xl sm:text-3xl font-bold tabular-nums ${
+                    s.tone === 'indigo' ? 'text-indigo-700' : 'text-primary-900'
+                  }`}
+                >
+                  {s.value}
+                  {s.label === 'Active jobs' && stats.jobsTotal !== stats.jobs && (
+                    <span className="text-sm font-semibold text-neutral-400">/{stats.jobsTotal}</span>
+                  )}
+                </p>
+                <p className="text-[11px] text-neutral-500 mt-1">{s.sub}</p>
+              </motion.div>
+            );
+          })}
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
-        {/* Recent applications */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden min-w-0">
-          <div className="px-4 sm:px-6 py-4 border-b border-neutral-200 flex items-center justify-between gap-3 min-w-0">
-            <h2 className="text-base sm:text-lg font-semibold text-primary-900 truncate">
-              Recent applications
-            </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Pending', value: stats.pending, className: 'bg-amber-50/90 border-amber-200/60 text-amber-950' },
+            { label: 'Shortlisted', value: stats.shortlisted, className: 'bg-indigo-50/90 border-indigo-200/60 text-indigo-950' },
+            { label: 'Hired', value: stats.hired, className: 'bg-emerald-50/90 border-emerald-200/60 text-emerald-950' },
+            {
+              label: 'Upcoming interviews',
+              value: stats.upcomingInterviews.length,
+              className: 'bg-neutral-100/80 border-neutral-200 text-neutral-900',
+            },
+          ].map((row) => (
+            <div
+              key={row.label}
+              className={`rounded-xl border px-4 py-3.5 ${row.className}`}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{row.label}</p>
+              <p className="text-xl font-bold tabular-nums mt-0.5">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Recent + upcoming */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden min-w-0 shadow-sm">
+          <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50/80 flex items-center justify-between gap-3">
+            <h2 className="font-bold text-neutral-900">Recent applications</h2>
             <Link
               href="/dashboard/applications"
-              className="text-sm font-medium text-primary-600 hover:text-primary-800 flex items-center gap-1 shrink-0"
+              className="text-sm font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1"
             >
-              View all
-              <ArrowRight className="w-4 h-4" />
+              View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           <div className="divide-y divide-neutral-100">
             {recentApplications.length === 0 ? (
-              <div className="px-4 sm:px-6 py-8 text-center text-neutral-500 text-sm">
-                No applications yet.
-              </div>
+              <div className="px-5 py-10 text-center text-sm text-neutral-500">No applications yet.</div>
             ) : (
               recentApplications.map((app) => (
                 <Link
                   key={app.id}
                   href="/dashboard/applications"
-                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-neutral-50 transition-colors min-w-0"
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-primary-50/40 transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-semibold text-primary-700">
+                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0 ring-2 ring-white shadow-sm">
+                    <span className="text-sm font-bold text-primary-800">
                       {app.candidate.firstName[0]}
                       {app.candidate.lastName[0]}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-primary-900">
+                    <p className="font-semibold text-sm text-primary-900 truncate">
                       {app.candidate.firstName} {app.candidate.lastName}
                     </p>
-                    <p className="text-sm text-neutral-500 truncate">
+                    <p className="text-xs text-neutral-500 truncate">
                       {app.job.title} · {app.job.company}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-xs text-neutral-500 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[10px] text-neutral-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
                       {formatDate(app.appliedDate)}
                     </span>
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[app.status]}`}
-                    >
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold ${STATUS_STYLES[app.status]}`}>
                       {app.status}
                     </span>
                   </div>
@@ -341,49 +394,42 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
 
-        {/* Upcoming interviews */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden min-w-0">
-          <div className="px-4 sm:px-6 py-4 border-b border-neutral-200 flex items-center justify-between gap-3 min-w-0">
-            <h2 className="text-base sm:text-lg font-semibold text-primary-900 truncate">
-              Upcoming interviews
-            </h2>
+        <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden min-w-0 shadow-sm">
+          <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50/80 flex items-center justify-between gap-3">
+            <h2 className="font-bold text-neutral-900">Upcoming interviews</h2>
             <Link
               href="/dashboard/interviews"
-              className="text-sm font-medium text-primary-600 hover:text-primary-800 flex items-center gap-1 shrink-0"
+              className="text-sm font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1"
             >
-              View all
-              <ArrowRight className="w-4 h-4" />
+              View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           <div className="divide-y divide-neutral-100">
             {upcomingInterviewsList.length === 0 ? (
-              <div className="px-4 sm:px-6 py-8 text-center text-neutral-500 text-sm">
-                No upcoming interviews.
-              </div>
+              <div className="px-5 py-10 text-center text-sm text-neutral-500">No upcoming interviews.</div>
             ) : (
               upcomingInterviewsList.map((i) => (
                 <Link
                   key={i.id}
                   href="/dashboard/interviews"
-                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-neutral-50 transition-colors min-w-0"
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-indigo-50/40 transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-semibold text-indigo-700">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-indigo-800">
                       {i.application.candidate.firstName[0]}
                       {i.application.candidate.lastName[0]}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-primary-900">
-                      {i.application.candidate.firstName}{' '}
-                      {i.application.candidate.lastName}
+                    <p className="font-semibold text-sm text-primary-900">
+                      {i.application.candidate.firstName} {i.application.candidate.lastName}
                     </p>
-                    <p className="text-sm text-neutral-500 truncate">
+                    <p className="text-xs text-neutral-500 truncate">
                       {i.application.job.title} · {i.type}
                     </p>
                   </div>
-                  <span className="text-xs text-neutral-500 flex items-center gap-1 flex-shrink-0">
-                    <Clock className="w-3.5 h-3.5" />
+                  <span className="text-[10px] text-neutral-500 flex items-center gap-1 shrink-0 tabular-nums">
+                    <Clock className="w-3 h-3" />
                     {formatDateTime(i.scheduledAt)}
                   </span>
                 </Link>
@@ -393,86 +439,85 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Quick links: Jobs, Clients, Candidates, Applications, Interviews */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        <Link
-          href="/dashboard/jobs"
-          className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 bg-primary-50 border border-primary-200 rounded-xl hover:bg-primary-100 transition-colors min-w-0"
-        >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary-900 flex items-center justify-center shrink-0">
-            <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-primary-900 text-sm sm:text-base">Job openings</p>
-            <p className="text-xs sm:text-sm text-neutral-600 truncate sm:line-clamp-2">
-              Manage jobs and add new roles to the careers page.
-            </p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-primary-600 shrink-0" />
-        </Link>
-        <Link
-          href="/dashboard/clients"
-          className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-50 border border-neutral-200 rounded-xl hover:bg-neutral-100 transition-colors min-w-0"
-        >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
-            <Handshake className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-primary-900 text-sm sm:text-base">Clients</p>
-            <p className="text-xs sm:text-sm text-neutral-600 truncate sm:line-clamp-2">
-              Manage client companies and contacts.
-            </p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-neutral-400 shrink-0" />
-        </Link>
-        <Link
-          href="/dashboard/candidates"
-          className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-50 border border-neutral-200 rounded-xl hover:bg-neutral-100 transition-colors min-w-0"
-        >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-primary-900 text-sm sm:text-base">Candidates</p>
-            <p className="text-xs sm:text-sm text-neutral-600 truncate sm:line-clamp-2">
-              Browse and search all candidates.
-            </p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-neutral-400 shrink-0" />
-        </Link>
-        <Link
-          href="/dashboard/applications"
-          className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-50 border border-neutral-200 rounded-xl hover:bg-neutral-100 transition-colors min-w-0"
-        >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
-            <FileCheck className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-primary-900 text-sm sm:text-base">Applications</p>
-            <p className="text-xs sm:text-sm text-neutral-600 truncate sm:line-clamp-2">
-              Review and manage job applications.
-            </p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-neutral-400 shrink-0" />
-        </Link>
-        <Link
-          href="/dashboard/interviews"
-          className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors min-w-0"
-        >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-            <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-primary-900 text-sm sm:text-base">
-              Interview management
-            </p>
-            <p className="text-xs sm:text-sm text-neutral-600 truncate sm:line-clamp-2">
-              Schedule and manage interviews.
-            </p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-indigo-600 shrink-0" />
-        </Link>
-      </div>
+      {/* Quick entry tiles */}
+      <section className="space-y-4 pb-2">
+        <h2 className="text-lg font-bold text-neutral-900 pb-1 border-b border-neutral-200">Quick entry</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+          {[
+            {
+              href: '/dashboard/jobs',
+              title: 'Job openings',
+              desc: 'Post roles & careers page',
+              icon: Briefcase,
+              highlight: true,
+            },
+            { href: '/dashboard/clients', title: 'Clients', desc: 'Recruitment clients', icon: Handshake },
+            { href: '/dashboard/candidates', title: 'Candidates', desc: 'Talent database', icon: Users },
+            { href: '/dashboard/applications', title: 'Applications', desc: 'Pipeline & export', icon: FileCheck },
+            {
+              href: '/dashboard/interviews',
+              title: 'Interviews',
+              desc: 'Schedule & PDF schedules',
+              icon: CalendarCheck,
+              highlight: true,
+            },
+            {
+              href: '/dashboard/outsourcing/employees',
+              title: 'Outsourcing employees',
+              desc: 'Roster & payroll',
+              icon: Building2,
+            },
+            { href: '/dashboard/outsourcing/payroll', title: 'Payroll', desc: 'Runs & payslips', icon: Banknote },
+            { href: '/dashboard/insights', title: 'Insights', desc: 'Content', icon: BookOpen },
+            { href: '/dashboard/analytics', title: 'Analytics', desc: 'Reporting', icon: BarChart3 },
+          ].map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <Link
+                key={tile.href}
+                href={tile.href}
+                className={`flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md ${
+                  tile.highlight
+                    ? 'bg-primary-900 text-white border-primary-900 hover:bg-primary-800'
+                    : 'bg-white border-neutral-200 hover:border-primary-300 hover:bg-primary-50/40'
+                }`}
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                    tile.highlight ? 'bg-white/15' : 'bg-primary-50 text-primary-700'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${tile.highlight ? 'text-white' : ''}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`font-bold text-sm ${tile.highlight ? 'text-white' : 'text-primary-900'}`}>
+                    {tile.title}
+                  </p>
+                  <p
+                    className={`text-xs truncate ${tile.highlight ? 'text-primary-100' : 'text-neutral-500'}`}
+                  >
+                    {tile.desc}
+                  </p>
+                </div>
+                <ArrowRight className={`w-4 h-4 shrink-0 ${tile.highlight ? 'text-white' : 'text-neutral-300'}`} />
+              </Link>
+            );
+          })}
+          <Link
+            href="/dashboard/staff"
+            className="flex items-center gap-4 p-4 rounded-2xl border border-neutral-200 bg-white hover:border-amber-200 hover:bg-amber-50/20 transition-all sm:col-span-2 xl:col-span-1"
+          >
+            <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-800 shrink-0">
+              <UserCog className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm text-primary-900">Staff</p>
+              <p className="text-xs text-neutral-500">Admin · team accounts</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-neutral-300 shrink-0" />
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

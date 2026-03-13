@@ -13,6 +13,7 @@ export default function EditOutsourcingClientPage() {
   const id = params?.id as string | undefined;
   const [form, setForm] = useState({
     name: '',
+    employeeNumberPrefix: '',
     contactName: '',
     contactEmail: '',
     contactPhone: '',
@@ -34,10 +35,14 @@ export default function EditOutsourcingClientPage() {
     county: '',
     contractStartDate: '',
     contractEndDate: '',
+    payrollFrequency: 'monthly',
+    leavePayMode: 'none',
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentTermsOther, setPaymentTermsOther] = useState(false);
+  const PAYMENT_PRESETS = ['Net 15', 'Net 30', 'Net 45', 'Due on receipt', 'Monthly in advance'] as const;
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -55,6 +60,7 @@ export default function EditOutsourcingClientPage() {
         if (!cancelled) {
           setForm({
             name: data.name ?? '',
+            employeeNumberPrefix: data.employeeNumberPrefix ?? '',
             contactName: data.contactName ?? '',
             contactEmail: data.contactEmail ?? '',
             contactPhone: data.contactPhone ?? '',
@@ -76,7 +82,18 @@ export default function EditOutsourcingClientPage() {
             county: data.county ?? '',
             contractStartDate: data.contractStartDate ?? '',
             contractEndDate: data.contractEndDate ?? '',
+            payrollFrequency: data.payrollFrequency ?? 'monthly',
+            leavePayMode: data.leavePayMode ?? 'none',
           });
+          const pt = (data.paymentTerms ?? '').trim();
+          if (
+            pt &&
+            !PAYMENT_PRESETS.includes(pt as (typeof PAYMENT_PRESETS)[number])
+          ) {
+            setPaymentTermsOther(true);
+          } else {
+            setPaymentTermsOther(false);
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load client');
@@ -103,6 +120,7 @@ export default function EditOutsourcingClientPage() {
     }
     const payload: Record<string, unknown> = {
       name: trimmed,
+      employeeNumberPrefix: form.employeeNumberPrefix.trim() || null,
       contactName: form.contactName.trim() || null,
       contactEmail: form.contactEmail.trim() || null,
       contactPhone: form.contactPhone.trim() || null,
@@ -124,6 +142,8 @@ export default function EditOutsourcingClientPage() {
       county: form.county.trim() || null,
       contractStartDate: form.contractStartDate.trim() || null,
       contractEndDate: form.contractEndDate.trim() || null,
+      payrollFrequency: form.payrollFrequency || 'monthly',
+      leavePayMode: form.leavePayMode || 'none',
     };
     try {
       const res = await fetch(`/api/outsourcing/clients/${id}`, {
@@ -194,6 +214,20 @@ export default function EditOutsourcingClientPage() {
               Client / company name <span className="text-red-600">*</span>
             </label>
             <input id="name" type="text" value={form.name} onChange={update('name')} required className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="employeeNumberPrefix" className="block text-sm font-medium text-primary-900 mb-2">
+              Employee ID prefix (e.g. BW → BW-001)
+            </label>
+            <input
+              id="employeeNumberPrefix"
+              type="text"
+              value={form.employeeNumberPrefix}
+              onChange={update('employeeNumberPrefix')}
+              placeholder="Auto from company name if empty"
+              maxLength={8}
+              className={inputClass}
+            />
           </div>
 
           <div className="border-t border-neutral-100 pt-5 sm:pt-6">
@@ -277,22 +311,137 @@ export default function EditOutsourcingClientPage() {
                   <option value="monthly">Monthly</option>
                 </select>
               </div>
+              <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-neutral-200 bg-neutral-50/50 p-4 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Outsourcing fee (optional)</p>
+                <div>
+                  <label htmlFor="serviceFeeType" className="block text-sm font-medium text-primary-900 mb-2">
+                    How do you charge this client?
+                  </label>
+                  <select
+                    id="serviceFeeType"
+                    value={form.serviceFeeType}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setForm((f) => ({ ...f, serviceFeeType: v, ...(v === '' ? { serviceFeeAmount: '' } : {}) }));
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Select fee type…</option>
+                    <option value="fixed">Fixed amount — one fee per billing period</option>
+                    <option value="percentage">Percentage — % of agreed base</option>
+                    <option value="per_employee">Per employee — per person per period</option>
+                  </select>
+                </div>
+                {form.serviceFeeType === 'fixed' && (
+                  <div>
+                    <label htmlFor="serviceFeeAmount" className="block text-sm font-medium text-primary-900 mb-2">
+                      Amount per period ({form.currency})
+                    </label>
+                    <input id="serviceFeeAmount" type="number" step="0.01" min="0" value={form.serviceFeeAmount} onChange={update('serviceFeeAmount')} placeholder="e.g. 50000" className={inputClass} />
+                  </div>
+                )}
+                {form.serviceFeeType === 'percentage' && (
+                  <div>
+                    <label htmlFor="serviceFeeAmount" className="block text-sm font-medium text-primary-900 mb-2">
+                      Percentage (%)
+                    </label>
+                    <input id="serviceFeeAmount" type="number" step="0.01" min="0" max="100" value={form.serviceFeeAmount} onChange={update('serviceFeeAmount')} placeholder="e.g. 2.5" className={inputClass} />
+                  </div>
+                )}
+                {form.serviceFeeType === 'per_employee' && (
+                  <div>
+                    <label htmlFor="serviceFeeAmount" className="block text-sm font-medium text-primary-900 mb-2">
+                      Per employee ({form.currency})
+                    </label>
+                    <input id="serviceFeeAmount" type="number" step="0.01" min="0" value={form.serviceFeeAmount} onChange={update('serviceFeeAmount')} placeholder="e.g. 2500" className={inputClass} />
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="paymentTermsSelect" className="block text-sm font-medium text-primary-900 mb-2">
+                    Payment terms
+                  </label>
+                  <select
+                    id="paymentTermsSelect"
+                    value={
+                      paymentTermsOther
+                        ? '__custom__'
+                        : PAYMENT_PRESETS.includes(form.paymentTerms as (typeof PAYMENT_PRESETS)[number])
+                          ? form.paymentTerms
+                          : ''
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '__custom__') {
+                        setPaymentTermsOther(true);
+                        setForm((f) => ({ ...f, paymentTerms: '' }));
+                      } else {
+                        setPaymentTermsOther(false);
+                        setForm((f) => ({ ...f, paymentTerms: v }));
+                      }
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Select terms…</option>
+                    <option value="Net 15">Net 15</option>
+                    <option value="Net 30">Net 30</option>
+                    <option value="Net 45">Net 45</option>
+                    <option value="Due on receipt">Due on receipt</option>
+                    <option value="Monthly in advance">Monthly in advance</option>
+                    <option value="__custom__">Other — type below</option>
+                  </select>
+                  {paymentTermsOther && (
+                    <input
+                      id="paymentTerms"
+                      type="text"
+                      value={form.paymentTerms}
+                      onChange={update('paymentTerms')}
+                      placeholder="Custom terms…"
+                      className={`${inputClass} mt-2`}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-neutral-100 pt-5 sm:pt-6">
+            <h2 className="text-base sm:text-lg font-semibold text-primary-900 mb-3 sm:mb-4">Payroll (outsourced staff)</h2>
+            <p className="text-sm text-neutral-600 mb-4">
+              How often you run payroll and how leave pay interacts with statutory deductions (varies by client).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               <div>
-                <label htmlFor="serviceFeeType" className="block text-sm font-medium text-primary-900 mb-2">Service fee type</label>
-                <select id="serviceFeeType" value={form.serviceFeeType} onChange={update('serviceFeeType')} className={inputClass}>
-                  <option value="">—</option>
-                  <option value="fixed">Fixed amount</option>
-                  <option value="percentage">Percentage</option>
-                  <option value="per_employee">Per employee</option>
+                <label htmlFor="payrollFrequency" className="block text-sm font-medium text-primary-900 mb-2">
+                  Payroll frequency
+                </label>
+                <select
+                  id="payrollFrequency"
+                  value={form.payrollFrequency}
+                  onChange={update('payrollFrequency')}
+                  className={inputClass}
+                >
+                  <option value="monthly">Monthly — one run per month</option>
+                  <option value="biweekly">Bi-weekly — two gross amounts per month; statutory on combined gross</option>
                 </select>
               </div>
               <div>
-                <label htmlFor="serviceFeeAmount" className="block text-sm font-medium text-primary-900 mb-2">Service fee amount</label>
-                <input id="serviceFeeAmount" type="number" step="0.01" min="0" value={form.serviceFeeAmount} onChange={update('serviceFeeAmount')} placeholder="e.g. 15000 or 15" className={inputClass} />
-              </div>
-              <div>
-                <label htmlFor="paymentTerms" className="block text-sm font-medium text-primary-900 mb-2">Payment terms</label>
-                <input id="paymentTerms" type="text" value={form.paymentTerms} onChange={update('paymentTerms')} placeholder="e.g. Net 15, Net 30" className={inputClass} />
+                <label htmlFor="leavePayMode" className="block text-sm font-medium text-primary-900 mb-2">
+                  Leave pay (earning)
+                </label>
+                <select
+                  id="leavePayMode"
+                  value={form.leavePayMode}
+                  onChange={update('leavePayMode')}
+                  className={inputClass}
+                >
+                  <option value="none">None — no separate leave pay</option>
+                  <option value="paye_only">
+                    Client X — Leave pay: NSSF, SHIF & AHL on basic+allowances only (not on leave pay). PAYE uses basic+allowances+leave pay. Net adds leave pay after deductions.
+                  </option>
+                  <option value="included_in_gross">
+                    Client Y — Leave pay in gross first; NSSF, SHIF, AHL & PAYE all on that full total
+                  </option>
+                </select>
               </div>
             </div>
           </div>

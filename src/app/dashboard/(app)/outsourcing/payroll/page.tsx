@@ -19,8 +19,12 @@ interface PayrollRecord {
   paye: string;
   nssf: string;
   nhif: string;
+  ahl: string;
   netPay: string;
   status: string;
+  payrollFrequency?: string;
+  period1Gross?: string | null;
+  period2Gross?: string | null;
 }
 
 interface ClientOption {
@@ -354,7 +358,7 @@ export default function OutsourcingPayrollPage() {
               type="button"
               onClick={handleRecalculateStatutory}
               disabled={payrolls.length === 0 || recalculating}
-              title="Recalculate PAYE, NSSF, SHIF for all employees in scope using current Kenyan rates"
+              title="Recalculate PAYE, NSSF, SHIF, AHL for all in scope"
               className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
@@ -391,6 +395,7 @@ export default function OutsourcingPayrollPage() {
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">PAYE</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">NSSF</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">SHIF</th>
+                  <th className="text-right px-4 py-3 font-medium text-neutral-600">AHL</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Net pay</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Status</th>
                   <th className="w-10 px-4 py-3 text-center font-medium text-neutral-600">Edit</th>
@@ -406,13 +411,19 @@ export default function OutsourcingPayrollPage() {
                         <span className="block text-xs text-neutral-500">{p.employeeNumber}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600">{p.clientName}</td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {p.clientName}
+                      {p.payrollFrequency === 'biweekly' && (
+                        <span className="ml-1 text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-1 rounded">2wk</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-neutral-600">{p.departmentName ?? '—'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{Number(p.basicPay).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{Number(p.grossPay).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{Number(p.paye).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{Number(p.nssf).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{Number(p.nhif).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{Number(p.ahl ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-medium">{Number(p.netPay).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${

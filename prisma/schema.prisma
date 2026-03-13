@@ -60,6 +60,13 @@ model OutsourcingClient {
   contractStartDate      DateTime?
   contractEndDate        DateTime?
 
+  // Employee IDs: auto {prefix}-001 per client; override prefix e.g. BW for "Blue Wave"
+  employeeNumberPrefix   String?
+  /// monthly = one payslip/stat run per month. biweekly = two period grosses; statutory on combined month gross, split for payslips.
+  payrollFrequency       String?  @default("monthly")
+  /// none | paye_only (NSSF/SHIF/AHL on employment gross only; PAYE on gross+leave; net + leave) | included_in_gross (leave in gross before all stat)
+  leavePayMode           String?  @default("none")
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -99,6 +106,8 @@ model Employee {
   nhifNumber          String?   // National Hospital Insurance Fund
   dateOfJoining       DateTime?
   jobTitle            String?
+  /// Monthly basic pay (KES). Pre-fills payroll when you generate a month; edit per month if needed.
+  baseSalary          Decimal?  @db.Decimal(12, 2)
   // Bank details for salary disbursement
   bankName            String?
   bankBranch          String?
@@ -125,12 +134,19 @@ model Payroll {
   month       Int      // 1-12
   year        Int
   basicPay    Decimal  @db.Decimal(12, 2)
+  /// Bi-weekly: gross earned in 1st half of month (before monthly statutory combine)
+  period1Gross Decimal? @db.Decimal(12, 2)
+  period2Gross Decimal? @db.Decimal(12, 2)
+  /// Bi-weekly: days present Mon–Sat per period. { period1: ["YYYY-MM-DD",...], period2: [...] }
+  biweeklyAttendance Json?
   allowances  Json     @default("[]") // [{ name, amount }]
   deductions  Json     @default("[]") // [{ name, amount }]
   grossPay    Decimal  @db.Decimal(12, 2)
+  leavePay    Decimal  @default(0) @db.Decimal(12, 2)
   paye        Decimal  @db.Decimal(12, 2) // PAYE tax
   nssf        Decimal  @db.Decimal(12, 2)
-  nhif        Decimal  @db.Decimal(12, 2)
+  nhif        Decimal  @db.Decimal(12, 2) // SHIF (2.75% gross)
+  ahl         Decimal  @db.Decimal(12, 2) // Affordable Housing Levy 1.5% gross; pre-PAYE deduction
   netPay      Decimal  @db.Decimal(12, 2)
   status      PayrollStatus @default(draft)
   createdAt   DateTime @default(now())
@@ -259,6 +275,7 @@ model Job {
 
   client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   applications Application[]
+  scheduleBreaks InterviewScheduleBreak[]
 
   @@index([isActive, postedDate(sort: Desc)])
   @@index([category])
@@ -354,6 +371,23 @@ model Interview {
   @@index([status])
 }
 
+/// Calendar breaks (lunch, buffers) on a job’s interview schedule — shown in UI and PDF/HTML export.
+model InterviewScheduleBreak {
+  id               String   @id @default(cuid())
+  jobId            String
+  scheduledAt      DateTime // start of break (Nairobi wall time stored as UTC instant)
+  durationMinutes  Int      @default(15)
+  label            String   @default("Break") // e.g. Lunch, Coffee, Buffer
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([scheduledAt])
+}
+
 enum ConfirmationStatus {
   pending
   confirmed
@@ -387,8 +421,81 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  staffLeaveBalances     StaffLeaveBalance[]
+  staffLeaveApplications StaffLeaveApplication[] @relation("StaffLeaveApplicant")
+  staffLeaveReviews      StaffLeaveApplication[] @relation("StaffLeaveReviewer")
+
   @@index([email])
   @@index([isActive])
+}
+
+// --- Eagle HR internal staff leave (not outsourcing employees) ---
+
+model StaffLeaveType {
+  id                 String   @id @default(cuid())
+  name               String
+  daysPerYear        Int      @default(21)
+  description        String?  @db.Text
+  color              String?  // e.g. #043d4a
+  requiresApproval   Boolean  @default(true)
+  active             Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  balances      StaffLeaveBalance[]
+  applications  StaffLeaveApplication[]
+
+  @@index([active, sortOrder])
+}
+
+model StaffLeaveBalance {
+  id            String   @id @default(cuid())
+  userId        String
+  leaveTypeId   String
+  year          Int
+  entitledDays  Int      @default(0)
+  usedDays      Int      @default(0)
+  carriedOver   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType StaffLeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leaveTypeId, year])
+  @@index([userId, year])
+}
+
+model StaffLeaveApplication {
+  id            String                        @id @default(cuid())
+  userId        String
+  leaveTypeId   String
+  startDate     DateTime                      @db.Date
+  endDate       DateTime                      @db.Date
+  totalDays     Int
+  reason        String?                       @db.Text
+  status        StaffLeaveApplicationStatus   @default(pending)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?                       @db.Text
+  createdAt     DateTime                      @default(now())
+  updatedAt     DateTime                      @updatedAt
+
+  user       User           @relation("StaffLeaveApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?          @relation("StaffLeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  leaveType  StaffLeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([startDate, endDate])
+}
+
+enum StaffLeaveApplicationStatus {
+  pending
+  approved
+  rejected
+  cancelled
 }
 
 enum UserRole {

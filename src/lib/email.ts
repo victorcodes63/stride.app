@@ -762,10 +762,17 @@ export interface PayslipEmailData {
   allowances: { name: string; amount: number }[];
   deductions: { name: string; amount: number }[];
   grossPay: string;
+  /** Included on payslip only when > 0 */
+  leavePay?: string;
   paye: string;
   nssf: string;
   nhif: string;
+  ahl: string;
   netPay: string;
+  biweekly?: boolean;
+  period1Gross?: string;
+  period2Gross?: string;
+  biweeklyAttendance?: { period1: string[]; period2: string[] };
 }
 
 const ACCOUNTS_FROM_NAME = (process.env.ACCOUNTS_SMTP_FROM_NAME?.trim()) || 'Eagle HR Accounts';
@@ -783,6 +790,28 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
   const allowancesRows = (data.allowances ?? []).map(
     (a) => `<tr><td style="padding:6px 0;color:#374151;">${a.name}</td><td style="text-align:right;font-family:monospace;color:#374151;">KES ${formatPayslipAmount(a.amount)}</td></tr>`
   ).join('');
+  const leavePayNum = Number(data.leavePay ?? 0);
+  const leavePayRow =
+    leavePayNum > 0
+      ? `<tr><td style="padding:6px 0;color:#374151;">Leave pay</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.leavePay!)}</td></tr>`
+      : '';
+  const wd = (dates: string[]) =>
+    dates
+      .map((iso) => {
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+      })
+      .join(', ') || '—';
+  const biweeklyBlock =
+    data.biweekly && data.biweeklyAttendance
+      ? `<tr><td style="padding:16px;background:#fff9f0;border:1px solid #ffe1b3;border-radius:8px;">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#0B1D39;">Bi-weekly — days worked (Mon–Sat)</p>
+          <p style="margin:0 0 4px;font-size:11px;color:#374151;"><strong>Period 1</strong> (1st–15th) · KES ${formatPayslipAmount(data.period1Gross || 0)} · <strong>${data.biweeklyAttendance.period1.length}</strong> days</p>
+          <p style="margin:0 0 8px;font-size:10px;color:#6b7280;">${wd(data.biweeklyAttendance.period1)}</p>
+          <p style="margin:0 0 4px;font-size:11px;color:#374151;"><strong>Period 2</strong> (16th–end) · KES ${formatPayslipAmount(data.period2Gross || 0)} · <strong>${data.biweeklyAttendance.period2.length}</strong> days</p>
+          <p style="margin:0;font-size:10px;color:#6b7280;">${wd(data.biweeklyAttendance.period2)}</p>
+        </td></tr>`
+      : '';
   const deductionsRows = (data.deductions ?? []).map(
     (d) => `<tr><td style="padding:6px 0;color:#374151;">${d.name}</td><td style="text-align:right;font-family:monospace;color:#374151;">KES ${formatPayslipAmount(d.amount)}</td></tr>`
   ).join('');
@@ -815,12 +844,14 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
             </table>
           </td>
         </tr>
+        ${biweeklyBlock}
         <tr>
           <td style="padding:20px 0 8px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse;">
               <tr><td colspan="2" style="padding:8px 0;font-weight:600;color:#0B1D39;border-bottom:1px solid #e5e7eb;">Earnings</td></tr>
               <tr><td style="padding:6px 0;color:#374151;">Basic pay</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.basicPay)}</td></tr>
               ${allowancesRows}
+              ${leavePayRow}
               <tr><td style="padding:8px 0;font-weight:600;border-top:1px solid #e5e7eb;">Gross pay</td><td style="text-align:right;font-weight:600;border-top:1px solid #e5e7eb;">KES ${formatPayslipAmount(data.grossPay)}</td></tr>
             </table>
           </td>
@@ -832,6 +863,7 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
               <tr><td style="padding:6px 0;color:#374151;">PAYE</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.paye)}</td></tr>
               <tr><td style="padding:6px 0;color:#374151;">NSSF</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.nssf)}</td></tr>
               <tr><td style="padding:6px 0;color:#374151;">SHIF</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.nhif)}</td></tr>
+              <tr><td style="padding:6px 0;color:#374151;">AHL (1.5%)</td><td style="text-align:right;font-family:monospace;">KES ${formatPayslipAmount(data.ahl ?? 0)}</td></tr>
               ${deductionsRows}
               <tr><td style="padding:8px 0;font-weight:600;color:#0B1D39;border-top:1px solid #e5e7eb;">Net pay</td><td style="text-align:right;font-weight:600;color:#0B1D39;border-top:1px solid #e5e7eb;">KES ${formatPayslipAmount(data.netPay)}</td></tr>
             </table>

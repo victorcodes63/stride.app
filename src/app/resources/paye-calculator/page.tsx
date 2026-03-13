@@ -214,7 +214,9 @@ export default function PAYECalculatorPage() {
                   
                   <div className="flex justify-between items-center py-3 border-b border-neutral-200">
                     <span className="text-neutral-600">PAYE Tax:</span>
-                    <span className="font-semibold text-red-600">-KSh {results.paye.toLocaleString()}</span>
+                    <span className="font-semibold text-red-600 tabular-nums">
+                      -KSh {results.paye.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
                   
                   <div className="flex justify-between items-center py-3 border-b-2 border-primary-200">

@@ -4,6 +4,7 @@ import { getInMemoryApplications } from '@/lib/applications-store';
 import { reportApiError } from '@/lib/monitoring';
 import type { ApplicationWithDetails } from '@/types/dashboard';
 import ExcelJS from 'exceljs';
+import { sortEmploymentByRecency } from '@/lib/employment-sort';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -291,9 +292,11 @@ export async function GET(request: NextRequest) {
       if (isNaN(date.getTime())) return d.trim();
       return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
     };
-    const employmentStr = fd?.employmentHistory
-      ?.filter((e) => e.jobTitle || e.companyName)
-      .map(
+    const employmentSorted = sortEmploymentByRecency(
+      fd?.employmentHistory?.filter((e) => e.jobTitle || e.companyName) ?? []
+    );
+    const employmentStr = employmentSorted.length
+      ? employmentSorted.map(
         (e) => {
           const company = (e.companyName ?? '').trim() || '—';
           const position = (e.jobTitle ?? '').trim() || '—';
@@ -301,8 +304,8 @@ export async function GET(request: NextRequest) {
           const end = e.isCurrentJob ? 'Present' : formatEmploymentDate(e.endDate ?? '');
           return `Company: ${company}; Position: ${position}; Dates: ${start} – ${end}`;
         }
-      )
-      .join('\n||\n') ?? '';
+      ).join('\n||\n')
+      : '';
     const workExpYears = totalWorkExperienceYears(fd?.employmentHistory);
     const profCertsStr =
       (fd?.professionalCertificationsList?.map((x) => x.name).join(', ') ||

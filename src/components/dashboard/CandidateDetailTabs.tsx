@@ -2,6 +2,7 @@
 
 import { FileText, ExternalLink } from 'lucide-react';
 import type { ApplicationFormData } from '@/types/dashboard';
+import { sortEmploymentByRecency } from '@/lib/employment-sort';
 
 function yearsBetween(startDate: string, endDate: string): number {
   if (!startDate?.trim()) return 0;
@@ -25,9 +26,10 @@ function formatDateRange(start: string, end: string) {
 }
 
 export function WorkExperienceTab({ formData }: { formData: ApplicationFormData | null }) {
-  const entries = formData?.employmentHistory?.filter(
+  const raw = formData?.employmentHistory?.filter(
     (e) => e.jobTitle?.trim() || e.companyName?.trim()
   ) ?? [];
+  const entries = sortEmploymentByRecency(raw);
   const totalYears = entries.reduce(
     (sum, e) => {
       const end = e.isCurrentJob ? new Date().toISOString().slice(0, 7) : e.endDate;

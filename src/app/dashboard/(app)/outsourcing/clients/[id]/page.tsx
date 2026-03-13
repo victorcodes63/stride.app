@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import ClientDetailView from './ClientDetailView';
 
@@ -8,5 +9,9 @@ export default async function OutsourcingClientDetailPage({
 }) {
   const { id } = await params;
   if (!id) notFound();
-  return <ClientDetailView clientId={id} />;
+  return (
+    <Suspense fallback={<div className="animate-pulse h-32 bg-neutral-100 rounded-2xl" />}>
+      <ClientDetailView clientId={id} />
+    </Suspense>
+  );
 }
