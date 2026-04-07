@@ -1,0 +1,566 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import {
+  CalendarDays,
+  Plus,
+  Loader2,
+  Check,
+  X,
+  Ban,
+  Settings,
+  LayoutList,
+  Users,
+} from 'lucide-react';
+
+type BalanceRow = {
+  id: string;
+  leaveTypeId: string;
+  name: string;
+  color: string | null;
+  entitledDays: number;
+  usedDays: number;
+  carriedOver: number;
+  pendingDays: number;
+  remaining: number;
+};
+
+type Application = {
+  id: string;
+  userId: string;
+  leaveTypeId: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason: string | null;
+  status: string;
+  reviewNote: string | null;
+  createdAt: string;
+  leaveType: { name: string; color: string | null };
+  user: { name: string; email: string };
+  reviewedBy: { name: string } | null;
+};
+
+type LeaveType = {
+  id: string;
+  name: string;
+  daysPerYear: number;
+  color: string | null;
+  active: boolean;
+  requiresApproval: boolean;
+  description: string | null;
+  sortOrder: number;
+};
+
+export default function StaffLeavePage() {
+  const [tab, setTab] = useState<'my' | 'team' | 'types'>('my');
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [balances, setBalances] = useState<BalanceRow[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [teamApps, setTeamApps] = useState<Application[]>([]);
+  const [types, setTypes] = useState<LeaveType[]>([]);
+  const [typesAdmin, setTypesAdmin] = useState<LeaveType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [canApproveLeave, setCanApproveLeave] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    leaveTypeId: '',
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+
+  const loadMe = useCallback(async () => {
+    const me = await fetch('/api/auth/me').then((r) => r.json());
+    const admin = me?.role === 'admin';
+    const approver = me?.canApproveStaffLeave === true;
+    setIsAdmin(admin);
+    setCanApproveLeave(approver);
+    const y = year;
+    const [b, a, t] = await Promise.all([
+      fetch(`/api/staff/leave/balances?year=${y}`).then((r) => r.json()),
+      fetch('/api/staff/leave/applications?scope=me').then((r) => r.json()),
+      fetch('/api/staff/leave/types').then((r) => r.json()),
+    ]);
+    if (b.balances) setBalances(b.balances);
+    if (Array.isArray(a)) setApplications(a);
+    if (Array.isArray(t)) setTypes(t);
+    if (approver) {
+      const team = await fetch('/api/staff/leave/applications?scope=team&status=pending').then((r) =>
+        r.json()
+      );
+      if (Array.isArray(team)) setTeamApps(team);
+    } else {
+      setTeamApps([]);
+    }
+    if (admin) {
+      const tall = await fetch('/api/staff/leave/types?all=1').then((r) => r.json());
+      if (Array.isArray(tall)) setTypesAdmin(tall);
+    }
+  }, [year]);
+
+  useEffect(() => {
+    let c = false;
+    setLoading(true);
+    setError(null);
+    loadMe()
+      .catch(() => {
+        if (!c) setError('Could not load leave data. Run db migrate + db:seed-staff-leave.');
+      })
+      .finally(() => {
+        if (!c) setLoading(false);
+      });
+    return () => {
+      c = true;
+    };
+  }, [loadMe]);
+
+  const refresh = () => loadMe().catch(() => {});
+
+  const submitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/staff/leave/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaveTypeId: form.leaveTypeId,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          reason: form.reason || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setModal(false);
+      setForm({ leaveTypeId: '', startDate: '', endDate: '', reason: '' });
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const actOn = async (id: string, action: 'approve' | 'reject' | 'cancel') => {
+    const reviewNote =
+      action === 'reject' ? window.prompt('Reason (optional)') || undefined : undefined;
+    await fetch(`/api/staff/leave/applications/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reviewNote }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        const d = await r.json();
+        alert(d.error || 'Failed');
+        return;
+      }
+      refresh();
+    });
+  };
+
+  const saveType = async (t: Partial<LeaveType> & { id?: string }) => {
+    if (t.id) {
+      await fetch(`/api/staff/leave/types/${t.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(t),
+      });
+    } else {
+      await fetch('/api/staff/leave/types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(t),
+      });
+    }
+    refresh();
+    const tall = await fetch('/api/staff/leave/types?all=1').then((r) => r.json());
+    if (Array.isArray(tall)) setTypesAdmin(tall);
+  };
+
+  const initBalances = async () => {
+    await fetch('/api/staff/leave/balances', { method: 'POST', body: JSON.stringify({ year }) });
+    refresh();
+    alert('Balances ensured for all users for ' + year);
+  };
+
+  return (
+    <div className="w-full min-w-0">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-900 flex items-center gap-2">
+            <CalendarDays className="w-8 h-8 text-primary-600" />
+            Staff leave
+          </h1>
+          <p className="text-neutral-600 text-sm mt-1">
+            Eagle HR internal team — balances, requests, and approvals. Refine policies under Types.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={year}
+            onChange={(e) => setYear(parseInt(e.target.value, 10))}
+            className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white"
+          >
+            {[year - 1, year, year + 1].map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-semibold hover:bg-primary-800"
+          >
+            <Plus className="w-4 h-4" />
+            Request leave
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-neutral-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setTab('my')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
+            tab === 'my' ? 'bg-primary-100 text-primary-900' : 'text-neutral-600 hover:bg-neutral-100'
+          }`}
+        >
+          <LayoutList className="w-4 h-4" />
+          My leave
+        </button>
+        {canApproveLeave && (
+          <button
+            type="button"
+            onClick={() => setTab('team')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === 'team' ? 'bg-primary-100 text-primary-900' : 'text-neutral-600 hover:bg-neutral-100'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Approvals
+            {teamApps.length > 0 && (
+              <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">{teamApps.length}</span>
+            )}
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setTab('types')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === 'types' ? 'bg-primary-100 text-primary-900' : 'text-neutral-600 hover:bg-neutral-100'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Types & setup
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+        </div>
+      ) : tab === 'my' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-500">Balance {year}</h2>
+            {balances.length === 0 ? (
+              <p className="text-sm text-neutral-500">No balances — admin: Types → init year.</p>
+            ) : (
+              balances.map((b) => (
+                <div
+                  key={b.id}
+                  className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
+                  style={{ borderLeftWidth: 4, borderLeftColor: b.color || '#043d4a' }}
+                >
+                  <div className="font-semibold text-neutral-900">{b.name}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-1 text-sm">
+                    <span className="text-neutral-500">Entitled</span>
+                    <span className="tabular-nums text-right">{b.entitledDays + b.carriedOver}</span>
+                    <span className="text-neutral-500">Used</span>
+                    <span className="tabular-nums text-right">{b.usedDays}</span>
+                    <span className="text-neutral-500">Pending</span>
+                    <span className="tabular-nums text-right">{b.pendingDays}</span>
+                    <span className="text-neutral-800 font-medium">Available</span>
+                    <span className="tabular-nums text-right font-semibold text-primary-800">{b.remaining}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="lg:col-span-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-500 mb-3">My requests</h2>
+            <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 text-left text-neutral-600">
+                  <tr>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Dates</th>
+                    <th className="px-4 py-3">Days</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 w-24"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.map((a) => (
+                    <tr key={a.id} className="border-t border-neutral-100">
+                      <td className="px-4 py-3 font-medium">{a.leaveType.name}</td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {a.startDate.slice(0, 10)} → {a.endDate.slice(0, 10)}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{a.totalDays}</td>
+                      <td className="px-4 py-3">
+                        <StatusPill status={a.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {a.status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => actOn(a.id, 'cancel')}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {applications.length === 0 && (
+                <p className="p-8 text-center text-neutral-500 text-sm">No requests yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : tab === 'team' && canApproveLeave ? (
+        <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-left">
+              <tr>
+                <th className="px-4 py-3">Staff</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Dates</th>
+                <th className="px-4 py-3">Days</th>
+                <th className="px-4 py-3">Reason</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamApps.map((a) => (
+                <tr key={a.id} className="border-t border-neutral-100">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{a.user.name}</div>
+                    <div className="text-xs text-neutral-500">{a.user.email}</div>
+                  </td>
+                  <td className="px-4 py-3">{a.leaveType.name}</td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {a.startDate.slice(0, 10)} – {a.endDate.slice(0, 10)}
+                  </td>
+                  <td className="px-4 py-3">{a.totalDays}</td>
+                  <td className="px-4 py-3 max-w-xs truncate" title={a.reason || ''}>
+                    {a.reason || '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => actOn(a.id, 'approve')}
+                        className="p-1.5 rounded-lg bg-green-100 text-green-800 hover:bg-green-200"
+                        title="Approve"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => actOn(a.id, 'reject')}
+                        className="p-1.5 rounded-lg bg-red-100 text-red-800 hover:bg-red-200"
+                        title="Reject"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {teamApps.length === 0 && (
+            <p className="p-8 text-center text-neutral-500">No pending approvals.</p>
+          )}
+        </div>
+      ) : tab === 'types' && isAdmin ? (
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-3 items-center">
+            <button
+              type="button"
+              onClick={initBalances}
+              className="px-4 py-2 border border-primary-300 rounded-lg text-sm font-medium text-primary-900 hover:bg-primary-50"
+            >
+              Ensure balances for all users ({year})
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                saveType({
+                  name: 'New type',
+                  daysPerYear: 5,
+                  color: '#64748b',
+                  sortOrder: 50,
+                })
+              }
+              className="px-4 py-2 bg-neutral-800 text-white rounded-lg text-sm"
+            >
+              + Add type
+            </button>
+          </div>
+          <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-100 bg-white">
+            {typesAdmin.map((t) => (
+              <div key={t.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div
+                  className="w-2 h-12 rounded shrink-0"
+                  style={{ background: t.color || '#ccc' }}
+                  aria-hidden
+                />
+                <div className="flex-1 min-w-0 grid sm:grid-cols-4 gap-2 text-sm">
+                  <input
+                    defaultValue={t.name}
+                    onBlur={(e) => e.target.value !== t.name && saveType({ id: t.id, name: e.target.value })}
+                    className="px-2 py-1 border rounded font-medium"
+                  />
+                  <label className="flex items-center gap-1">
+                    Days/yr
+                    <input
+                      type="number"
+                      defaultValue={t.daysPerYear}
+                      onBlur={(e) =>
+                        parseInt(e.target.value, 10) !== t.daysPerYear &&
+                        saveType({ id: t.id, daysPerYear: parseInt(e.target.value, 10) })
+                      }
+                      className="w-16 px-2 py-1 border rounded"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      defaultChecked={t.active}
+                      onChange={(e) => saveType({ id: t.id, active: e.target.checked })}
+                    />
+                    Active
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      defaultChecked={t.requiresApproval}
+                      onChange={(e) => saveType({ id: t.id, requiresApproval: e.target.checked })}
+                    />
+                    Needs approval
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-primary-900 mb-4">Request leave</h3>
+            <form onSubmit={submitApplication} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Type</label>
+                <select
+                  required
+                  value={form.leaveTypeId}
+                  onChange={(e) => setForm((f) => ({ ...f, leaveTypeId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg"
+                >
+                  <option value="">Select…</option>
+                  {types.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.daysPerYear} d/yr)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1">Start</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.startDate}
+                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1">End</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.endDate}
+                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Reason (optional)</label>
+                <textarea
+                  value={form.reason}
+                  onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setModal(false)} className="px-4 py-2 border rounded-lg text-sm">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {submitting ? 'Submitting…' : 'Submit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-900',
+    approved: 'bg-green-100 text-green-900',
+    rejected: 'bg-red-100 text-red-900',
+    cancelled: 'bg-neutral-100 text-neutral-600',
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${map[status] || ''}`}>
+      {status === 'approved' && <Check className="w-3 h-3" />}
+      {status === 'rejected' && <Ban className="w-3 h-3" />}
+      {status}
+    </span>
+  );
+}

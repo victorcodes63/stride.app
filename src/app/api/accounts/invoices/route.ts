@@ -1,0 +1,316 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { getAccountsAccess } from '@/lib/accounts-access';
+import { computeInvoiceVatFromSubtotal } from '@/lib/accounts-invoice-totals';
+import { reportApiError } from '@/lib/monitoring';
+
+export const dynamic = 'force-dynamic';
+
+const PAYMENT_BANK_VALUES = new Set(['payroll_only', 'consultancy_fees']);
+
+function parseIsoDateOnly(s: unknown): Date | null {
+  if (typeof s !== 'string') return null;
+  const t = s.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const [y, mo, d] = t.split('-').map((x) => parseInt(x, 10));
+  if (!Number.isFinite(y) || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+function str(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t || null;
+}
+
+export async function GET(request: NextRequest) {
+  const user = await requireStaffUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await getAccountsAccess(user.id, user.role);
+  if (!access.hasAccountsAccess) {
+    return NextResponse.json({ error: 'No access to Accounts.' }, { status: 403 });
+  }
+
+  try {
+    const clientId = request.nextUrl.searchParams.get('clientId')?.trim() || undefined;
+
+    // List view: avoid loading every line row (was slow with many invoices × lines). Totals via one groupBy.
+    const invoices = await prisma.accountsInvoice.findMany({
+      where: clientId ? { clientId } : {},
+      select: {
+        id: true,
+        invoiceNumber: true,
+        clientId: true,
+        issueDate: true,
+        dueDate: true,
+        taxDate: true,
+        currency: true,
+        vatRateBps: true,
+        status: true,
+        notes: true,
+        accountsClient: { select: { id: true, name: true } },
+        _count: { select: { lines: true } },
+      },
+      orderBy: [{ issueDate: 'desc' }, { invoiceNumber: 'desc' }],
+      take: 200,
+    });
+
+    const ids = invoices.map((i) => i.id);
+    const aggregates =
+      ids.length === 0
+        ? []
+        : await prisma.accountsInvoiceLine.groupBy({
+            by: ['invoiceId'],
+            where: { invoiceId: { in: ids } },
+            _sum: { amountExVat: true },
+          });
+
+    const subtotalByInvoice = new Map<string, number>();
+    for (const row of aggregates) {
+      subtotalByInvoice.set(row.invoiceId, Number(row._sum.amountExVat ?? 0));
+    }
+
+    const list = invoices.map((inv) => {
+      const subtotalExVat = subtotalByInvoice.get(inv.id) ?? 0;
+      const { vatAmount, totalIncVat } = computeInvoiceVatFromSubtotal(subtotalExVat, inv.vatRateBps);
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        clientId: inv.clientId,
+        clientName: inv.accountsClient.name,
+        issueDate: inv.issueDate.toISOString().slice(0, 10),
+        dueDate: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : null,
+        taxDate: inv.taxDate ? inv.taxDate.toISOString().slice(0, 10) : null,
+        currency: inv.currency,
+        vatRateBps: inv.vatRateBps,
+        status: inv.status,
+        subtotalExVat,
+        vatAmount,
+        totalIncVat,
+        lineCount: inv._count.lines,
+        notes: inv.notes,
+      };
+    });
+
+    return NextResponse.json({ invoices: list });
+  } catch (error) {
+    await reportApiError({
+      route: 'GET /api/accounts/invoices',
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: 'Failed to load invoices.' }, { status: 500 });
+  }
+}
+
+/** Create invoice; uses client.nextInvoiceNumber, then increments it. Requires canManageInvoices. */
+export async function POST(request: NextRequest) {
+  const user = await requireStaffUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await getAccountsAccess(user.id, user.role);
+  if (!access.hasAccountsAccess) {
+    return NextResponse.json({ error: 'No access to Accounts.' }, { status: 403 });
+  }
+  if (!access.canManageInvoices) {
+    return NextResponse.json(
+      { error: 'You do not have permission to create invoices.' },
+      { status: 403 },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const b = body as Record<string, unknown>;
+  const clientId = str(b.clientId);
+  if (!clientId) {
+    return NextResponse.json({ error: 'clientId is required.' }, { status: 400 });
+  }
+
+  const issueDate = parseIsoDateOnly(b.issueDate);
+  if (!issueDate) {
+    return NextResponse.json(
+      { error: 'issueDate is required (YYYY-MM-DD).' },
+      { status: 400 },
+    );
+  }
+
+  const dueDateRaw = b.dueDate;
+  const dueDate =
+    dueDateRaw === null || dueDateRaw === undefined || dueDateRaw === ''
+      ? null
+      : parseIsoDateOnly(dueDateRaw);
+  if (dueDateRaw !== null && dueDateRaw !== undefined && dueDateRaw !== '' && !dueDate) {
+    return NextResponse.json({ error: 'dueDate must be YYYY-MM-DD or empty.' }, { status: 400 });
+  }
+
+  const taxDateRaw = b.taxDate;
+  const taxDate =
+    taxDateRaw === null || taxDateRaw === undefined || taxDateRaw === ''
+      ? issueDate
+      : parseIsoDateOnly(taxDateRaw);
+  if (!taxDate) {
+    return NextResponse.json({ error: 'taxDate must be YYYY-MM-DD.' }, { status: 400 });
+  }
+
+  let vatRateBps = 1600;
+  if (b.vatRateBps !== undefined && b.vatRateBps !== null) {
+    const n =
+      typeof b.vatRateBps === 'number' ? b.vatRateBps : parseInt(String(b.vatRateBps), 10);
+    if (!Number.isFinite(n) || n < 0 || n > 50_000) {
+      return NextResponse.json({ error: 'vatRateBps must be between 0 and 50000.' }, { status: 400 });
+    }
+    vatRateBps = Math.round(n);
+  }
+
+  const paymentBank =
+    typeof b.paymentBank === 'string' && PAYMENT_BANK_VALUES.has(b.paymentBank)
+      ? b.paymentBank
+      : 'consultancy_fees';
+
+  const currencyOverride = str(b.currency);
+  const notes = b.notes != null && typeof b.notes === 'string' ? b.notes.trim() || null : null;
+
+  const contractIdOpt = str(b.contractId);
+
+  const linesIn = b.lines;
+  if (!Array.isArray(linesIn) || linesIn.length < 1) {
+    return NextResponse.json({ error: 'At least one line item is required.' }, { status: 400 });
+  }
+
+  const lineCreates: { item: string; description: string | null; amountExVat: Prisma.Decimal; sortOrder: number }[] =
+    [];
+  for (let i = 0; i < linesIn.length; i++) {
+    const row = linesIn[i];
+    if (!row || typeof row !== 'object') {
+      return NextResponse.json({ error: 'Invalid line item.' }, { status: 400 });
+    }
+    const r = row as Record<string, unknown>;
+    const item = typeof r.item === 'string' ? r.item.trim() : '';
+    if (!item) {
+      return NextResponse.json({ error: 'Each line must have an item description.' }, { status: 400 });
+    }
+    const amtRaw = r.amountExVat;
+    const amt =
+      typeof amtRaw === 'number' && Number.isFinite(amtRaw)
+        ? amtRaw
+        : parseFloat(String(amtRaw ?? ''));
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return NextResponse.json(
+        { error: 'Each line must have a positive amount (ex-VAT).' },
+        { status: 400 },
+      );
+    }
+    const description =
+      r.description != null && typeof r.description === 'string' ? r.description.trim() || null : null;
+    lineCreates.push({
+      item,
+      description,
+      amountExVat: new Prisma.Decimal(Math.round(amt * 100) / 100),
+      sortOrder: i,
+    });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const client = await tx.accountsClient.findUnique({
+        where: { id: clientId },
+        select: {
+          id: true,
+          currency: true,
+          nextInvoiceNumber: true,
+        },
+      });
+      if (!client) {
+        throw Object.assign(new Error('CLIENT_NOT_FOUND'), { code: 'CLIENT_NOT_FOUND' });
+      }
+
+      if (contractIdOpt) {
+        const ctr = await tx.accountsContract.findFirst({
+          where: { id: contractIdOpt, clientId },
+          select: { id: true },
+        });
+        if (!ctr) {
+          throw Object.assign(new Error('CONTRACT_NOT_FOUND'), { code: 'CONTRACT_NOT_FOUND' });
+        }
+      }
+
+      const currency = (currencyOverride ?? client.currency ?? 'KES').trim() || 'KES';
+      const invoiceNumber = client.nextInvoiceNumber;
+
+      // Do not pass paymentBank on create: rely on DB default (consultancy_fees). Some dev setups had a stale
+      // bundled Prisma client that rejected paymentBank on create; follow-up update sets payroll_only when needed.
+      const inv = await tx.accountsInvoice.create({
+        data: {
+          clientId,
+          ...(contractIdOpt ? { contractId: contractIdOpt } : {}),
+          invoiceNumber,
+          issueDate,
+          dueDate,
+          taxDate,
+          currency,
+          vatRateBps,
+          status: 'unpaid',
+          notes,
+          lines: {
+            create: lineCreates,
+          },
+        },
+        select: { id: true, invoiceNumber: true },
+      });
+
+      if (paymentBank === 'payroll_only') {
+        await tx.accountsInvoice.update({
+          where: { id: inv.id },
+          data: { paymentBank: 'payroll_only' },
+        });
+      }
+
+      await tx.accountsClient.update({
+        where: { id: clientId },
+        data: { nextInvoiceNumber: invoiceNumber + 1 },
+      });
+
+      return inv;
+    });
+
+    return NextResponse.json(
+      { id: result.id, invoiceNumber: result.invoiceNumber },
+      { status: 201 },
+    );
+  } catch (error: unknown) {
+    const err = error as { code?: string };
+    if (err.code === 'CLIENT_NOT_FOUND') {
+      return NextResponse.json({ error: 'Billing client not found.' }, { status: 404 });
+    }
+    if (err.code === 'CONTRACT_NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'Contract not found or does not belong to this client.' },
+        { status: 400 },
+      );
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        {
+          error:
+            'Invoice number conflict for this client. Another request may have issued an invoice—refresh the form and try again.',
+        },
+        { status: 409 },
+      );
+    }
+    await reportApiError({
+      route: 'POST /api/accounts/invoices',
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: 'Failed to create invoice.' }, { status: 500 });
+  }
+}
