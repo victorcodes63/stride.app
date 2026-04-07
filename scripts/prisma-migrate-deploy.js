@@ -41,10 +41,24 @@ function run() {
     process.exit(1);
   }
 
+  // Neon (and other poolers): `prisma migrate` needs a direct session for advisory locks.
+  // Pooled URLs (*-pooler.*) often hit P1002 / lock timeout — use Neon's "direct" connection for migrate only.
+  const migrateEnv = { ...process.env };
+  const direct = (process.env.DIRECT_DATABASE_URL || '').trim();
+  if (direct) {
+    migrateEnv.DATABASE_URL = direct;
+    console.log('[prisma-migrate-deploy] Using DIRECT_DATABASE_URL for migrate (non-pooler).');
+  } else if ((process.env.DATABASE_URL || '').includes('pooler')) {
+    console.warn(
+      '[prisma-migrate-deploy] DATABASE_URL looks pooled but DIRECT_DATABASE_URL is unset. ' +
+        'If migrate fails with P1002 advisory lock timeout, add DIRECT_DATABASE_URL in Vercel (Neon → Connection details → direct / non-pooling).'
+    );
+  }
+
   const result = spawnSync('npx', ['prisma', 'migrate', 'deploy'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: process.env,
+    env: migrateEnv,
   });
 
   const stdout = result.stdout || '';
