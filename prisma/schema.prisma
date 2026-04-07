@@ -565,15 +565,18 @@ model AccountsClient {
   /// Internal context: engagement description, billable setup, etc. Not shown on invoice PDF.
   billingNotes        String?            @db.Text
   /// Per-client sequential invoice number (manual invoices)
-  nextInvoiceNumber   Int                @default(1)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  nextInvoiceNumber    Int @default(1)
+  /// Per-client sequential credit note number
+  nextCreditNoteNumber Int @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   outsourcingClient OutsourcingClient? @relation(fields: [outsourcingClientId], references: [id], onDelete: SetNull)
   recruitmentClient Client?            @relation(fields: [recruitmentClientId], references: [id], onDelete: SetNull)
 
   contracts      AccountsContract[]
   invoices       AccountsInvoice[]
+  creditNotes    AccountsCreditNote[]
   clientPayments AccountsClientPayment[]
   staffAccess    AccountsStaffAccess[]
   payrolls       Payroll[]
@@ -692,11 +695,51 @@ model AccountsInvoice {
   contract       AccountsContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
   lines          AccountsInvoiceLine[]
   allocations    AccountsInvoicePaymentAllocation[]
+  creditNotes    AccountsCreditNote[]
 
   @@unique([clientId, invoiceNumber])
   @@index([clientId])
   @@index([issueDate])
   @@index([status])
+}
+
+/// Credit note correcting / reducing amounts billed on a sales invoice (same VAT rules as invoice lines).
+model AccountsCreditNote {
+  id                String   @id @default(cuid())
+  clientId          String
+  originalInvoiceId String
+  creditNoteNumber  Int
+  issueDate         DateTime @db.Date
+  currency          String   @default("KES")
+  vatRateBps        Int      @default(1600)
+  /// Denormalized total incl. VAT at issue (for balances & reporting).
+  totalIncVat       Decimal  @db.Decimal(14, 2)
+  paymentBank       AccountsInvoicePaymentBank @default(consultancy_fees)
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  client          AccountsClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  originalInvoice AccountsInvoice @relation(fields: [originalInvoiceId], references: [id], onDelete: Cascade)
+  lines           AccountsCreditNoteLine[]
+
+  @@unique([clientId, creditNoteNumber])
+  @@index([clientId])
+  @@index([originalInvoiceId])
+}
+
+model AccountsCreditNoteLine {
+  id           String   @id @default(cuid())
+  creditNoteId String
+  item         String
+  description  String?  @db.Text
+  amountExVat  Decimal  @db.Decimal(14, 2)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  creditNote AccountsCreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@index([creditNoteId])
 }
 
 model AccountsInvoiceLine {

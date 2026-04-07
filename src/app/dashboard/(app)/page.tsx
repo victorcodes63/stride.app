@@ -94,7 +94,8 @@ const capabilitySections: {
       { href: '/dashboard/accounts/clients', label: 'Clients', desc: 'Billing profiles & ledger' },
       { href: '/dashboard/accounts/invoices', label: 'Invoices', desc: 'Multi-line, VAT, numbering' },
       { href: '/dashboard/accounts/payroll', label: 'Payroll', desc: 'Runs & payslips' },
-      { href: '/dashboard/accounts/vendors', label: 'Vendors & bills', desc: 'Creditors' },
+      { href: '/dashboard/accounts/vendors', label: 'Vendors', desc: 'Creditor profiles' },
+      { href: '/dashboard/accounts/vendor-bills', label: 'Vendor bills', desc: 'AP & allocations' },
     ],
   },
   {

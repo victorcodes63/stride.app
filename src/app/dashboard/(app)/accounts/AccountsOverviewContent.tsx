@@ -8,6 +8,7 @@ import {
   Banknote,
   Building2,
   FileSignature,
+  FileStack,
   FileText,
   Landmark,
   LayoutGrid,
@@ -67,9 +68,15 @@ const MODULES: {
   },
   {
     href: '/dashboard/accounts/vendors',
-    title: 'Vendors & bills',
-    desc: 'Creditors & allocations',
+    title: 'Vendors',
+    desc: 'Creditor profiles & spend history',
     icon: Wallet,
+  },
+  {
+    href: '/dashboard/accounts/vendor-bills',
+    title: 'Vendor bills',
+    desc: 'AP lines, VAT & payment allocations',
+    icon: FileStack,
   },
   {
     href: '/dashboard/accounts/statements',

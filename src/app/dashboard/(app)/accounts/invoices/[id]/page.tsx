@@ -4,7 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Loader2, AlertCircle, Printer, Download, Eye } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  Printer,
+  Download,
+  Eye,
+  CheckCircle2,
+  CircleDashed,
+  CircleOff,
+  FileMinus2,
+} from 'lucide-react';
 import {
   InvoiceBankDisplay,
   InvoicePaymentBankSelect,
@@ -19,6 +29,13 @@ type Line = {
   amountExVat: string;
 };
 
+type CreditNoteSummary = {
+  id: string;
+  creditNoteNumber: number;
+  issueDate: string;
+  totalIncVat: number;
+};
+
 type InvoiceDetail = {
   id: string;
   invoiceNumber: number;
@@ -28,6 +45,11 @@ type InvoiceDetail = {
   currency: string;
   vatRateBps: number;
   status: string;
+  canSetInvoiceStatus?: boolean;
+  canIssueCreditNote?: boolean;
+  creditTotalApplied?: number;
+  remainingCreditable?: number;
+  creditNotes?: CreditNoteSummary[];
   paymentBank: InvoicePaymentBankKind;
   notes: string | null;
   subtotalExVat: number;
@@ -40,6 +62,12 @@ function money(n: number, currency: string) {
   return `${n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+const STATUS_OPTIONS = [
+  { value: 'unpaid' as const, label: 'Unpaid', Icon: CircleOff },
+  { value: 'partial' as const, label: 'Partial', Icon: CircleDashed },
+  { value: 'paid' as const, label: 'Paid', Icon: CheckCircle2 },
+];
+
 export default function AccountsInvoiceDetailPage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -47,6 +75,7 @@ export default function AccountsInvoiceDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingBank, setSavingBank] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -81,6 +110,26 @@ export default function AccountsInvoiceDetailPage() {
       cancelled = true;
     };
   }, [id, load]);
+
+  const setInvoiceStatus = async (status: string) => {
+    if (!id || !data || status === data.status) return;
+    setSavingStatus(true);
+    try {
+      const r = await fetch(`/api/accounts/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not update status');
+      setData((prev) => (prev ? { ...prev, status } : prev));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
 
   const setPaymentBank = async (paymentBank: InvoicePaymentBankKind) => {
     if (!id || !data) return;
@@ -160,38 +209,156 @@ export default function AccountsInvoiceDetailPage() {
             </li>
           </ol>
         </nav>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-900 text-white text-sm font-medium hover:bg-primary-800 transition-colors"
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-900 text-white text-sm font-medium hover:bg-primary-800 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print / Save as PDF
+            </button>
+            <a
+              href={`/api/accounts/invoices/${id}/pdf?disposition=inline`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-neutral-300 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+              Preview PDF
+            </a>
+            <a
+              href={`/api/accounts/invoices/${id}/pdf`}
+              download
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-neutral-300 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Download PDF
+            </a>
+          </div>
+
+          <div
+            className="lg:max-w-md w-full lg:w-auto lg:min-w-[280px] rounded-xl border border-neutral-200/90 bg-white px-4 py-3 shadow-sm"
+            role="region"
+            aria-label="Invoice ledger status"
           >
-            <Printer className="w-4 h-4" />
-            Print / Save as PDF
-          </button>
-          <a
-            href={`/api/accounts/invoices/${id}/pdf?disposition=inline`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-neutral-300 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 transition-colors"
-          >
-            <Eye className="w-4 h-4" />
-            Preview PDF
-          </a>
-          <a
-            href={`/api/accounts/invoices/${id}/pdf`}
-            download
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-neutral-300 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF
-          </a>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Ledger status</p>
+              {savingStatus ? (
+                <span className="text-xs text-neutral-500 inline-flex items-center gap-1 shrink-0">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Saving
+                </span>
+              ) : null}
+            </div>
+            {data.canSetInvoiceStatus ? (
+              <div className="flex rounded-lg border border-neutral-200 bg-neutral-50/80 p-1 gap-1" role="group">
+                {STATUS_OPTIONS.map(({ value, label, Icon }) => {
+                  const active = data.status === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={savingStatus}
+                      onClick={() => void setInvoiceStatus(value)}
+                      className={[
+                        'flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-semibold transition-all min-w-0',
+                        active
+                          ? value === 'paid'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : value === 'partial'
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'bg-primary-900 text-white shadow-sm'
+                          : 'bg-transparent text-neutral-600 hover:bg-white hover:text-neutral-900 border border-transparent',
+                        savingStatus ? 'opacity-60 cursor-not-allowed' : '',
+                      ].join(' ')}
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0 opacity-90" aria-hidden />
+                      <span className="truncate">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-neutral-900 capitalize">{data.status}</p>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Your role can view status only. When receipts and allocations are enabled, this can update from
+                  recorded payments automatically.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
         <InvoicePaymentBankSelect
           value={data.paymentBank}
           onChange={setPaymentBank}
           saving={savingBank}
         />
+        <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm space-y-2 print:hidden">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Credit notes</p>
+          {(data.creditTotalApplied ?? 0) > 0 && (
+            <p className="text-neutral-700">
+              Credited (incl. VAT):{' '}
+              <span className="font-semibold tabular-nums">
+                {money(data.creditTotalApplied ?? 0, data.currency)}
+              </span>
+              {data.remainingCreditable != null && (
+                <>
+                  {' '}
+                  · Remaining creditable:{' '}
+                  <span className="font-semibold tabular-nums text-primary-900">
+                    {money(Math.max(0, data.remainingCreditable), data.currency)}
+                  </span>
+                </>
+              )}
+            </p>
+          )}
+          {data.creditNotes && data.creditNotes.length > 0 ? (
+            <ul className="space-y-1.5">
+              {data.creditNotes.map((cn) => (
+                <li key={cn.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-neutral-800">
+                  <span>
+                    CN #{cn.creditNoteNumber} · {cn.issueDate} · {money(cn.totalIncVat, data.currency)}
+                  </span>
+                  <a
+                    href={`/api/accounts/credit-notes/${cn.id}/pdf?disposition=inline`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-800 font-medium text-xs hover:underline"
+                  >
+                    Preview PDF
+                  </a>
+                  <a
+                    href={`/api/accounts/credit-notes/${cn.id}/pdf`}
+                    download
+                    className="text-primary-800 font-medium text-xs hover:underline"
+                  >
+                    Download
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-neutral-500">No credit notes yet.</p>
+          )}
+          {data.canIssueCreditNote ? (
+            <Link
+              href={`/dashboard/accounts/invoices/${id}/credit-note`}
+              className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-lg border border-primary-200 bg-primary-50/80 text-primary-900 text-sm font-semibold hover:bg-primary-100/80 transition-colors"
+            >
+              <FileMinus2 className="w-4 h-4" />
+              Issue credit note
+            </Link>
+          ) : (data.remainingCreditable ?? 0) <= 0.005 && (data.creditTotalApplied ?? 0) > 0 ? (
+            <p className="text-xs text-neutral-500">This invoice is fully credited.</p>
+          ) : (data.remainingCreditable ?? 0) > 0.005 ? (
+            <p className="text-xs text-neutral-500">You don’t have permission to issue credit notes.</p>
+          ) : (
+            <p className="text-xs text-neutral-500">No amount remains to credit on this invoice.</p>
+          )}
+        </div>
       </div>
 
       {/* Print: full width between @page margins (0.5in L/R in globals.css); screen: full layout width */}
@@ -218,7 +385,7 @@ export default function AccountsInvoiceDetailPage() {
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-8 lg:gap-12">
             <div className="min-w-0 lg:max-w-[55%]">
               <h1 className="text-xl sm:text-2xl font-bold text-primary-900 tracking-tight print:text-[18pt]">
-                TAX INVOICE
+                INVOICE
               </h1>
               <div className="mt-8 sm:mt-10 print:mt-8">
                 <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-1">Invoice to</p>

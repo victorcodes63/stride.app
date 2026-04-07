@@ -24,22 +24,23 @@ export async function GET(
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
   try {
-    const inv = await prisma.accountsInvoice.findUnique({
+    const cn = await prisma.accountsCreditNote.findUnique({
       where: { id },
       include: {
-        accountsClient: { select: { name: true } },
+        client: { select: { name: true } },
+        originalInvoice: { select: { invoiceNumber: true } },
         lines: { orderBy: { sortOrder: 'asc' } },
       },
     });
 
-    if (!inv) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    if (!cn) return NextResponse.json({ error: 'Credit note not found' }, { status: 404 });
 
     const { subtotalExVat, vatAmount, totalIncVat } = computeInvoiceVatFromLines(
-      inv.lines,
-      inv.vatRateBps,
+      cn.lines,
+      cn.vatRateBps,
     );
 
-    const lines = inv.lines.map((l, i) => ({
+    const lines = cn.lines.map((l, i) => ({
       lineNo: i + 1,
       item: l.item,
       description: l.description,
@@ -47,26 +48,26 @@ export async function GET(
     }));
 
     const pdfBytes = await generateAccountsInvoicePdf({
-      kind: 'invoice',
-      documentNumber: inv.invoiceNumber,
-      clientName: inv.accountsClient.name,
-      issueDate: inv.issueDate.toISOString().slice(0, 10),
-      dueDate: inv.dueDate ? inv.dueDate.toISOString().slice(0, 10) : null,
-      currency: inv.currency,
-      vatRateBps: inv.vatRateBps,
-      status: inv.status,
-      notes: inv.notes,
+      kind: 'credit_note',
+      documentNumber: cn.creditNoteNumber,
+      originalInvoiceNumber: cn.originalInvoice.invoiceNumber,
+      clientName: cn.client.name,
+      issueDate: cn.issueDate.toISOString().slice(0, 10),
+      dueDate: null,
+      currency: cn.currency,
+      vatRateBps: cn.vatRateBps,
+      status: 'issued',
+      notes: cn.notes,
       subtotalExVat,
       vatAmount,
       totalIncVat,
       lines,
-      paymentBank: inv.paymentBank,
+      paymentBank: cn.paymentBank,
     });
 
     const q = request.nextUrl.searchParams.get('disposition');
     const isInline = q === 'inline';
-
-    const filename = `Invoice-${inv.invoiceNumber}.pdf`;
+    const filename = `Credit-note-${cn.creditNoteNumber}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
@@ -80,7 +81,7 @@ export async function GET(
     });
   } catch (error) {
     await reportApiError({
-      route: 'GET /api/accounts/invoices/[id]/pdf',
+      route: 'GET /api/accounts/credit-notes/[id]/pdf',
       message: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json({ error: 'Failed to generate PDF.' }, { status: 500 });

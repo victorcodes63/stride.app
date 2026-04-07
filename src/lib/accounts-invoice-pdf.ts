@@ -16,8 +16,15 @@ export type AccountsInvoicePdfLine = {
   amountExVat: string;
 };
 
+export type AccountsInvoicePdfKind = 'invoice' | 'credit_note';
+
 export type AccountsInvoicePdfInput = {
-  invoiceNumber: number;
+  /** Sales invoice PDF or credit note PDF. */
+  kind?: AccountsInvoicePdfKind;
+  /** Invoice no. or credit note no. (meta block). */
+  documentNumber: number;
+  /** Credit note only: original sales invoice number. */
+  originalInvoiceNumber?: number | null;
   clientName: string;
   issueDate: string;
   dueDate: string | null;
@@ -108,6 +115,8 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
   const margin = 54;
   const contentW = width - margin * 2;
   const bank = getInvoiceBankDetails(data.paymentBank);
+  const docKind = data.kind ?? 'invoice';
+  const isCredit = docKind === 'credit_note';
 
   const cursor = { page: firstPage, y: pageHeight - margin - LETTERHEAD_TOP_INSET_PT };
   const vatPct = data.vatRateBps / 100;
@@ -121,13 +130,14 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
     });
   };
 
-  // --- Header: title left, "TAX INVOICE" emphasis; bill-to left / meta right ---
+  // --- Header: title left; bill-to left / meta right ---
   const metaW = Math.min(220, contentW * 0.38);
   const billW = contentW - metaW - 24;
   const metaX = margin + billW + 24;
   const headerTop = cursor.y;
 
-  cursor.page.drawText('TAX INVOICE', {
+  const titleText = isCredit ? 'CREDIT NOTE' : 'INVOICE';
+  cursor.page.drawText(titleText, {
     x: margin,
     y: headerTop - 22,
     size: 18,
@@ -136,11 +146,19 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
   });
 
   const metaRight = metaX + metaW;
-  const metaRows: [string, string][] = [
-    ['Invoice no.', String(data.invoiceNumber)],
-    ['Issue date', data.issueDate],
-    ['Due date', data.dueDate ?? '—'],
-  ];
+  const metaRows: [string, string][] = isCredit
+    ? [
+        ['Credit note no.', String(data.documentNumber)],
+        ...(data.originalInvoiceNumber != null
+          ? [['Original invoice no.', String(data.originalInvoiceNumber)] as [string, string]]
+          : []),
+        ['Issue date', data.issueDate],
+      ]
+    : [
+        ['Invoice no.', String(data.documentNumber)],
+        ['Issue date', data.issueDate],
+        ['Due date', data.dueDate ?? '—'],
+      ];
 
   let my = headerTop - 24;
   for (const [label, value] of metaRows) {
@@ -150,7 +168,7 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
   }
 
   // Bill-to starts below the title + meta band so columns do not overlap
-  cursor.page.drawText('Invoice to', {
+  cursor.page.drawText(isCredit ? 'Credit to' : 'Invoice to', {
     x: margin,
     y: headerTop - 78,
     size: 8,
@@ -359,60 +377,79 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
   cursor.y -= 4;
   drawLineH(cursor.y + 6, totalsLeft, amtColX);
   cursor.y -= 14;
-  sumLine('Total (incl. VAT)', fmt(data.totalIncVat, data.currency), 11, helveticaBold, PRIMARY);
+  sumLine(
+    isCredit ? 'Total credit (incl. VAT)' : 'Total (incl. VAT)',
+    fmt(data.totalIncVat, data.currency),
+    11,
+    helveticaBold,
+    PRIMARY,
+  );
 
   cursor.y -= GAP_BEFORE_PAYMENT_DETAILS_PT;
 
-  // --- Bank details: full width (account chosen on invoice; no purpose headline) ---
-  const bankLines: string[] = [
-    `Bank: ${bank.bank}`,
-    `Account number: ${bank.accountNumber}`,
-    `Bank code: ${bank.bankCode}`,
-    `Branch code: ${bank.branchCode}`,
-    `SWIFT: ${bank.swiftCode}`,
-  ];
-  const bankPad = 14;
-  const bankLineStep = 14;
-  const bankInnerH = bankLines.length * bankLineStep;
-  const bankBoxH = bankPad + bankInnerH + bankPad;
+  if (isCredit) {
+    const noteLines = wrapText(
+      'This credit note reduces the amount due on the original invoice. It is issued for corrections to amounts previously billed.',
+      Math.max(24, Math.floor(contentW / 5)),
+    );
+    ensureSpace(doc, cursor, 20 + noteLines.length * 12, margin, pageHeight);
+    for (const nl of noteLines) {
+      cursor.page.drawText(nl, { x: margin, y: cursor.y, size: 9, font: helvetica, color: GRAY_600 });
+      cursor.y -= 11;
+    }
+    cursor.y -= 8;
+  } else {
+    // --- Bank details: full width (account chosen on invoice; no purpose headline) ---
+    const bankLines: string[] = [
+      `Bank: ${bank.bank}`,
+      `Account number: ${bank.accountNumber}`,
+      `Bank code: ${bank.bankCode}`,
+      `Branch code: ${bank.branchCode}`,
+      `SWIFT: ${bank.swiftCode}`,
+    ];
+    const bankPad = 14;
+    const bankLineStep = 14;
+    const bankInnerH = bankLines.length * bankLineStep;
+    const bankBoxH = bankPad + bankInnerH + bankPad;
 
-  ensureSpace(doc, cursor, bankBoxH + 28, margin, pageHeight);
+    ensureSpace(doc, cursor, bankBoxH + 28, margin, pageHeight);
 
-  cursor.page.drawText('Payment details', {
-    x: margin,
-    y: cursor.y,
-    size: 10,
-    font: helveticaBold,
-    color: PRIMARY,
-  });
-  cursor.y -= 14;
-
-  const bankTop = cursor.y;
-  const bankBot = bankTop - bankBoxH;
-
-  cursor.page.drawRectangle({
-    x: margin,
-    y: bankBot,
-    width: contentW,
-    height: bankBoxH,
-    color: LIGHT_BG,
-    borderColor: BORDER,
-    borderWidth: 1,
-  });
-
-  let by = bankTop - bankPad - 10;
-  for (const line of bankLines) {
-    cursor.page.drawText(line, {
-      x: margin + bankPad,
-      y: by,
-      size: 9,
-      font: helvetica,
-      color: GRAY_600,
+    cursor.page.drawText('Payment details', {
+      x: margin,
+      y: cursor.y,
+      size: 10,
+      font: helveticaBold,
+      color: PRIMARY,
     });
-    by -= bankLineStep;
-  }
+    cursor.y -= 14;
 
-  cursor.y = bankBot - 8;
+    const bankTop = cursor.y;
+    const bankBot = bankTop - bankBoxH;
+
+    cursor.page.drawRectangle({
+      x: margin,
+      y: bankBot,
+      width: contentW,
+      height: bankBoxH,
+      color: LIGHT_BG,
+      borderColor: BORDER,
+      borderWidth: 1,
+    });
+
+    let by = bankTop - bankPad - 10;
+    for (const line of bankLines) {
+      cursor.page.drawText(line, {
+        x: margin + bankPad,
+        y: by,
+        size: 9,
+        font: helvetica,
+        color: GRAY_600,
+      });
+      by -= bankLineStep;
+    }
+
+    cursor.y = bankBot - 8;
+  }
 
   return doc.save();
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { getAccountsAccess } from '@/lib/accounts-access';
 import { computeInvoiceVatFromLines } from '@/lib/accounts-invoice-totals';
+import { sumCreditTotalForInvoice } from '@/lib/accounts-credit-note-totals';
 import { reportApiError } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,23 @@ export async function GET(
       inv.vatRateBps,
     );
 
+    const creditNoteRows = await prisma.accountsCreditNote.findMany({
+      where: { originalInvoiceId: id },
+      select: {
+        id: true,
+        creditNoteNumber: true,
+        issueDate: true,
+        totalIncVat: true,
+      },
+      orderBy: { issueDate: 'desc' },
+    });
+    const creditTotalApplied = await sumCreditTotalForInvoice(prisma, id);
+    const remainingCreditable = Math.round((totalIncVat - creditTotalApplied) * 100) / 100;
+
+    const canSetInvoiceStatus = access.canManageInvoices || access.canManagePayments;
+    const canIssueCreditNote =
+      access.canManageInvoices && remainingCreditable > 0.005;
+
     return NextResponse.json({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
@@ -85,6 +103,16 @@ export async function GET(
         sortOrder: l.sortOrder,
         lineNo: i + 1,
       })),
+      canSetInvoiceStatus,
+      canIssueCreditNote,
+      creditTotalApplied,
+      remainingCreditable,
+      creditNotes: creditNoteRows.map((c) => ({
+        id: c.id,
+        creditNoteNumber: c.creditNoteNumber,
+        issueDate: c.issueDate.toISOString().slice(0, 10),
+        totalIncVat: Number(c.totalIncVat),
+      })),
     });
   } catch (error) {
     await reportApiError({
@@ -96,6 +124,7 @@ export async function GET(
 }
 
 const PAYMENT_BANK_VALUES = new Set(['payroll_only', 'consultancy_fees']);
+const INVOICE_STATUS_VALUES = new Set(['unpaid', 'partial', 'paid']);
 
 export async function PATCH(
   request: NextRequest,
@@ -124,21 +153,54 @@ export async function PATCH(
       ? (body as { paymentBank: unknown }).paymentBank
       : undefined;
 
-  if (typeof paymentBank !== 'string' || !PAYMENT_BANK_VALUES.has(paymentBank)) {
+  const statusRaw =
+    body && typeof body === 'object' && 'status' in body
+      ? (body as { status: unknown }).status
+      : undefined;
+
+  const hasPaymentBank = typeof paymentBank === 'string' && PAYMENT_BANK_VALUES.has(paymentBank);
+  const hasStatus = typeof statusRaw === 'string' && INVOICE_STATUS_VALUES.has(statusRaw);
+
+  if (!hasPaymentBank && !hasStatus) {
     return NextResponse.json(
-      { error: 'Invalid paymentBank. Use payroll_only or consultancy_fees.' },
+      {
+        error:
+          'Send paymentBank (payroll_only | consultancy_fees) and/or status (unpaid | partial | paid).',
+      },
       { status: 400 },
     );
+  }
+
+  if (hasStatus && !access.canManageInvoices && !access.canManagePayments) {
+    return NextResponse.json(
+      { error: 'You do not have permission to change invoice payment status.' },
+      { status: 403 },
+    );
+  }
+
+  const data: {
+    paymentBank?: 'payroll_only' | 'consultancy_fees';
+    status?: 'unpaid' | 'partial' | 'paid';
+  } = {};
+  if (hasPaymentBank) {
+    data.paymentBank = paymentBank as 'payroll_only' | 'consultancy_fees';
+  }
+  if (hasStatus) {
+    data.status = statusRaw as 'unpaid' | 'partial' | 'paid';
   }
 
   try {
     await prisma.accountsInvoice.update({
       where: { id },
-      data: { paymentBank: paymentBank as 'payroll_only' | 'consultancy_fees' },
+      data,
     });
   } catch {
     return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, paymentBank });
+  return NextResponse.json({
+    ok: true,
+    ...(hasPaymentBank ? { paymentBank } : {}),
+    ...(hasStatus ? { status: statusRaw } : {}),
+  });
 }

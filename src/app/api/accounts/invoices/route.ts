@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { getAccountsAccess } from '@/lib/accounts-access';
 import { computeInvoiceVatFromSubtotal } from '@/lib/accounts-invoice-totals';
+import { sumCreditTotalsByInvoiceIds } from '@/lib/accounts-credit-note-totals';
 import { reportApiError } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
@@ -38,10 +39,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const clientId = request.nextUrl.searchParams.get('clientId')?.trim() || undefined;
+    const openOnly = ['1', 'true', 'yes'].includes(
+      request.nextUrl.searchParams.get('openOnly')?.toLowerCase() ?? '',
+    );
+    const withBalance = ['1', 'true', 'yes'].includes(
+      request.nextUrl.searchParams.get('withBalance')?.toLowerCase() ?? '',
+    );
 
     // List view: avoid loading every line row (was slow with many invoices × lines). Totals via one groupBy.
     const invoices = await prisma.accountsInvoice.findMany({
-      where: clientId ? { clientId } : {},
+      where: {
+        ...(clientId ? { clientId } : {}),
+        ...(openOnly ? { status: { in: ['unpaid', 'partial'] } } : {}),
+      },
       select: {
         id: true,
         invoiceNumber: true,
@@ -75,9 +85,30 @@ export async function GET(request: NextRequest) {
       subtotalByInvoice.set(row.invoiceId, Number(row._sum.amountExVat ?? 0));
     }
 
+    const allocatedByInvoice = new Map<string, number>();
+    const creditByInvoice = new Map<string, number>();
+    if (withBalance && ids.length > 0) {
+      const allocRows = await prisma.accountsInvoicePaymentAllocation.groupBy({
+        by: ['invoiceId'],
+        where: { invoiceId: { in: ids } },
+        _sum: { amount: true },
+      });
+      for (const row of allocRows) {
+        allocatedByInvoice.set(row.invoiceId, Number(row._sum.amount ?? 0));
+      }
+      const creditMap = await sumCreditTotalsByInvoiceIds(prisma, ids);
+      creditMap.forEach((v, k) => creditByInvoice.set(k, v));
+    }
+
     const list = invoices.map((inv) => {
       const subtotalExVat = subtotalByInvoice.get(inv.id) ?? 0;
       const { vatAmount, totalIncVat } = computeInvoiceVatFromSubtotal(subtotalExVat, inv.vatRateBps);
+      const allocatedTotal = withBalance ? allocatedByInvoice.get(inv.id) ?? 0 : undefined;
+      const creditTotal = withBalance ? creditByInvoice.get(inv.id) ?? 0 : undefined;
+      const balanceDue =
+        withBalance && allocatedTotal !== undefined && creditTotal !== undefined
+          ? Math.round((totalIncVat - allocatedTotal - creditTotal) * 100) / 100
+          : undefined;
       return {
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
@@ -94,6 +125,13 @@ export async function GET(request: NextRequest) {
         totalIncVat,
         lineCount: inv._count.lines,
         notes: inv.notes,
+        ...(withBalance
+          ? {
+              allocatedTotal,
+              creditTotal,
+              balanceDue,
+            }
+          : {}),
       };
     });
 

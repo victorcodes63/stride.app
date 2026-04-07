@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FileText, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { FileText, FileSpreadsheet, Loader2, AlertCircle, Plus } from 'lucide-react';
 
 type InvoiceRow = {
   id: string;
@@ -90,17 +90,30 @@ function AccountsInvoicesPageInner() {
               dp).
             </p>
           </div>
-          <Link
-            href={
-              filterClientId
-                ? `/dashboard/accounts/invoices/new?clientId=${encodeURIComponent(filterClientId)}`
-                : '/dashboard/accounts/invoices/new'
-            }
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary-900 text-white text-sm font-semibold hover:bg-primary-800 transition-colors shrink-0"
-          >
-            <Plus className="w-5 h-5" />
-            New invoice
-          </Link>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <a
+              href={
+                filterClientId
+                  ? `/api/accounts/invoices/export?clientId=${encodeURIComponent(filterClientId)}`
+                  : '/api/accounts/invoices/export'
+              }
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border border-neutral-300 bg-white text-neutral-800 text-sm font-semibold hover:bg-neutral-50 transition-colors"
+            >
+              <FileSpreadsheet className="w-5 h-5" />
+              Download Excel
+            </a>
+            <Link
+              href={
+                filterClientId
+                  ? `/dashboard/accounts/invoices/new?clientId=${encodeURIComponent(filterClientId)}`
+                  : '/dashboard/accounts/invoices/new'
+              }
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary-900 text-white text-sm font-semibold hover:bg-primary-800 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              New invoice
+            </Link>
+          </div>
         </div>
         {filterClientId && (
           <div className="mt-3 rounded-lg border border-primary-100 bg-primary-50/60 px-3 py-2 text-sm text-primary-900 flex flex-wrap items-center gap-x-3 gap-y-1">

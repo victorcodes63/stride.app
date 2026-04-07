@@ -29,6 +29,7 @@ import {
   FileSignature,
   Store,
   ScrollText,
+  FileStack,
   KeyRound,
   UsersRound,
   Newspaper,
@@ -123,7 +124,8 @@ const accountsSection: AccordionSection = {
     },
     { href: '/dashboard/accounts/invoices', label: 'Invoices', icon: FileText },
     { href: '/dashboard/accounts/receipts', label: 'Receipts & allocations', icon: Wallet },
-    { href: '/dashboard/accounts/vendors', label: 'Vendors & bills', icon: Store },
+    { href: '/dashboard/accounts/vendors', label: 'Vendors', icon: Store },
+    { href: '/dashboard/accounts/vendor-bills', label: 'Vendor bills', icon: FileStack },
     { href: '/dashboard/accounts/statements', label: 'Statements', icon: ScrollText },
     {
       href: '/dashboard/accounts/payroll',
