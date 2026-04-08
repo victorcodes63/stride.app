@@ -52,6 +52,9 @@ function OutsourcingEmployeesPageInner() {
   const [bulkDepartmentId, setBulkDepartmentId] = useState<string>(''); // '' = unassigned
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth() + 1);
+  const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
+  const [bulkSendingPayslips, setBulkSendingPayslips] = useState(false);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -135,6 +138,7 @@ function OutsourcingEmployeesPageInner() {
     const qs = clientFilter.trim() ? `?clientId=${encodeURIComponent(clientFilter.trim())}` : '';
     window.open(`/api/outsourcing/employees/template${qs}`, '_blank');
   };
+
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -289,6 +293,47 @@ function OutsourcingEmployeesPageInner() {
       setError(e instanceof Error ? e.message : 'Bulk delete failed');
     } finally {
       setBulkDeleting(false);
+    }
+  };
+
+  const handleViewSelectedPayslips = () => {
+    if (selectedIds.size === 0) return;
+    const employeeIds = Array.from(selectedIds);
+    const params = new URLSearchParams();
+    params.set('month', String(payrollMonth));
+    params.set('year', String(payrollYear));
+    params.set('employeeIds', employeeIds.join(','));
+    window.open(`/dashboard/outsourcing/payroll/payslips?${params.toString()}`, '_blank');
+  };
+
+  const handleSendSelectedPayslips = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkSendingPayslips(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/outsourcing/payroll/send-payslips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          month: payrollMonth,
+          year: payrollYear,
+          employeeIds: Array.from(selectedIds),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to send payslips');
+      setImportResult({
+        created: data.sent ?? 0,
+        skipped: data.skipped ?? 0,
+        errors: Array.isArray(data.errors) ? data.errors.length : 0,
+        errorDetails: Array.isArray(data.errors)
+          ? data.errors.slice(0, 20).map((reason: string, idx: number) => ({ row: idx + 1, reason }))
+          : [],
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send payslips');
+    } finally {
+      setBulkSendingPayslips(false);
     }
   };
 
@@ -492,6 +537,41 @@ function OutsourcingEmployeesPageInner() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-neutral-600">Payroll month</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={payrollMonth}
+                    onChange={(e) => setPayrollMonth(Math.min(12, Math.max(1, parseInt(e.target.value || '1', 10))))}
+                    className="w-16 px-2 py-2 border border-neutral-300 rounded-lg text-sm bg-white"
+                  />
+                  <input
+                    type="number"
+                    min={2020}
+                    max={2035}
+                    value={payrollYear}
+                    onChange={(e) => setPayrollYear(parseInt(e.target.value || String(new Date().getFullYear()), 10))}
+                    className="w-24 px-2 py-2 border border-neutral-300 rounded-lg text-sm bg-white"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleViewSelectedPayslips}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary-200 bg-white text-primary-800 text-sm font-semibold hover:bg-primary-50"
+                >
+                  <Download className="w-4 h-4" />
+                  View payslips
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendSelectedPayslips}
+                  disabled={bulkSendingPayslips}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary-200 bg-primary-50 text-primary-800 text-sm font-semibold hover:bg-primary-100 disabled:opacity-50"
+                >
+                  {bulkSendingPayslips ? 'Sending…' : 'Send payslips'}
+                </button>
                 <select
                   value={bulkDepartmentId}
                   onChange={(e) => setBulkDepartmentId(e.target.value)}

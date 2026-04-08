@@ -1,0 +1,145 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { parsePayrollImportWorkbook } from '@/lib/payroll-import-template';
+
+export async function POST(request: NextRequest) {
+  try {
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+    }
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+    const clientId = String(formData.get('clientId') ?? '').trim();
+    const month = parseInt(String(formData.get('month') ?? ''), 10);
+    const year = parseInt(String(formData.get('year') ?? ''), 10);
+    if (!file || !clientId || !Number.isFinite(month) || month < 1 || month > 12 || !Number.isFinite(year)) {
+      return NextResponse.json({ error: 'file, clientId, month, and year are required.' }, { status: 400 });
+    }
+
+    const client = await prisma.outsourcingClient.findUnique({ where: { id: clientId }, select: { id: true } });
+    if (!client) return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { rows, invalidRows } = await parsePayrollImportWorkbook(buffer);
+    const idValues = [...new Set(rows.map((r) => r.nationalId.trim().toLowerCase()))];
+
+    const employees = await prisma.employee.findMany({
+      where: {
+        outsourcingClientId: clientId,
+        idNumber: { in: idValues },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        idNumber: true,
+        baseSalary: true,
+      },
+    });
+    const employeeByIdNumber = new Map(
+      employees.map((e) => [(e.idNumber ?? '').trim().toLowerCase(), e]),
+    );
+
+    const duplicateNationalIds: string[] = [];
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const key = r.nationalId.trim().toLowerCase();
+      if (seen.has(key) && !duplicateNationalIds.includes(r.nationalId)) duplicateNationalIds.push(r.nationalId);
+      seen.add(key);
+    }
+
+    const matchedRows = [];
+    const unmatchedRows = [];
+    const duplicateRows = rows
+      .filter((row) => duplicateNationalIds.some((id) => id.trim().toLowerCase() === row.nationalId.trim().toLowerCase()))
+      .map((row) => ({
+        row: row.excelRow,
+        nationalId: row.nationalId,
+        employeeName: row.employeeName,
+        input: {
+          grossPay: row.grossPay,
+          daysWorked: row.daysWorked,
+        },
+      }));
+    for (const row of rows) {
+      const key = row.nationalId.trim().toLowerCase();
+      const employee = employeeByIdNumber.get(key);
+      if (!employee) {
+        unmatchedRows.push({
+          row: row.excelRow,
+          nationalId: row.nationalId,
+          employeeName: row.employeeName,
+          email: row.email,
+          reason: 'Employee with this National ID was not found for the selected client.',
+          seed: {
+            nationalId: row.nationalId,
+            employeeName: row.employeeName,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+          },
+          input: {
+            daysWorked: row.daysWorked,
+            incentives: row.incentives,
+            allowances: row.allowances,
+            overtime: row.overtime,
+            holidayPay: row.holidayPay,
+            leavePay: row.leavePay,
+            grossPay: row.grossPay,
+          },
+        });
+        continue;
+      }
+      matchedRows.push({
+        row: row.excelRow,
+        nationalId: row.nationalId,
+        employeeId: employee.id,
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        employeeEmail: employee.email,
+        baseSalary: employee.baseSalary != null ? Number(employee.baseSalary) : null,
+        input: {
+          daysWorked: row.daysWorked,
+          incentives: row.incentives,
+          allowances: row.allowances,
+          overtime: row.overtime,
+          holidayPay: row.holidayPay,
+          leavePay: row.leavePay,
+          grossPay: row.grossPay,
+        },
+      });
+    }
+
+    const invalidGrossRows = matchedRows
+      .filter((row) => row.baseSalary != null && row.input.grossPay < row.baseSalary)
+      .map((row) => ({
+        row: row.row,
+        nationalId: row.nationalId,
+        grossPay: row.input.grossPay,
+        baseSalary: row.baseSalary as number,
+        reason: `Gross Pay (${row.input.grossPay}) cannot be lower than Base Salary (${row.baseSalary}) for National ID ${row.nationalId}.`,
+      }));
+    const allInvalidRows = [...invalidRows, ...invalidGrossRows];
+
+    return NextResponse.json({
+      month,
+      year,
+      clientId,
+      totals: {
+        parsedRows: rows.length,
+        matched: matchedRows.length,
+        unmatched: unmatchedRows.length,
+        invalid: allInvalidRows.length,
+      },
+      duplicateNationalIds,
+      duplicateRows,
+      grossBelowBaseRows: invalidGrossRows,
+      matchedRows,
+      unmatchedRows,
+      invalidRows: allInvalidRows,
+    });
+  } catch (e) {
+    console.error('[outsourcing/payroll/import/preview]', e);
+    return NextResponse.json({ error: 'Failed to preview payroll input sheet.' }, { status: 500 });
+  }
+}

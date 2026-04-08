@@ -46,12 +46,31 @@ function PayslipsContent() {
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
   const clientId = searchParams.get('clientId') || '';
   const departmentId = searchParams.get('departmentId') || '';
+  const employeeIdsParam = searchParams.get('employeeIds') || '';
 
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number; skipped: number; errors?: string[] } | null>(null);
+  const [printLayout, setPrintLayout] = useState<'single' | 'four'>('single');
+
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    const mainEl = document.querySelector('main') as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    const prevMainOverflow = mainEl?.style.overflow ?? '';
+    htmlEl.classList.add('payslip-hide-scrollbar-root');
+    document.body.classList.add('payslip-hide-scrollbar');
+    document.body.style.overflow = 'hidden';
+    if (mainEl) mainEl.style.overflow = 'hidden';
+    return () => {
+      htmlEl.classList.remove('payslip-hide-scrollbar-root');
+      document.body.classList.remove('payslip-hide-scrollbar');
+      document.body.style.overflow = prevOverflow;
+      if (mainEl) mainEl.style.overflow = prevMainOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -59,6 +78,7 @@ function PayslipsContent() {
     params.set('year', String(year));
     if (clientId) params.set('clientId', clientId);
     if (departmentId) params.set('departmentId', departmentId);
+    if (employeeIdsParam.trim()) params.set('employeeIds', employeeIdsParam.trim());
     fetch(`/api/outsourcing/payroll?${params}`)
       .then((r) => r.json())
       .then((data) => {
@@ -70,7 +90,7 @@ function PayslipsContent() {
         setError('Failed to load payroll');
       })
       .finally(() => setLoading(false));
-  }, [month, year, clientId, departmentId]);
+  }, [month, year, clientId, departmentId, employeeIdsParam]);
 
   const handlePrint = () => {
     window.print();
@@ -88,6 +108,7 @@ function PayslipsContent() {
           year,
           ...(clientId ? { clientId } : {}),
           ...(departmentId ? { departmentId } : {}),
+          ...(employeeIdsParam ? { employeeIds: employeeIdsParam.split(',').map((s) => s.trim()).filter(Boolean) } : {}),
         }),
       });
       const data = await res.json();
@@ -118,7 +139,13 @@ function PayslipsContent() {
   }
 
   return (
-    <div className="w-full min-w-0">
+    <div
+      className={`w-full min-w-0 payslip-scroll-area ${
+        printLayout === 'four'
+          ? 'print-four-mode h-auto overflow-visible'
+          : 'print-single-mode h-screen overflow-y-auto'
+      }`}
+    >
       <div className="print:hidden flex items-center justify-between gap-4 mb-6 flex-wrap">
         <Link
           href="/dashboard/outsourcing/payroll"
@@ -128,6 +155,17 @@ function PayslipsContent() {
           Back to payroll
         </Link>
         <div className="flex items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-sm text-neutral-700">
+            <span>Print format</span>
+            <select
+              value={printLayout}
+              onChange={(e) => setPrintLayout(e.target.value === 'four' ? 'four' : 'single')}
+              className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="single">Single payslip per page</option>
+              <option value="four">4 payslips per page</option>
+            </select>
+          </label>
           <button
             type="button"
             onClick={handleSendPayslips}
@@ -177,148 +215,226 @@ function PayslipsContent() {
           No payroll records for {MONTHS[month - 1]} {year}.
         </div>
       ) : (
-        <div className="space-y-8 print:space-y-0">
-          {Array.from({ length: Math.ceil(payrolls.length / 4) }, (_, pageIndex) => {
-            const pagePayrolls = payrolls.slice(pageIndex * 4, pageIndex * 4 + 4);
-            const isLastPage = pageIndex === Math.ceil(payrolls.length / 4) - 1;
+        <div
+          className={
+            printLayout === 'four'
+              ? 'payslip-grid space-y-6 print:space-y-0 print:grid print:grid-cols-2 print:gap-[2.5mm]'
+              : 'space-y-6 print:space-y-4'
+          }
+        >
+          {payrolls.map((p, index) => {
+            const daysWorkedFromAllowances = Array.isArray(p.allowances)
+              ? p.allowances.find((a) => a.name.toLowerCase() === 'days worked')
+              : undefined;
+            const displayAllowances = Array.isArray(p.allowances)
+              ? p.allowances.filter((a) => a.name.toLowerCase() !== 'days worked')
+              : [];
             return (
               <div
-                key={pageIndex}
-                className={`grid grid-cols-1 sm:grid-cols-2 gap-6 print:gap-4 print:min-h-[275mm] print:place-content-start ${!isLastPage ? 'print:break-after-page' : ''}`}
-              >
-                <p className="print:col-span-2 print:text-[10px] print:text-red-600 print:font-medium print:mb-0 print:pb-1 hidden print:block">
-                  Cut along dotted lines to separate payslips
-                </p>
-                {pagePayrolls.map((p) => (
-              <div
                 key={p.id}
-                className="bg-white border border-neutral-200 rounded-xl p-6 sm:p-8 print:rounded-none print:border-2 print:border-dashed print:border-red-600 print:break-inside-avoid print:shadow-none print:p-3 print:min-h-[135mm]"
+                className={`payslip-card bg-white border border-neutral-200 rounded-xl p-6 sm:p-8 print:border print:border-neutral-300 print:shadow-none ${
+                  printLayout === 'four'
+                    ? 'print:rounded-none print:p-[2.2mm] print:break-inside-avoid print:overflow-hidden print:min-h-0 print:border-dashed print:border-neutral-400'
+                    : `print:rounded-none print:p-4 ${index < payrolls.length - 1 ? 'print:break-after-page' : ''}`
+                }`}
               >
-                {/* Compact header for print (4 per A4) */}
-                <div className="mb-6 pb-4 border-b-2 border-primary-900 print:mb-2 print:pb-1 print:border-b">
-                  <div className="flex items-center gap-3 print:gap-1">
-                    <Image src="/images/logo/logo_dark_ubxaCll.png" alt="Eagle HR" width={120} height={36} className="h-9 w-auto print:h-5" />
-                    <span className="text-sm font-medium text-neutral-600 print:text-[9px]">Eagle HR Consultants</span>
+                <div className={`mb-4 pb-3 ${printLayout === 'four' ? 'border-b border-neutral-400' : 'border-b border-primary-900'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <Image src="/images/logo/logo_dark_ubxaCll.png" alt="Eagle HR" width={120} height={36} className="h-9 w-auto print:h-6" />
+                    <span className="text-sm font-medium text-neutral-600 print:text-xs text-right ml-auto">Eagle HR Consultants</span>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-start mb-6 print:mb-2">
-                  <div>
-                    <h1 className="text-xl font-bold text-primary-900 print:text-xs print:font-semibold">Payslip</h1>
-                    <p className="text-sm text-neutral-600 mt-1 print:text-[9px] print:mt-0">
-                      {MONTHS[month - 1]} {year}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm print:text-[9px]">
+                <div className="mb-4">
+                  <h1 className="text-xl font-bold text-primary-900 print:text-base">Payslip</h1>
+                  <p className="text-sm text-neutral-600">{MONTHS[month - 1]} {year}</p>
+                  <div className="mt-2 text-sm text-neutral-700">
                     <p className="font-semibold text-primary-900">{p.employeeName}</p>
-                    {p.employeeNumber && <p className="text-neutral-500 text-xs print:text-[8px]">No: {p.employeeNumber}</p>}
-                    <p className="text-neutral-600 mt-1 print:mt-0">{p.clientName}</p>
-                    {p.departmentName && <p className="text-neutral-500 text-xs print:text-[8px]">{p.departmentName}</p>}
+                    {p.employeeNumber && <p className="text-xs text-neutral-500">No: {p.employeeNumber}</p>}
+                    <p>{p.clientName}</p>
+                    {p.departmentName && <p className="text-xs text-neutral-500">{p.departmentName}</p>}
                   </div>
                 </div>
 
-                {p.payrollFrequency === 'biweekly' &&
-                  p.period1Gross != null &&
-                  p.period2Gross != null &&
-                  p.biweeklyAttendance && (
-                    <div className="mb-4 p-3 rounded-lg border border-secondary-200 bg-secondary-50/80 print:p-2 print:mb-2 print:text-[8px]">
-                      <p className="text-xs font-semibold text-primary-900 print:text-[8px] mb-1">
-                        Days worked (Mon–Sat)
-                      </p>
-                      <p className="text-[10px] text-neutral-700 print:text-[7px]">
-                        <strong>P1</strong> {p.biweeklyAttendance.period1.length}d · KES {formatAmount(p.period1Gross)} —{' '}
-                        {p.biweeklyAttendance.period1
-                          .map((iso) => {
-                            const [y, m, d] = iso.split('-').map(Number);
-                            return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
-                          })
-                          .join(', ') || '—'}
-                      </p>
-                      <p className="text-[10px] text-neutral-700 print:text-[7px] mt-1">
-                        <strong>P2</strong> {p.biweeklyAttendance.period2.length}d · KES {formatAmount(p.period2Gross)} —{' '}
-                        {p.biweeklyAttendance.period2
-                          .map((iso) => {
-                            const [y, m, d] = iso.split('-').map(Number);
-                            return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
-                          })
-                          .join(', ') || '—'}
-                      </p>
-                    </div>
-                  )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 print:gap-2 print:grid-cols-2">
-                  <div className="border border-neutral-200 rounded-lg p-4 print:border-neutral-300 print:p-2 print:rounded-sm">
-                    <h2 className="text-xs font-semibold uppercase text-neutral-600 mb-3 print:mb-1 print:text-[8px]">Earnings</h2>
-                    <table className="w-full text-sm print:text-[9px]">
+                <div className="space-y-4">
+                  <div className="border border-neutral-200 rounded-lg p-4">
+                    <h2 className="text-xs font-semibold uppercase text-neutral-600 mb-3">Earnings</h2>
+                    <table className="w-full text-sm">
                       <tbody>
                         <tr>
-                          <td className="py-1 print:py-0">Basic pay</td>
+                          <td className="py-1">Basic pay</td>
                           <td className="text-right tabular-nums font-medium">KES {formatAmount(p.basicPay)}</td>
                         </tr>
-                        {Array.isArray(p.allowances) && p.allowances.length > 0 && p.allowances.map((a, i) => (
+                        {daysWorkedFromAllowances && (
+                          <tr>
+                            <td className="py-1">Days worked</td>
+                            <td className="text-right tabular-nums">{Number(daysWorkedFromAllowances.amount).toLocaleString('en-KE')}</td>
+                          </tr>
+                        )}
+                        {displayAllowances.map((a, i) => (
                           <tr key={i}>
-                            <td className="py-1 print:py-0">{a.name}</td>
+                            <td className="py-1">{a.name}</td>
                             <td className="text-right tabular-nums">KES {formatAmount(a.amount)}</td>
                           </tr>
                         ))}
                         {Number(p.leavePay ?? 0) > 0 && (
                           <tr>
-                            <td className="py-1 print:py-0">Leave pay</td>
+                            <td className="py-1">Leave pay</td>
                             <td className="text-right tabular-nums">KES {formatAmount(p.leavePay!)}</td>
                           </tr>
                         )}
-                        <tr className="border-t border-neutral-200 font-semibold print:border-t-neutral-300">
-                          <td className="py-2 print:py-0.5">Gross</td>
+                        <tr className="border-t border-neutral-200 font-semibold">
+                          <td className="py-2">Gross</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.grossPay)}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
-                  <div className="border border-neutral-200 rounded-lg p-4 print:border-neutral-300 print:p-2 print:rounded-sm">
-                    <h2 className="text-xs font-semibold uppercase text-neutral-600 mb-3 print:mb-1 print:text-[8px]">Deductions</h2>
-                    <table className="w-full text-sm print:text-[9px]">
+
+                  <div className="border border-neutral-200 rounded-lg p-4">
+                    <h2 className="text-xs font-semibold uppercase text-neutral-600 mb-3">Deductions</h2>
+                    <table className="w-full text-sm">
                       <tbody>
                         <tr>
-                          <td className="py-1 print:py-0">PAYE</td>
+                          <td className="py-1">PAYE</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.paye)}</td>
                         </tr>
                         <tr>
-                          <td className="py-1 print:py-0">NSSF</td>
+                          <td className="py-1">NSSF</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.nssf)}</td>
                         </tr>
                         <tr>
-                          <td className="py-1 print:py-0">SHIF</td>
+                          <td className="py-1">SHIF</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.nhif)}</td>
                         </tr>
                         <tr>
-                          <td className="py-1 print:py-0">AHL (1.5%)</td>
+                          <td className="py-1">AHL (1.5%)</td>
                           <td className="text-right tabular-nums">KES {formatAmount(p.ahl ?? 0)}</td>
                         </tr>
                         {Array.isArray(p.deductions) && p.deductions.length > 0 && p.deductions.map((d, i) => (
                           <tr key={i}>
-                            <td className="py-1 print:py-0">{d.name}</td>
+                            <td className="py-1">{d.name}</td>
                             <td className="text-right tabular-nums">KES {formatAmount(d.amount)}</td>
                           </tr>
                         ))}
-                        <tr className="border-t border-neutral-200 font-semibold print:border-t-neutral-300">
-                          <td className="py-2 print:py-0.5">Net pay</td>
+                        <tr className="border-t border-neutral-200 font-semibold">
+                          <td className="py-2">Net pay</td>
                           <td className="text-right tabular-nums text-primary-700">KES {formatAmount(p.netPay)}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
-
-                <p className="mt-6 text-xs text-neutral-500 print:mt-1 print:text-[7px] print:hidden">
-                  Computer-generated. Contact Eagle HR for queries.
-                </p>
-              </div>
-                ))}
               </div>
             );
           })}
         </div>
       )}
+      <style jsx global>{`
+        @media screen {
+          html.payslip-hide-scrollbar-root,
+          html.payslip-hide-scrollbar-root body,
+          html.payslip-hide-scrollbar-root body * {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          html.payslip-hide-scrollbar-root::-webkit-scrollbar,
+          html.payslip-hide-scrollbar-root body::-webkit-scrollbar,
+          html.payslip-hide-scrollbar-root body *::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+          }
+          .payslip-scroll-area {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .payslip-scroll-area::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+            display: none;
+          }
+          body.payslip-hide-scrollbar {
+            scrollbar-width: none;
+          }
+          body.payslip-hide-scrollbar::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+            display: none;
+          }
+        }
+        @media print {
+          .payslip-scroll-area {
+            height: auto !important;
+            overflow: visible !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 6mm;
+          }
+          .print-four-mode {
+            font-size: 10px;
+            line-height: 1.2;
+          }
+          .print-four-mode h1 {
+            font-size: 16px !important;
+            line-height: 1.1 !important;
+          }
+          .print-four-mode h2 {
+            font-size: 10px !important;
+            margin-bottom: 1.5mm !important;
+          }
+          .print-four-mode p,
+          .print-four-mode td,
+          .print-four-mode span {
+            line-height: 1.15 !important;
+          }
+          .print-four-mode table td {
+            padding-top: 0.7mm !important;
+            padding-bottom: 0.7mm !important;
+          }
+          .print-four-mode .print\\:grid-cols-2 > div {
+            max-height: calc((297mm - 12mm - 2.5mm) / 2);
+            height: calc((297mm - 12mm - 2.5mm) / 2);
+            overflow: hidden !important;
+          }
+          .print-single-mode .payslip-card {
+            min-height: calc(297mm - 12mm);
+            page-break-after: always !important;
+            break-after: page !important;
+            break-inside: avoid !important;
+            padding: 7mm !important;
+          }
+          .print-single-mode .payslip-card:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+          .print-four-mode .payslip-grid {
+            position: relative;
+          }
+          .print-four-mode .payslip-grid::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+              repeating-linear-gradient(
+                to bottom,
+                transparent 0 2.2mm,
+                #d1d5db 2.2mm 2.5mm
+              ),
+              repeating-linear-gradient(
+                to right,
+                transparent 0 2.2mm,
+                #d1d5db 2.2mm 2.5mm
+              );
+            background-size: 0.2mm 100%, 100% 0.2mm;
+            background-position: 50% 0, 0 50%;
+            background-repeat: no-repeat;
+            opacity: 0.45;
+          }
+        }
+      `}</style>
     </div>
   );
 }

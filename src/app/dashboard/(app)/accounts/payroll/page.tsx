@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Banknote, FileText, Mail, Loader2, Pencil, Calculator, Search } from 'lucide-react';
+import { Banknote, FileText, Mail, Loader2, Pencil, Calculator, Search, Upload, Download, AlertTriangle, Eye } from 'lucide-react';
 import PayrollEditModal from '@/components/payroll/PayrollEditModal';
 
 interface PayrollRecord {
@@ -39,6 +39,27 @@ interface DepartmentOption {
   name: string;
 }
 
+interface PayrollImportPreview {
+  totals: { parsedRows: number; matched: number; unmatched: number; invalid: number };
+  duplicateNationalIds: string[];
+  duplicateRows: Array<{
+    row: number;
+    nationalId: string;
+    employeeName: string | null;
+    input: { grossPay: number; daysWorked: number | null };
+  }>;
+  grossBelowBaseRows?: Array<{
+    row: number;
+    nationalId: string;
+    grossPay: number;
+    baseSalary: number;
+    reason: string;
+  }>;
+  matchedRows: Array<{ row: number; nationalId: string; employeeId: string; employeeName: string }>;
+  unmatchedRows: Array<{ row: number; nationalId: string; employeeName: string | null; email: string | null; reason: string }>;
+  invalidRows: Array<{ row: number; reason: string }>;
+}
+
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -62,6 +83,16 @@ export default function AccountsPayrollPage() {
   const [editPayrollId, setEditPayrollId] = useState<string | null>(null);
   const [editEmployeeName, setEditEmployeeName] = useState('');
   const [recalculating, setRecalculating] = useState(false);
+  const [selectedPayrollIds, setSelectedPayrollIds] = useState<Set<string>>(new Set());
+  const [importingPayrollInput, setImportingPayrollInput] = useState(false);
+  const [committingPayrollInput, setCommittingPayrollInput] = useState(false);
+  const [selectedPayrollInputFile, setSelectedPayrollInputFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<PayrollImportPreview | null>(null);
+  const [showMissingEmployeesPrompt, setShowMissingEmployeesPrompt] = useState(false);
+  const [showDuplicateRowsPrompt, setShowDuplicateRowsPrompt] = useState(false);
+  const [showInvalidImportPrompt, setShowInvalidImportPrompt] = useState(false);
+  const [duplicateResolution, setDuplicateResolution] = useState<Record<string, number>>({});
+  const [acceptSheetValueUpdates, setAcceptSheetValueUpdates] = useState(false);
 
   // Table-level filters (search + status)
   const [tableSearchQuery, setTableSearchQuery] = useState('');
@@ -184,6 +215,76 @@ export default function AccountsPayrollPage() {
     setTableSearchQuery('');
     setStatusFilter('');
   };
+  const selectedRows = useMemo(
+    () => filteredPayrolls.filter((p) => selectedPayrollIds.has(p.id)),
+    [filteredPayrolls, selectedPayrollIds],
+  );
+  const selectedEmployeeIds = useMemo(
+    () => Array.from(new Set(selectedRows.map((r) => r.employeeId))),
+    [selectedRows],
+  );
+  const duplicateChoicesById = useMemo(() => {
+    const map: Record<string, Array<{ row: number; employeeName: string | null; grossPay: number }>> = {};
+    const rows = importPreview?.duplicateRows ?? [];
+    rows.forEach((r) => {
+      if (!map[r.nationalId]) map[r.nationalId] = [];
+      map[r.nationalId].push({ row: r.row, employeeName: r.employeeName, grossPay: r.input.grossPay });
+    });
+    Object.keys(map).forEach((id) => map[id].sort((a, b) => a.row - b.row));
+    return map;
+  }, [importPreview]);
+  const hasDuplicateIds = (importPreview?.duplicateNationalIds?.length ?? 0) > 0;
+  const hasResolvedDuplicates = useMemo(() => {
+    if (!hasDuplicateIds || !importPreview) return true;
+    return importPreview.duplicateNationalIds.every((id) =>
+      (duplicateChoicesById[id] ?? []).some((choice) => choice.row === duplicateResolution[id]),
+    );
+  }, [duplicateChoicesById, duplicateResolution, hasDuplicateIds, importPreview]);
+  const onlyGrossBelowBaseInvalid = useMemo(() => {
+    if (!importPreview || importPreview.totals.invalid === 0) return false;
+    const grossInvalidCount = importPreview.grossBelowBaseRows?.length ?? 0;
+    return grossInvalidCount > 0 && grossInvalidCount === importPreview.totals.invalid;
+  }, [importPreview]);
+  const toggleSelectPayroll = (id: string) => {
+    setSelectedPayrollIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAllPayrolls = () => {
+    const ids = filteredPayrolls.map((p) => p.id);
+    setSelectedPayrollIds((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(ids);
+    });
+  };
+  const handleBulkViewPayslips = () => {
+    if (selectedEmployeeIds.length === 0) return;
+    const qs = new URLSearchParams({
+      month: String(month),
+      year: String(year),
+      employeeIds: selectedEmployeeIds.join(','),
+    });
+    window.open(`/dashboard/accounts/payroll/payslips?${qs.toString()}`, '_blank');
+  };
+  const handleBulkSendPayslips = async () => {
+    if (selectedEmployeeIds.length === 0) return;
+    setError(null);
+    try {
+      const res = await fetch('/api/outsourcing/payroll/send-payslips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, year, employeeIds: selectedEmployeeIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to send selected payslips');
+      setGenerateResult(`Sent ${data.sent ?? 0} payslip(s); skipped ${data.skipped ?? 0}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send selected payslips');
+    }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -219,6 +320,133 @@ export default function AccountsPayrollPage() {
   };
 
   const canGenerate = scope === 'all' || (scope === 'client' && clientId.trim()) || (scope === 'department' && departmentId.trim());
+  const canUsePayrollInputImport = !!clientId.trim();
+
+  const runPayrollImportPreview = async (file: File) => {
+    setImportingPayrollInput(true);
+    setError(null);
+    setGenerateResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('clientId', clientId.trim());
+      formData.append('month', String(month));
+      formData.append('year', String(year));
+      const res = await fetch('/api/outsourcing/payroll/import/preview', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to preview payroll input.');
+      setImportPreview(data as PayrollImportPreview);
+      const previewData = data as PayrollImportPreview;
+      setAcceptSheetValueUpdates(false);
+      setShowInvalidImportPrompt((previewData?.totals?.invalid ?? 0) > 0);
+      if ((previewData.duplicateNationalIds?.length ?? 0) > 0) {
+        const initialSelection: Record<string, number> = {};
+        (previewData.duplicateNationalIds ?? []).forEach((id) => {
+          const first = (previewData.duplicateRows ?? []).find((r) => r.nationalId === id);
+          if (first) initialSelection[id] = first.row;
+        });
+        setDuplicateResolution(initialSelection);
+        setShowDuplicateRowsPrompt(true);
+      } else {
+        setDuplicateResolution({});
+        setShowDuplicateRowsPrompt(false);
+      }
+      setShowMissingEmployeesPrompt((data?.totals?.unmatched ?? 0) > 0);
+      setGenerateResult(`Preview ready: ${data.totals.matched} matched, ${data.totals.unmatched} unmatched, ${data.totals.invalid} invalid.`);
+    } catch (e) {
+      setImportPreview(null);
+      setShowMissingEmployeesPrompt(false);
+      setShowDuplicateRowsPrompt(false);
+      setShowInvalidImportPrompt(false);
+      setAcceptSheetValueUpdates(false);
+      setDuplicateResolution({});
+      setError(e instanceof Error ? e.message : 'Failed to preview payroll input.');
+    } finally {
+      setImportingPayrollInput(false);
+    }
+  };
+
+  const handlePayrollInputFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!canUsePayrollInputImport) {
+      setError('Select a client first (Scope: client or department) before importing payroll input.');
+      return;
+    }
+    setSelectedPayrollInputFile(file);
+    await runPayrollImportPreview(file);
+  };
+
+  const handleCreateMissingEmployees = async () => {
+    if (!importPreview || !clientId.trim()) return;
+    const missingRows = importPreview.unmatchedRows.map((r) => ({
+      nationalId: r.nationalId,
+      employeeName: r.employeeName,
+      email: r.email,
+    }));
+    if (missingRows.length === 0) return;
+    setImportingPayrollInput(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/outsourcing/payroll/import/create-missing-employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: clientId.trim(), missingRows }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to create missing employees.');
+      setShowMissingEmployeesPrompt(false);
+      setGenerateResult(`Created ${data.createdCount ?? 0} missing employee(s). Re-running preview...`);
+      if (selectedPayrollInputFile) await runPayrollImportPreview(selectedPayrollInputFile);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create missing employees.');
+    } finally {
+      setImportingPayrollInput(false);
+    }
+  };
+
+  const handleCommitPayrollImport = async () => {
+    if (!selectedPayrollInputFile || !clientId.trim()) return;
+    setCommittingPayrollInput(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedPayrollInputFile);
+      formData.append('clientId', clientId.trim());
+      formData.append('month', String(month));
+      formData.append('year', String(year));
+      if (acceptSheetValueUpdates) {
+        formData.append('acceptSheetValueUpdates', 'true');
+      }
+      if (hasDuplicateIds) {
+        formData.append('duplicateAction', 'purge');
+        formData.append('duplicateResolution', JSON.stringify(duplicateResolution));
+      }
+      const res = await fetch('/api/outsourcing/payroll/import/commit', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to commit payroll import.');
+      setGenerateResult(data.message || 'Payroll import committed.');
+      setImportPreview(null);
+      setSelectedPayrollInputFile(null);
+      setShowMissingEmployeesPrompt(false);
+      setShowDuplicateRowsPrompt(false);
+      setShowInvalidImportPrompt(false);
+      setAcceptSheetValueUpdates(false);
+      setDuplicateResolution({});
+      await fetchPayrolls();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to commit payroll import.');
+    } finally {
+      setCommittingPayrollInput(false);
+    }
+  };
 
   const handleSendPayslip = async (employeeId: string, employeeName: string) => {
     setSendingId(employeeId);
@@ -426,6 +654,69 @@ export default function AccountsPayrollPage() {
             </button>
           </div>
         </div>
+        <div className="mt-4 pt-4 border-t border-neutral-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">
+            Payroll input template import
+          </p>
+          <p className="text-sm text-neutral-600 mb-3">
+            Download the payroll-input template, fill it, preview matches by National ID, then commit to create/update draft payroll records.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!canUsePayrollInputImport) {
+                  setError('Select a client first (Scope: client or department) to download/import payroll input.');
+                  return;
+                }
+                window.open(
+                  `/api/outsourcing/employees/template?mode=payroll-input&clientId=${encodeURIComponent(clientId.trim())}`,
+                  '_blank',
+                );
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              <Download className="w-4 h-4" />
+              Download payroll template
+            </button>
+            <input
+              id="accounts-payroll-input-import-file"
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handlePayrollInputFileSelected}
+            />
+            <button
+              type="button"
+              disabled={!canUsePayrollInputImport || importingPayrollInput}
+              onClick={() => {
+                const el = document.getElementById('accounts-payroll-input-import-file') as HTMLInputElement | null;
+                el?.click();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-800 text-white rounded-lg text-sm font-medium hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              {importingPayrollInput ? 'Previewing…' : 'Upload & preview'}
+            </button>
+            {importPreview && (
+              <button
+                type="button"
+                disabled={
+                  committingPayrollInput ||
+                  (importPreview.totals.invalid > 0 && !acceptSheetValueUpdates) ||
+                  importPreview.totals.unmatched > 0 ||
+                  (importPreview.duplicateNationalIds.length > 0 && !hasResolvedDuplicates) ||
+                  importPreview.totals.matched === 0
+                }
+                onClick={handleCommitPayrollImport}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg text-sm font-semibold hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {committingPayrollInput ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}
+                Commit import
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
@@ -503,6 +794,27 @@ export default function AccountsPayrollPage() {
                       Clear table filters
                     </button>
                   )}
+                  {selectedPayrollIds.size > 0 && (
+                    <>
+                      <span className="text-sm text-neutral-600">{selectedPayrollIds.size} selected</span>
+                      <button
+                        type="button"
+                        onClick={handleBulkViewPayslips}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary-200 bg-white text-primary-800 text-sm font-semibold hover:bg-primary-50"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View selected payslips
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBulkSendPayslips}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary-200 bg-primary-50 text-primary-800 text-sm font-semibold hover:bg-primary-100"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Send selected payslips
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -516,6 +828,15 @@ export default function AccountsPayrollPage() {
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-neutral-200 bg-neutral-50/80">
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={filteredPayrolls.length > 0 && filteredPayrolls.every((p) => selectedPayrollIds.has(p.id))}
+                      onChange={toggleSelectAllPayrolls}
+                      className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                      aria-label="Select all payroll rows"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Employee</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Client</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Billing profile</th>
@@ -529,7 +850,7 @@ export default function AccountsPayrollPage() {
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Net pay</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Status</th>
                   <th className="w-10 px-4 py-3 text-center font-medium text-neutral-600">Edit</th>
-                  <th className="w-10 px-4 py-3 text-right font-medium text-neutral-600">Send</th>
+                  <th className="w-10 px-4 py-3 text-right font-medium text-neutral-600">Payslip</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -540,6 +861,15 @@ export default function AccountsPayrollPage() {
                           index % 2 === 0 ? 'bg-white' : 'bg-neutral-50/40'
                         }`}
                       >
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedPayrollIds.has(p.id)}
+                            onChange={() => toggleSelectPayroll(p.id)}
+                            className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                            aria-label={`Select ${p.employeeName}`}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                       <span className="font-medium text-primary-900">{p.employeeName}</span>
                       {p.employeeNumber && (
@@ -597,7 +927,14 @@ export default function AccountsPayrollPage() {
                             <Pencil className="w-4 h-4" />
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <Link
+                            href={`/dashboard/accounts/payroll/payslips?month=${month}&year=${year}&employeeIds=${encodeURIComponent(p.employeeId)}`}
+                            title={`View payslip for ${p.employeeName}`}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-primary-50 hover:text-primary-700 transition-colors mr-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
                           <button
                             type="button"
                             onClick={() => handleSendPayslip(p.employeeId, p.employeeName)}
@@ -631,6 +968,150 @@ export default function AccountsPayrollPage() {
           onClose={() => { setEditPayrollId(null); setEditEmployeeName(''); }}
           onSaved={fetchPayrolls}
         />
+      )}
+      {showMissingEmployeesPrompt && importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Add missing employees?
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              {importPreview.totals.unmatched} row(s) have National IDs not found in this client. Create these employees now, then continue payroll import?
+            </p>
+            <ul className="mt-3 text-sm text-neutral-700 list-disc list-inside space-y-1 max-h-48 overflow-auto">
+              {importPreview.unmatchedRows.slice(0, 20).map((r, idx) => (
+                <li key={`${r.nationalId}-${idx}`}>
+                  Row {r.row}: {r.employeeName || 'Unnamed'} · ID {r.nationalId}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => setShowMissingEmployeesPrompt(false)}
+                disabled={importingPayrollInput}
+              >
+                Continue without them
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-900 text-white hover:bg-primary-800 disabled:opacity-50 inline-flex items-center gap-2"
+                onClick={handleCreateMissingEmployees}
+                disabled={importingPayrollInput}
+              >
+                {importingPayrollInput ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Create missing employees
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDuplicateRowsPrompt && importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Resolve duplicate National IDs
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              Choose the correct row for each duplicate National ID. You can then purge duplicate rows during commit, or re-upload a corrected sheet.
+            </p>
+            <div className="mt-4 space-y-3 max-h-64 overflow-auto">
+              {importPreview.duplicateNationalIds.map((id) => (
+                <div key={id} className="border border-neutral-200 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-neutral-900">National ID: {id}</p>
+                  <select
+                    value={duplicateResolution[id] ?? ''}
+                    onChange={(e) => setDuplicateResolution((prev) => ({ ...prev, [id]: Number(e.target.value) }))}
+                    className="mt-2 w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Select correct row</option>
+                    {(duplicateChoicesById[id] ?? []).map((choice) => (
+                      <option key={`${id}-${choice.row}`} value={choice.row}>
+                        Row {choice.row} - {choice.employeeName || 'Unnamed'} - Gross {Number(choice.grossPay).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => {
+                  setShowDuplicateRowsPrompt(false);
+                  setGenerateResult('Re-upload a corrected sheet to remove duplicate National IDs, or keep your selections and commit to purge duplicates.');
+                }}
+              >
+                Re-upload corrected sheet
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-900 text-white hover:bg-primary-800 disabled:opacity-50"
+                onClick={() => setShowDuplicateRowsPrompt(false)}
+                disabled={!hasResolvedDuplicates}
+              >
+                Purge duplicates and continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showInvalidImportPrompt && importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Invalid payroll values found
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              {importPreview.totals.invalid} row(s) are invalid. Update the values in your sheet and re-upload, or discard this upload attempt.
+            </p>
+            <ul className="mt-3 text-sm text-neutral-700 list-disc list-inside space-y-1 max-h-48 overflow-auto">
+              {importPreview.invalidRows.slice(0, 20).map((r, idx) => (
+                <li key={`${r.row}-${idx}`}>
+                  Row {r.row}: {r.reason}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => {
+                  setShowInvalidImportPrompt(false);
+                  if (onlyGrossBelowBaseInvalid) {
+                    setAcceptSheetValueUpdates(true);
+                    setGenerateResult('Sheet values accepted. Commit import to update base salary from sheet values where needed.');
+                    return;
+                  }
+                  setGenerateResult('Please update invalid values in the sheet, then re-upload and preview again.');
+                }}
+              >
+                {onlyGrossBelowBaseInvalid ? 'Accept sheet values and update database' : 'Update values and re-upload'}
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700"
+                onClick={() => {
+                  setImportPreview(null);
+                  setSelectedPayrollInputFile(null);
+                  setShowMissingEmployeesPrompt(false);
+                  setShowDuplicateRowsPrompt(false);
+                  setShowInvalidImportPrompt(false);
+                  setAcceptSheetValueUpdates(false);
+                  setDuplicateResolution({});
+                  setGenerateResult('Upload discarded.');
+                }}
+              >
+                Discard upload attempt
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

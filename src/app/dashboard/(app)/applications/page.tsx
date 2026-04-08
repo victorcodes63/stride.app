@@ -806,7 +806,7 @@ export default function DashboardApplicationsPage() {
         </motion.div>
       </div>
 
-      <div className="rounded-2xl border border-neutral-200/90 bg-white shadow-sm overflow-hidden mb-6">
+      <div className="rounded-2xl border border-neutral-200/90 bg-white shadow-sm overflow-visible mb-6">
         {/* Search & application filters */}
         <div className="p-4 sm:p-5 border-b border-neutral-100 bg-gradient-to-b from-white to-neutral-50/40">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
@@ -1083,7 +1083,7 @@ export default function DashboardApplicationsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden min-w-0">
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-visible min-w-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px]">
               <thead>

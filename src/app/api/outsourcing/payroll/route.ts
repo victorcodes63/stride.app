@@ -11,6 +11,11 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const clientId = searchParams.get('clientId') || undefined;
     const departmentId = searchParams.get('departmentId') || undefined;
+    const employeeIdsCsv = searchParams.get('employeeIds') || '';
+    const employeeIds = employeeIdsCsv
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const m = month ? parseInt(month, 10) : new Date().getMonth() + 1;
     const y = year ? parseInt(year, 10) : new Date().getFullYear();
@@ -22,6 +27,7 @@ export async function GET(request: NextRequest) {
       where: {
         month: m,
         year: y,
+        ...(employeeIds.length > 0 ? { employeeId: { in: employeeIds } } : {}),
         ...(clientId || departmentId
           ? {
               employee: {

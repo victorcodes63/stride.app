@@ -204,6 +204,7 @@ This project is proprietary to Eagle HR Consultants.
 
 ## 📚 Documentation
 
+- **[SYSTEM_FUNCTIONALITY.md](./SYSTEM_FUNCTIONALITY.md)** – Full breakdown of implemented features (public site, ATS, interviews, outsourcing, accounts, placeholders).
 - **[AUTH.md](./AUTH.md)** – Staff dashboard auth: env vars, dev bypass, and wiring for Microsoft sign-in, forgot password, and full auth later.
 - **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** – ATS integration and environment setup.
 - **[EMAIL_SETUP.md](./EMAIL_SETUP.md)** – Sending from recruitment@eaglehr.co.ke (application received, contact form; Microsoft 365 or your SMTP).
