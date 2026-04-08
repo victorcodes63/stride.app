@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronLeft, Mail, Loader2, Printer } from 'lucide-react';
+import { ChevronLeft, Mail, Loader2, Printer, AlertTriangle } from 'lucide-react';
 
 interface PayrollRecord {
   id: string;
@@ -54,6 +54,7 @@ function PayslipsContent() {
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number; skipped: number; errors?: string[] } | null>(null);
   const [printLayout, setPrintLayout] = useState<'single' | 'four'>('single');
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
 
   useEffect(() => {
     const htmlEl = document.documentElement;
@@ -97,6 +98,14 @@ function PayslipsContent() {
   };
 
   const handleSendPayslips = async () => {
+    const employeeCount = employeeIdsParam
+      ? employeeIdsParam.split(',').map((s) => s.trim()).filter(Boolean).length
+      : payrolls.length;
+    if (employeeCount === 0) return;
+    setShowSendConfirm(true);
+  };
+
+  const executeSendPayslips = async () => {
     setSending(true);
     setSendResult(null);
     try {
@@ -201,6 +210,38 @@ function PayslipsContent() {
               )}
             </ul>
           )}
+        </div>
+      )}
+      {showSendConfirm && (
+        <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Confirm sending payslips
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              Send payslips for {employeeIdsParam ? employeeIdsParam.split(',').map((s) => s.trim()).filter(Boolean).length : payrolls.length} employee(s) for {MONTHS[month - 1]} {year}?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => setShowSendConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-900 text-white hover:bg-primary-800"
+                onClick={async () => {
+                  setShowSendConfirm(false);
+                  await executeSendPayslips();
+                }}
+              >
+                Confirm send
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -408,30 +449,6 @@ function PayslipsContent() {
           .print-single-mode .payslip-card:last-child {
             page-break-after: auto !important;
             break-after: auto !important;
-          }
-          .print-four-mode .payslip-grid {
-            position: relative;
-          }
-          .print-four-mode .payslip-grid::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            background:
-              repeating-linear-gradient(
-                to bottom,
-                transparent 0 2.2mm,
-                #d1d5db 2.2mm 2.5mm
-              ),
-              repeating-linear-gradient(
-                to right,
-                transparent 0 2.2mm,
-                #d1d5db 2.2mm 2.5mm
-              );
-            background-size: 0.2mm 100%, 100% 0.2mm;
-            background-position: 50% 0, 0 50%;
-            background-repeat: no-repeat;
-            opacity: 0.45;
           }
         }
       `}</style>

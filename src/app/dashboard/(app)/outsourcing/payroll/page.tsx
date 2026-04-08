@@ -94,6 +94,7 @@ export default function OutsourcingPayrollPage() {
   const [selectedPayrollInputFile, setSelectedPayrollInputFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<PayrollImportPreview | null>(null);
   const [showMissingEmployeesPrompt, setShowMissingEmployeesPrompt] = useState(false);
+  const [pendingSendPayslip, setPendingSendPayslip] = useState<{ employeeId: string; employeeName: string } | null>(null);
 
   const fetchPayrolls = async () => {
     setLoading(true);
@@ -291,7 +292,7 @@ export default function OutsourcingPayrollPage() {
     }
   };
 
-  const handleSendPayslip = async (employeeId: string, employeeName: string) => {
+  const executeSendPayslip = async (employeeId: string, employeeName: string) => {
     setSendingId(employeeId);
     try {
       const res = await fetch('/api/outsourcing/payroll/send-payslips', {
@@ -313,6 +314,9 @@ export default function OutsourcingPayrollPage() {
     } finally {
       setSendingId(null);
     }
+  };
+  const handleSendPayslip = async (employeeId: string, employeeName: string) => {
+    setPendingSendPayslip({ employeeId, employeeName });
   };
 
   const handleRecalculateStatutory = async () => {
@@ -729,6 +733,39 @@ export default function OutsourcingPayrollPage() {
               >
                 {importingPayrollInput ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Create missing employees
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingSendPayslip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Confirm sending payslip
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              Send payslip for {pendingSendPayslip.employeeName} ({MONTHS[month - 1]} {year}) now?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => setPendingSendPayslip(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-900 text-white hover:bg-primary-800"
+                onClick={async () => {
+                  const action = pendingSendPayslip;
+                  setPendingSendPayslip(null);
+                  await executeSendPayslip(action.employeeId, action.employeeName);
+                }}
+              >
+                Confirm send
               </button>
             </div>
           </div>

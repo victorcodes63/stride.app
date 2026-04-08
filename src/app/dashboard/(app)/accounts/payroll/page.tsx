@@ -66,6 +66,9 @@ const MONTHS = [
 ];
 
 export default function AccountsPayrollPage() {
+  type PendingSendAction =
+    | { kind: 'bulk'; employeeIds: string[]; count: number }
+    | { kind: 'single'; employeeId: string; employeeName: string };
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -93,6 +96,7 @@ export default function AccountsPayrollPage() {
   const [showInvalidImportPrompt, setShowInvalidImportPrompt] = useState(false);
   const [duplicateResolution, setDuplicateResolution] = useState<Record<string, number>>({});
   const [acceptSheetValueUpdates, setAcceptSheetValueUpdates] = useState(false);
+  const [pendingSendAction, setPendingSendAction] = useState<PendingSendAction | null>(null);
 
   // Table-level filters (search + status)
   const [tableSearchQuery, setTableSearchQuery] = useState('');
@@ -269,14 +273,14 @@ export default function AccountsPayrollPage() {
     });
     window.open(`/dashboard/accounts/payroll/payslips?${qs.toString()}`, '_blank');
   };
-  const handleBulkSendPayslips = async () => {
-    if (selectedEmployeeIds.length === 0) return;
+  const executeBulkSendPayslips = async (employeeIds: string[]) => {
+    if (employeeIds.length === 0) return;
     setError(null);
     try {
       const res = await fetch('/api/outsourcing/payroll/send-payslips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, year, employeeIds: selectedEmployeeIds }),
+        body: JSON.stringify({ month, year, employeeIds }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to send selected payslips');
@@ -284,6 +288,14 @@ export default function AccountsPayrollPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send selected payslips');
     }
+  };
+  const handleBulkSendPayslips = async () => {
+    if (selectedEmployeeIds.length === 0) return;
+    setPendingSendAction({
+      kind: 'bulk',
+      employeeIds: [...selectedEmployeeIds],
+      count: selectedEmployeeIds.length,
+    });
   };
 
   const handleGenerate = async () => {
@@ -448,7 +460,7 @@ export default function AccountsPayrollPage() {
     }
   };
 
-  const handleSendPayslip = async (employeeId: string, employeeName: string) => {
+  const executeSingleSendPayslip = async (employeeId: string, employeeName: string) => {
     setSendingId(employeeId);
     try {
       const res = await fetch('/api/outsourcing/payroll/send-payslips', {
@@ -470,6 +482,9 @@ export default function AccountsPayrollPage() {
     } finally {
       setSendingId(null);
     }
+  };
+  const handleSendPayslip = async (employeeId: string, employeeName: string) => {
+    setPendingSendAction({ kind: 'single', employeeId, employeeName });
   };
 
   const handleRecalculateStatutory = async () => {
@@ -1108,6 +1123,45 @@ export default function AccountsPayrollPage() {
                 }}
               >
                 Discard upload attempt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingSendAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border border-neutral-200 p-5 sm:p-6">
+            <h3 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Confirm sending payslips
+            </h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              {pendingSendAction.kind === 'bulk'
+                ? `Send payslips for ${pendingSendAction.count} selected employee(s) for ${MONTHS[month - 1]} ${year}?`
+                : `Send payslip for ${pendingSendAction.employeeName} (${MONTHS[month - 1]} ${year}) now?`}
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
+                onClick={() => setPendingSendAction(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-primary-900 text-white hover:bg-primary-800 inline-flex items-center gap-2"
+                onClick={async () => {
+                  const action = pendingSendAction;
+                  setPendingSendAction(null);
+                  if (action.kind === 'bulk') {
+                    await executeBulkSendPayslips(action.employeeIds);
+                    return;
+                  }
+                  await executeSingleSendPayslip(action.employeeId, action.employeeName);
+                }}
+              >
+                Confirm send
               </button>
             </div>
           </div>
