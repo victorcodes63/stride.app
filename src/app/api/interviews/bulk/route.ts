@@ -111,12 +111,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
     }
     const applications = await prisma.application.findMany({
-      where: { id: { in: applicationIds }, jobId },
+      where: { id: { in: applicationIds }, jobId, status: 'shortlisted' },
       include: { candidate: true, job: { include: { client: true } } },
     });
     if (applications.length !== applicationIds.length) {
       return NextResponse.json({
-        error: 'Some application IDs were not found or do not belong to this job.',
+        error: 'Some application IDs were not found, are not shortlisted, or do not belong to this job.',
       }, { status: 400 });
     }
     const order = new Map(applicationIds.map((id, idx) => [id, idx] as const));

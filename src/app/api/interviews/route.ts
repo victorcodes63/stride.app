@@ -183,9 +183,16 @@ export async function POST(request: NextRequest) {
     }
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
+      select: { id: true, status: true },
     });
     if (!application) {
       return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+    }
+    if (application.status !== 'shortlisted') {
+      return NextResponse.json(
+        { error: 'Only shortlisted applications can be scheduled for interview.' },
+        { status: 409 }
+      );
     }
 
     const interview = await prisma.interview.create({

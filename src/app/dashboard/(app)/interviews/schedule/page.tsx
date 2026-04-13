@@ -27,6 +27,19 @@ type JobWithShortlisted = {
   scheduledCount: number;
 };
 
+function extractApplicationsResponse(data: unknown): ApplicationWithDetails[] {
+  if (Array.isArray(data)) return data as ApplicationWithDetails[];
+  if (
+    data &&
+    typeof data === 'object' &&
+    'applications' in data &&
+    Array.isArray((data as { applications?: unknown }).applications)
+  ) {
+    return (data as { applications: ApplicationWithDetails[] }).applications;
+  }
+  return [];
+}
+
 function ScheduleInterviewsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -229,7 +242,7 @@ function ScheduleInterviewsPageContent() {
     fetch(`/api/applications?jobId=${encodeURIComponent(singleJobId)}&status=shortlisted`)
       .then((r) => r.json())
       .then((data) => {
-        setSingleShortlistedApps(Array.isArray(data) ? data : []);
+        setSingleShortlistedApps(extractApplicationsResponse(data));
         setForm((f) => ({ ...f, applicationId: '' }));
       })
       .catch(() => setSingleShortlistedApps([]))
@@ -245,7 +258,7 @@ function ScheduleInterviewsPageContent() {
     fetch(`/api/applications?jobId=${encodeURIComponent(bulkJobId)}&status=shortlisted`)
       .then((r) => r.json())
       .then((data) => {
-        const apps = Array.isArray(data) ? data : [];
+        const apps = extractApplicationsResponse(data);
         setShortlistedApps(apps);
         if (shouldPreselectBulkRef.current) {
           shouldPreselectBulkRef.current = false;
