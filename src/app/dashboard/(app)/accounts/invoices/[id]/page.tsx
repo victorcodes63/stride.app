@@ -42,10 +42,12 @@ type InvoiceDetail = {
   clientName: string;
   issueDate: string;
   dueDate: string | null;
+  taxDate: string | null;
   currency: string;
   vatRateBps: number;
   status: string;
   canSetInvoiceStatus?: boolean;
+  canEditInvoice?: boolean;
   canIssueCreditNote?: boolean;
   creditTotalApplied?: number;
   remainingCreditable?: number;
@@ -76,6 +78,16 @@ export default function AccountsInvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [savingBank, setSavingBank] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    issueDate: string;
+    dueDate: string;
+    taxDate: string;
+    vatRateBps: number;
+    notes: string;
+    lines: Array<{ item: string; description: string; amountExVat: string }>;
+  } | null>(null);
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -110,6 +122,22 @@ export default function AccountsInvoiceDetailPage() {
       cancelled = true;
     };
   }, [id, load]);
+
+  useEffect(() => {
+    if (!data) return;
+    setEditForm({
+      issueDate: data.issueDate,
+      dueDate: data.dueDate ?? '',
+      taxDate: data.taxDate ?? '',
+      vatRateBps: data.vatRateBps,
+      notes: data.notes ?? '',
+      lines: data.lines.map((l) => ({
+        item: l.item,
+        description: l.description ?? '',
+        amountExVat: String(Number(l.amountExVat)),
+      })),
+    });
+  }, [data]);
 
   const setInvoiceStatus = async (status: string) => {
     if (!id || !data || status === data.status) return;
@@ -147,6 +175,39 @@ export default function AccountsInvoiceDetailPage() {
       setError(e instanceof Error ? e.message : 'Update failed');
     } finally {
       setSavingBank(false);
+    }
+  };
+
+  const saveInvoiceEdits = async () => {
+    if (!id || !editForm) return;
+    setSavingEdit(true);
+    try {
+      const payload = {
+        issueDate: editForm.issueDate,
+        dueDate: editForm.dueDate || null,
+        taxDate: editForm.taxDate || null,
+        vatRateBps: editForm.vatRateBps,
+        notes: editForm.notes,
+        lines: editForm.lines.map((l) => ({
+          item: l.item,
+          description: l.description || null,
+          amountExVat: Number(l.amountExVat),
+        })),
+      };
+      const r = await fetch(`/api/accounts/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not update invoice');
+      await load();
+      setIsEditing(false);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -296,6 +357,200 @@ export default function AccountsInvoiceDetailPage() {
           onChange={setPaymentBank}
           saving={savingBank}
         />
+        {data.canEditInvoice && editForm ? (
+          <div className="rounded-xl border border-neutral-200 bg-white px-4 py-4 text-sm space-y-3 print:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Edit invoice</p>
+              {!isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="px-3 py-1.5 rounded-md border border-neutral-300 text-xs font-medium hover:bg-neutral-50"
+                >
+                  Edit
+                </button>
+              ) : null}
+            </div>
+            {isEditing ? (
+              <div className="space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <label className="text-xs text-neutral-600">
+                    Issue date
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+                      value={editForm.issueDate}
+                      onChange={(e) => setEditForm((f) => (f ? { ...f, issueDate: e.target.value } : f))}
+                    />
+                  </label>
+                  <label className="text-xs text-neutral-600">
+                    Due date
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+                      value={editForm.dueDate}
+                      onChange={(e) => setEditForm((f) => (f ? { ...f, dueDate: e.target.value } : f))}
+                    />
+                  </label>
+                  <label className="text-xs text-neutral-600">
+                    Tax date
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+                      value={editForm.taxDate}
+                      onChange={(e) => setEditForm((f) => (f ? { ...f, taxDate: e.target.value } : f))}
+                    />
+                  </label>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <label className="text-xs text-neutral-600">
+                    VAT rate (%)
+                    <input
+                      type="number"
+                      min={0}
+                      max={500}
+                      step={0.01}
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+                      value={editForm.vatRateBps / 100}
+                      onChange={(e) =>
+                        setEditForm((f) =>
+                          f ? { ...f, vatRateBps: Math.round((parseFloat(e.target.value || '0') || 0) * 100) } : f
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="text-xs text-neutral-600">
+                    Notes
+                    <input
+                      type="text"
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5"
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm((f) => (f ? { ...f, notes: e.target.value } : f))}
+                    />
+                  </label>
+                </div>
+                <div className="space-y-2">
+                  {editForm.lines.map((line, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        className="col-span-4 rounded-md border border-neutral-300 px-2 py-1.5"
+                        placeholder="Item"
+                        value={line.item}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? {
+                                  ...f,
+                                  lines: f.lines.map((l, i) => (i === idx ? { ...l, item: e.target.value } : l)),
+                                }
+                              : f
+                          )
+                        }
+                      />
+                      <input
+                        className="col-span-5 rounded-md border border-neutral-300 px-2 py-1.5"
+                        placeholder="Description"
+                        value={line.description}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? {
+                                  ...f,
+                                  lines: f.lines.map((l, i) => (i === idx ? { ...l, description: e.target.value } : l)),
+                                }
+                              : f
+                          )
+                        }
+                      />
+                      <input
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        className="col-span-2 rounded-md border border-neutral-300 px-2 py-1.5"
+                        placeholder="Amount"
+                        value={line.amountExVat}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? {
+                                  ...f,
+                                  lines: f.lines.map((l, i) => (i === idx ? { ...l, amountExVat: e.target.value } : l)),
+                                }
+                              : f
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="col-span-1 text-xs text-red-700"
+                        onClick={() =>
+                          setEditForm((f) =>
+                            f && f.lines.length > 1
+                              ? { ...f, lines: f.lines.filter((_, i) => i !== idx) }
+                              : f
+                          )
+                        }
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary-800"
+                    onClick={() =>
+                      setEditForm((f) =>
+                        f
+                          ? {
+                              ...f,
+                              lines: [...f.lines, { item: '', description: '', amountExVat: '' }],
+                            }
+                          : f
+                      )
+                    }
+                  >
+                    + Add line
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveInvoiceEdits()}
+                    disabled={savingEdit}
+                    className="px-3 py-1.5 rounded-md bg-primary-900 text-white text-xs font-medium disabled:opacity-60"
+                  >
+                    {savingEdit ? 'Saving…' : 'Save changes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditForm({
+                        issueDate: data.issueDate,
+                        dueDate: data.dueDate ?? '',
+                        taxDate: data.taxDate ?? '',
+                        vatRateBps: data.vatRateBps,
+                        notes: data.notes ?? '',
+                        lines: data.lines.map((l) => ({
+                          item: l.item,
+                          description: l.description ?? '',
+                          amountExVat: String(Number(l.amountExVat)),
+                        })),
+                      });
+                    }}
+                    className="px-3 py-1.5 rounded-md border border-neutral-300 text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-500">
+                Edit dates, VAT, notes, and line items for this invoice.
+              </p>
+            )}
+          </div>
+        ) : null}
         <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm space-y-2 print:hidden">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Credit notes</p>
           {(data.creditTotalApplied ?? 0) > 0 && (

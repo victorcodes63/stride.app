@@ -8,6 +8,17 @@ import { reportApiError } from '@/lib/monitoring';
 
 export const dynamic = 'force-dynamic';
 
+function parseIsoDateOnly(s: unknown): Date | null {
+  if (typeof s !== 'string') return null;
+  const t = s.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const [y, mo, d] = t.split('-').map((x) => parseInt(x, 10));
+  if (!Number.isFinite(y) || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -104,6 +115,7 @@ export async function GET(
         lineNo: i + 1,
       })),
       canSetInvoiceStatus,
+      canEditInvoice: access.canManageInvoices,
       canIssueCreditNote,
       creditTotalApplied,
       remainingCreditable,
@@ -148,6 +160,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  const payload = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const paymentBank =
     body && typeof body === 'object' && 'paymentBank' in body
       ? (body as { paymentBank: unknown }).paymentBank
@@ -161,11 +174,20 @@ export async function PATCH(
   const hasPaymentBank = typeof paymentBank === 'string' && PAYMENT_BANK_VALUES.has(paymentBank);
   const hasStatus = typeof statusRaw === 'string' && INVOICE_STATUS_VALUES.has(statusRaw);
 
-  if (!hasPaymentBank && !hasStatus) {
+  const hasIssueDate = 'issueDate' in payload;
+  const hasDueDate = 'dueDate' in payload;
+  const hasTaxDate = 'taxDate' in payload;
+  const hasVatRateBps = 'vatRateBps' in payload;
+  const hasNotes = 'notes' in payload;
+  const hasLines = 'lines' in payload;
+  const hasEditFields =
+    hasIssueDate || hasDueDate || hasTaxDate || hasVatRateBps || hasNotes || hasLines;
+
+  if (!hasPaymentBank && !hasStatus && !hasEditFields) {
     return NextResponse.json(
       {
         error:
-          'Send paymentBank (payroll_only | consultancy_fees) and/or status (unpaid | partial | paid).',
+          'Send paymentBank, status, and/or editable invoice fields (issueDate, dueDate, taxDate, vatRateBps, notes, lines).',
       },
       { status: 400 },
     );
@@ -177,10 +199,21 @@ export async function PATCH(
       { status: 403 },
     );
   }
+  if (hasEditFields && !access.canManageInvoices) {
+    return NextResponse.json(
+      { error: 'You do not have permission to edit invoice details.' },
+      { status: 403 },
+    );
+  }
 
   const data: {
     paymentBank?: 'payroll_only' | 'consultancy_fees';
     status?: 'unpaid' | 'partial' | 'paid';
+    issueDate?: Date;
+    dueDate?: Date | null;
+    taxDate?: Date | null;
+    vatRateBps?: number;
+    notes?: string | null;
   } = {};
   if (hasPaymentBank) {
     data.paymentBank = paymentBank as 'payroll_only' | 'consultancy_fees';
@@ -188,11 +221,96 @@ export async function PATCH(
   if (hasStatus) {
     data.status = statusRaw as 'unpaid' | 'partial' | 'paid';
   }
+  if (hasIssueDate) {
+    const issueDate = parseIsoDateOnly(payload.issueDate);
+    if (!issueDate) {
+      return NextResponse.json({ error: 'issueDate must be YYYY-MM-DD.' }, { status: 400 });
+    }
+    data.issueDate = issueDate;
+  }
+  if (hasDueDate) {
+    const raw = payload.dueDate;
+    if (raw === null || raw === undefined || raw === '') data.dueDate = null;
+    else {
+      const dueDate = parseIsoDateOnly(raw);
+      if (!dueDate) {
+        return NextResponse.json({ error: 'dueDate must be YYYY-MM-DD or empty.' }, { status: 400 });
+      }
+      data.dueDate = dueDate;
+    }
+  }
+  if (hasTaxDate) {
+    const raw = payload.taxDate;
+    if (raw === null || raw === undefined || raw === '') data.taxDate = null;
+    else {
+      const taxDate = parseIsoDateOnly(raw);
+      if (!taxDate) {
+        return NextResponse.json({ error: 'taxDate must be YYYY-MM-DD or empty.' }, { status: 400 });
+      }
+      data.taxDate = taxDate;
+    }
+  }
+  if (hasVatRateBps) {
+    const n = typeof payload.vatRateBps === 'number' ? payload.vatRateBps : parseInt(String(payload.vatRateBps), 10);
+    if (!Number.isFinite(n) || n < 0 || n > 50000) {
+      return NextResponse.json({ error: 'vatRateBps must be between 0 and 50000.' }, { status: 400 });
+    }
+    data.vatRateBps = Math.round(n);
+  }
+  if (hasNotes) {
+    data.notes =
+      payload.notes != null && typeof payload.notes === 'string'
+        ? payload.notes.trim() || null
+        : null;
+  }
+
+  let lineCreates: { item: string; description: string | null; amountExVat: string; sortOrder: number }[] = [];
+  if (hasLines) {
+    if (!Array.isArray(payload.lines) || payload.lines.length < 1) {
+      return NextResponse.json({ error: 'At least one line item is required.' }, { status: 400 });
+    }
+    for (let i = 0; i < payload.lines.length; i++) {
+      const row = payload.lines[i];
+      if (!row || typeof row !== 'object') {
+        return NextResponse.json({ error: 'Invalid line item.' }, { status: 400 });
+      }
+      const r = row as Record<string, unknown>;
+      const item = typeof r.item === 'string' ? r.item.trim() : '';
+      if (!item) {
+        return NextResponse.json({ error: 'Each line must have an item description.' }, { status: 400 });
+      }
+      const amtRaw = r.amountExVat;
+      const amt = typeof amtRaw === 'number' ? amtRaw : parseFloat(String(amtRaw ?? ''));
+      if (!Number.isFinite(amt) || amt <= 0) {
+        return NextResponse.json({ error: 'Each line must have a positive amount (ex-VAT).' }, { status: 400 });
+      }
+      lineCreates.push({
+        item,
+        description: typeof r.description === 'string' ? r.description.trim() || null : null,
+        amountExVat: (Math.round(amt * 100) / 100).toFixed(2),
+        sortOrder: i,
+      });
+    }
+  }
 
   try {
-    await prisma.accountsInvoice.update({
-      where: { id },
-      data,
+    await prisma.$transaction(async (tx) => {
+      await tx.accountsInvoice.update({
+        where: { id },
+        data,
+      });
+      if (hasLines) {
+        await tx.accountsInvoiceLine.deleteMany({ where: { invoiceId: id } });
+        await tx.accountsInvoiceLine.createMany({
+          data: lineCreates.map((l) => ({
+            invoiceId: id,
+            item: l.item,
+            description: l.description,
+            amountExVat: l.amountExVat,
+            sortOrder: l.sortOrder,
+          })),
+        });
+      }
     });
   } catch {
     return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 });
@@ -202,5 +320,6 @@ export async function PATCH(
     ok: true,
     ...(hasPaymentBank ? { paymentBank } : {}),
     ...(hasStatus ? { status: statusRaw } : {}),
+    ...(hasEditFields ? { updated: true } : {}),
   });
 }
