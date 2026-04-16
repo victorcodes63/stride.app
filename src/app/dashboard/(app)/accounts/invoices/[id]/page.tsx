@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -64,6 +64,25 @@ function money(n: number, currency: string) {
   return `${n.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+function computeInvoiceTotalFromSubtotal(subtotalExVat: number, vatRateBps: number): number {
+  const rate = vatRateBps / 10000;
+  const vatAmount = Math.round(subtotalExVat * rate * 100) / 100;
+  return Math.round((subtotalExVat + vatAmount) * 100) / 100;
+}
+
+function findPositiveRoundingAdjustmentExVat(
+  subtotalExVat: number,
+  vatRateBps: number,
+  targetTotal: number,
+): number | null {
+  for (let cents = 1; cents <= 500; cents++) {
+    const adj = cents / 100;
+    const total = computeInvoiceTotalFromSubtotal(subtotalExVat + adj, vatRateBps);
+    if (Math.abs(total - targetTotal) < 0.00001) return adj;
+  }
+  return null;
+}
+
 const STATUS_OPTIONS = [
   { value: 'unpaid' as const, label: 'Unpaid', Icon: CircleOff },
   { value: 'partial' as const, label: 'Partial', Icon: CircleDashed },
@@ -80,6 +99,7 @@ export default function AccountsInvoiceDetailPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editRoundToWholeKes, setEditRoundToWholeKes] = useState(false);
   const [editForm, setEditForm] = useState<{
     issueDate: string;
     dueDate: string;
@@ -139,6 +159,26 @@ export default function AccountsInvoiceDetailPage() {
     });
   }, [data]);
 
+  const editRoundingPreview = useMemo(() => {
+    if (!editForm) return null;
+    const subtotal = editForm.lines.reduce((sum, l) => {
+      const n = parseFloat(l.amountExVat);
+      return Number.isFinite(n) && n > 0 ? sum + n : sum;
+    }, 0);
+    if (subtotal <= 0) return null;
+    const total = computeInvoiceTotalFromSubtotal(subtotal, editForm.vatRateBps);
+    const hasFraction = Math.abs(total - Math.round(total)) > 0.00001;
+    if (!hasFraction) return null;
+    const targetTotal = Math.ceil(total);
+    const adjExVat = findPositiveRoundingAdjustmentExVat(
+      subtotal,
+      editForm.vatRateBps,
+      targetTotal,
+    );
+    if (adjExVat == null) return null;
+    return { subtotal, total, targetTotal, adjExVat };
+  }, [editForm]);
+
   const setInvoiceStatus = async (status: string) => {
     if (!id || !data || status === data.status) return;
     setSavingStatus(true);
@@ -194,6 +234,13 @@ export default function AccountsInvoiceDetailPage() {
           amountExVat: Number(l.amountExVat),
         })),
       };
+      if (editRoundToWholeKes && editRoundingPreview) {
+        payload.lines.push({
+          item: 'Rounding adjustment',
+          description: 'Auto-added to round invoice total (incl. VAT) to whole KES for ETIMS alignment.',
+          amountExVat: editRoundingPreview.adjExVat,
+        });
+      }
       const r = await fetch(`/api/accounts/invoices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -511,6 +558,37 @@ export default function AccountsInvoiceDetailPage() {
                   >
                     + Add line
                   </button>
+                  {editRoundingPreview ? (
+                    <div className="mt-2 rounded-lg border border-primary-100 bg-primary-50/50 px-3 py-2 space-y-1">
+                      <label className="inline-flex items-center gap-2 text-xs text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={editRoundToWholeKes}
+                          onChange={(e) => setEditRoundToWholeKes(e.target.checked)}
+                        />
+                        Round total up to whole KES (ETIMS-friendly)
+                      </label>
+                      {editRoundToWholeKes ? (
+                        <>
+                          <p className="text-xs text-neutral-700 tabular-nums">
+                            Rounding adjustment (ex-VAT):{' '}
+                            {editRoundingPreview.adjExVat.toLocaleString('en-KE', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            {data.currency}
+                          </p>
+                          <p className="text-xs font-semibold text-primary-900 tabular-nums">
+                            Rounded total: {editRoundingPreview.targetTotal.toLocaleString('en-KE', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            {data.currency}
+                          </p>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -537,6 +615,7 @@ export default function AccountsInvoiceDetailPage() {
                           amountExVat: String(Number(l.amountExVat)),
                         })),
                       });
+                      setEditRoundToWholeKes(false);
                     }}
                     className="px-3 py-1.5 rounded-md border border-neutral-300 text-xs font-medium"
                   >

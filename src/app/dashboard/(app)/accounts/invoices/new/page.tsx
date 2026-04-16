@@ -39,6 +39,30 @@ const inputClass =
 
 type LineDraft = { item: string; amountExVat: string; description: string };
 
+function computeInvoiceTotalFromSubtotal(
+  subtotalExVat: number,
+  vatRateBps: number,
+): number {
+  return computeInvoiceVatFromLines([{ amountExVat: subtotalExVat }], vatRateBps).totalIncVat;
+}
+
+/**
+ * Find positive ex-VAT adjustment (2dp) that makes total incl. VAT hit targetTotal exactly.
+ * Returns null when no 2dp adjustment in search window can produce exact total.
+ */
+function findPositiveRoundingAdjustmentExVat(
+  subtotalExVat: number,
+  vatRateBps: number,
+  targetTotal: number,
+): number | null {
+  for (let cents = 1; cents <= 500; cents++) {
+    const adj = cents / 100;
+    const total = computeInvoiceTotalFromSubtotal(subtotalExVat + adj, vatRateBps);
+    if (Math.abs(total - targetTotal) < 0.00001) return adj;
+  }
+  return null;
+}
+
 function NewInvoiceForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,6 +78,7 @@ function NewInvoiceForm() {
   const [vatRateBps, setVatRateBps] = useState(1600);
   const [paymentBank, setPaymentBank] = useState<InvoicePaymentBankKind>('consultancy_fees');
   const [notes, setNotes] = useState('');
+  const [roundTotalToWholeKes, setRoundTotalToWholeKes] = useState(false);
 
   const [lines, setLines] = useState<LineDraft[]>([
     { item: '', amountExVat: '', description: '' },
@@ -114,6 +139,20 @@ function NewInvoiceForm() {
     return computeInvoiceVatFromLines(previewLines, vatRateBps);
   }, [previewLines, vatRateBps]);
 
+  const roundingPreview = useMemo(() => {
+    if (!totalsPreview) return null;
+    const hasFraction = Math.abs(totalsPreview.totalIncVat - Math.round(totalsPreview.totalIncVat)) > 0.00001;
+    if (!hasFraction) return null;
+    const targetTotal = Math.ceil(totalsPreview.totalIncVat);
+    const adjExVat = findPositiveRoundingAdjustmentExVat(
+      totalsPreview.subtotalExVat,
+      vatRateBps,
+      targetTotal,
+    );
+    if (adjExVat == null) return null;
+    return { targetTotal, adjExVat };
+  }, [totalsPreview, vatRateBps]);
+
   const addLine = () => {
     setLines((prev) => [...prev, { item: '', amountExVat: '', description: '' }]);
   };
@@ -169,6 +208,13 @@ function NewInvoiceForm() {
           ...(l.description ? { description: l.description } : {}),
         })),
       };
+      if (roundTotalToWholeKes && roundingPreview) {
+        (body.lines as Array<Record<string, unknown>>).push({
+          item: 'Rounding adjustment',
+          amountExVat: roundingPreview.adjExVat,
+          description: 'Auto-added to round invoice total (incl. VAT) to whole KES for ETIMS alignment.',
+        });
+      }
       const r = await fetch('/api/accounts/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -444,6 +490,37 @@ function NewInvoiceForm() {
                 })}{' '}
                 {selectedClient.currency}
               </p>
+              {roundingPreview ? (
+                <div className="mt-2 pt-2 border-t border-primary-100 space-y-1">
+                  <label className="inline-flex items-center gap-2 text-xs text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={roundTotalToWholeKes}
+                      onChange={(e) => setRoundTotalToWholeKes(e.target.checked)}
+                    />
+                    Round total up to whole KES (ETIMS-friendly)
+                  </label>
+                  {roundTotalToWholeKes ? (
+                    <>
+                      <p className="text-xs text-neutral-700 tabular-nums">
+                        Rounding adjustment (ex-VAT):{' '}
+                        {roundingPreview.adjExVat.toLocaleString('en-KE', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        {selectedClient.currency}
+                      </p>
+                      <p className="text-xs font-semibold text-primary-900 tabular-nums">
+                        Rounded total: {roundingPreview.targetTotal.toLocaleString('en-KE', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        {selectedClient.currency}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
