@@ -50,17 +50,25 @@ function computeInvoiceTotalFromSubtotal(
  * Find positive ex-VAT adjustment (2dp) that makes total incl. VAT hit targetTotal exactly.
  * Returns null when no 2dp adjustment in search window can produce exact total.
  */
-function findPositiveRoundingAdjustmentExVat(
+function findRoundingAdjustmentExVat(
   subtotalExVat: number,
   vatRateBps: number,
   targetTotal: number,
-): number | null {
-  for (let cents = 1; cents <= 500; cents++) {
+): { adjExVat: number; achievedTotal: number; hitsTarget: boolean } | null {
+  let closestAbove: { adjExVat: number; achievedTotal: number } | null = null;
+  for (let cents = 1; cents <= 2000; cents++) {
     const adj = cents / 100;
     const total = computeInvoiceTotalFromSubtotal(subtotalExVat + adj, vatRateBps);
-    if (Math.abs(total - targetTotal) < 0.00001) return adj;
+    if (Math.abs(total - targetTotal) < 0.00001) {
+      return { adjExVat: adj, achievedTotal: total, hitsTarget: true };
+    }
+    if (total > targetTotal) {
+      if (!closestAbove || total < closestAbove.achievedTotal) {
+        closestAbove = { adjExVat: adj, achievedTotal: total };
+      }
+    }
   }
-  return null;
+  return closestAbove ? { ...closestAbove, hitsTarget: false } : null;
 }
 
 function NewInvoiceForm() {
@@ -144,13 +152,13 @@ function NewInvoiceForm() {
     const hasFraction = Math.abs(totalsPreview.totalIncVat - Math.round(totalsPreview.totalIncVat)) > 0.00001;
     if (!hasFraction) return null;
     const targetTotal = Math.ceil(totalsPreview.totalIncVat);
-    const adjExVat = findPositiveRoundingAdjustmentExVat(
+    const rounding = findRoundingAdjustmentExVat(
       totalsPreview.subtotalExVat,
       vatRateBps,
       targetTotal,
     );
-    if (adjExVat == null) return null;
-    return { targetTotal, adjExVat };
+    if (!rounding) return null;
+    return { targetTotal, ...rounding };
   }, [totalsPreview, vatRateBps]);
 
   const addLine = () => {
@@ -512,18 +520,30 @@ function NewInvoiceForm() {
                         {selectedClient.currency}
                       </p>
                       <p className="text-xs font-semibold text-primary-900 tabular-nums">
-                        Rounded total: {roundingPreview.targetTotal.toLocaleString('en-KE', {
+                        Rounded total: {roundingPreview.achievedTotal.toLocaleString('en-KE', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}{' '}
                         {selectedClient.currency}
                       </p>
+                      {!roundingPreview.hitsTarget ? (
+                        <p className="text-xs text-amber-700">
+                          Exact {roundingPreview.targetTotal.toLocaleString('en-KE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{' '}
+                          {selectedClient.currency} is not attainable at this VAT rate with 2dp amounts; using the
+                          closest possible value above it.
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <p className="text-xs text-neutral-600">Enable to auto-add rounding adjustment line.</p>
                   )
                 ) : (
-                  <p className="text-xs text-neutral-500">No rounding needed (total is already whole KES).</p>
+                  <p className="text-xs text-neutral-500">
+                    No rounding option available for the current lines/VAT combination.
+                  </p>
                 )}
               </div>
             </div>
