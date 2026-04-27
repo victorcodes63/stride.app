@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isFeatureEnabled } from '@/lib/feature-flags';
-import { reconcileAttendanceDay } from '@/lib/attendance-reconciliation';
+import { reconcileAttendanceDay, resolveReconcileWorkDatesForObservedAt } from '@/lib/attendance-reconciliation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,8 +96,11 @@ export async function POST(request: NextRequest) {
         isApprovedOverride: true,
       },
     });
-    const summary = await reconcileAttendanceDay(prisma, { employeeId, workDate });
-    return NextResponse.json({ ok: true, summary });
+    const workDates = await resolveReconcileWorkDatesForObservedAt(prisma, employeeId, observedAt);
+    const summaries = await Promise.all(
+      workDates.map((dateKey) => reconcileAttendanceDay(prisma, { employeeId, workDate: dateKey }))
+    );
+    return NextResponse.json({ ok: true, summary: summaries[0] ?? null, reconciledDates: workDates });
   } catch (error) {
     console.error('[outsourcing/attendance POST]', error);
     return NextResponse.json({ error: 'Failed to add attendance event.' }, { status: 500 });

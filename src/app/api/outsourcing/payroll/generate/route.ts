@@ -4,6 +4,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { calculateStatutoryForPayroll } from '@/lib/payroll-calc';
 import { isBiweeklyClient } from '@/lib/biweekly-payroll';
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
     const b = body as Record<string, unknown>;
     const month = typeof b.month === 'number' ? b.month : parseInt(String(b.month ?? ''), 10);
     const year = typeof b.year === 'number' ? b.year : parseInt(String(b.year ?? ''), 10);
-    const clientId = typeof b.clientId === 'string' && b.clientId.trim() ? b.clientId.trim() : null;
+    const requestedClientId = typeof b.clientId === 'string' && b.clientId.trim() ? b.clientId.trim() : null;
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
     const departmentId = typeof b.departmentId === 'string' && b.departmentId.trim() ? b.departmentId.trim() : null;
     const defaultLeavePay =
       typeof b.defaultLeavePay === 'number' && !Number.isNaN(b.defaultLeavePay)
@@ -36,18 +38,16 @@ export async function POST(request: NextRequest) {
 
     let biweekly = false;
     let leavePayMode: string | null = 'none';
-    if (clientId) {
-      const c = await prisma.outsourcingClient.findUnique({
-        where: { id: clientId },
-        select: { payrollFrequency: true, leavePayMode: true },
-      });
-      biweekly = isBiweeklyClient(c?.payrollFrequency);
-      leavePayMode = c?.leavePayMode ?? 'none';
-    }
+    const c = await prisma.outsourcingClient.findUnique({
+      where: { id: clientId },
+      select: { payrollFrequency: true, leavePayMode: true },
+    });
+    biweekly = isBiweeklyClient(c?.payrollFrequency);
+    leavePayMode = c?.leavePayMode ?? 'none';
 
     const employees = await prisma.employee.findMany({
       where: {
-        ...(clientId ? { outsourcingClientId: clientId } : {}),
+        outsourcingClientId: clientId,
         ...(departmentId ? { departmentId } : {}),
       },
       select: { id: true, baseSalary: true, outsourcingClientId: true },
@@ -89,16 +89,32 @@ export async function POST(request: NextRequest) {
     }
 
     await prisma.$transaction(
-      toCreate.map((e) => {
+      toCreate.map(async (e) => {
         const mode =
           clientId ? leavePayMode : clientModes.get(e.outsourcingClientId) ?? 'none';
         const basic = e.baseSalary != null ? Number(e.baseSalary) : 0;
+        const periodStart = new Date(Date.UTC(year, month - 1, 1));
+        const periodEnd = new Date(Date.UTC(year, month, 1));
+        const attendanceAggregate = await prisma.attendanceDaySummary.aggregate({
+          where: {
+            employeeId: e.id,
+            workDate: { gte: periodStart, lt: periodEnd },
+          },
+          _sum: { overtimeMinutes: true },
+        });
+        const overtimeMinutes = attendanceAggregate._sum.overtimeMinutes ?? 0;
+        const hourlyRate = basic > 0 ? basic / (26 * 8) : 0;
+        const overtimeAmount = Math.round((overtimeMinutes / 60) * hourlyRate * 1.5 * 100) / 100;
+        const overtimeAllowance =
+          overtimeAmount > 0
+            ? [{ name: `Overtime (${(overtimeMinutes / 60).toFixed(2)}h)`, amount: overtimeAmount }]
+            : [];
         const lp =
           mode === 'included_in_gross' || mode === 'paye_only' ? defaultLeavePay : 0;
         if (biweekly && clientId && basic > 0) {
           const half = Math.round(basic / 2);
           const other = basic - half;
-          const employmentGross = half + other;
+          const employmentGross = half + other + overtimeAmount;
           const stat = calculateStatutoryForPayroll(mode, employmentGross, lp, 0);
           return prisma.payroll.create({
             data: {
@@ -116,12 +132,13 @@ export async function POST(request: NextRequest) {
               nhif: new Decimal(stat.nhif),
               ahl: new Decimal(stat.ahl),
               netPay: new Decimal(stat.netPay),
-              allowances: [],
+              allowances: overtimeAllowance,
               deductions: [],
             },
           });
         }
-        const stat = calculateStatutoryForPayroll(mode, basic, lp, 0);
+        const employmentGross = basic + overtimeAmount;
+        const stat = calculateStatutoryForPayroll(mode, employmentGross, lp, 0);
         return prisma.payroll.create({
           data: {
             employeeId: e.id,
@@ -136,7 +153,7 @@ export async function POST(request: NextRequest) {
             nhif: new Decimal(stat.nhif),
             ahl: new Decimal(stat.ahl),
             netPay: new Decimal(stat.netPay),
-            allowances: [],
+            allowances: overtimeAllowance,
             deductions: [],
           },
         });

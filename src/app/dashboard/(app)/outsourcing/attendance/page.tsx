@@ -8,6 +8,8 @@ type Summary = {
   id: string;
   employeeId: string;
   workDate: string;
+  firstInAt: string | null;
+  lastOutAt: string | null;
   minutesWorked: number;
   lateMinutes: number;
   overtimeMinutes: number;
@@ -67,6 +69,16 @@ export default function OutsourcingAttendancePage() {
   }, [selectedClientId, from, to]);
 
   const openExceptions = useMemo(() => exceptions.filter((item) => item.status === 'open').length, [exceptions]);
+  const exceptionByEmployeeDate = useMemo(() => {
+    const map = new Map<string, Exception[]>();
+    for (const item of exceptions) {
+      const key = `${item.employeeId}:${item.workDate.slice(0, 10)}`;
+      const bucket = map.get(key) ?? [];
+      bucket.push(item);
+      map.set(key, bucket);
+    }
+    return map;
+  }, [exceptions]);
 
   async function addManualEvent() {
     if (!employeeId || !observedAt) return;
@@ -149,6 +161,8 @@ export default function OutsourcingAttendancePage() {
             <tr>
               <th className="text-left px-3 py-2">Date</th>
               <th className="text-left px-3 py-2">Employee</th>
+              <th className="text-left px-3 py-2">Clock in</th>
+              <th className="text-left px-3 py-2">Clock out</th>
               <th className="text-left px-3 py-2">Worked</th>
               <th className="text-left px-3 py-2">Late</th>
               <th className="text-left px-3 py-2">Overtime</th>
@@ -163,14 +177,30 @@ export default function OutsourcingAttendancePage() {
                   {summary.employee.employeeNumber ? `${summary.employee.employeeNumber} - ` : ''}
                   {summary.employee.firstName} {summary.employee.lastName}
                 </td>
+                <td className="px-3 py-2">{summary.firstInAt ? new Date(summary.firstInAt).toLocaleString() : '—'}</td>
+                <td className="px-3 py-2">{summary.lastOutAt ? new Date(summary.lastOutAt).toLocaleString() : 'Missing'}</td>
                 <td className="px-3 py-2">{(summary.minutesWorked / 60).toFixed(2)}h</td>
                 <td className="px-3 py-2">{summary.lateMinutes}m</td>
                 <td className="px-3 py-2">{summary.overtimeMinutes}m</td>
-                <td className="px-3 py-2">{summary.status}</td>
+                <td className="px-3 py-2">
+                  {(() => {
+                    const key = `${summary.employeeId}:${summary.workDate.slice(0, 10)}`;
+                    const rowExceptions = exceptionByEmployeeDate.get(key) ?? [];
+                    const missingOut = rowExceptions.some((item) => item.type === 'missing_check_out' && item.status === 'open');
+                    const label = missingOut ? 'pending_review' : summary.status === 'approved' ? 'corrected' : 'complete';
+                    const cls =
+                      label === 'complete'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : label === 'pending_review'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-slate-100 text-slate-700';
+                    return <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
+                  })()}
+                </td>
               </tr>
             ))}
             {!loading && summaries.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-neutral-500">No attendance summaries found.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-neutral-500">No attendance summaries found.</td></tr>
             ) : null}
           </tbody>
         </table>
