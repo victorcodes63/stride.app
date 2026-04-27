@@ -6,33 +6,26 @@ import { usePathname } from 'next/navigation';
 import type { UserRole } from '@/types/dashboard';
 import {
   LayoutDashboard,
-  Briefcase,
-  Handshake,
   Users,
-  FileCheck,
-  CalendarCheck,
-  BarChart3,
-  UserCog,
-  BookOpen,
-  Folder,
   FolderOpen,
   ChevronRight,
   Building2,
   Banknote,
   CalendarDays,
-  Clock,
-  ClipboardList,
+  Clock4,
+  CalendarOff,
   TrendingUp,
-  Landmark,
-  FileText,
-  Wallet,
   FileSignature,
-  Store,
-  ScrollText,
-  FileStack,
+  BadgeCheck,
+  ListTodo,
+  Fingerprint,
+  Receipt,
+  Landmark,
+  BarChart3,
+  Shield,
   KeyRound,
-  UsersRound,
-  Newspaper,
+  History,
+  Settings,
 } from 'lucide-react';
 
 const NAV_STORAGE_KEY = 'dashboard-nav-expanded';
@@ -56,82 +49,63 @@ type AccordionSection = {
   items: NavItem[];
 };
 
-const accordionSections: AccordionSection[] = [
-  {
-    id: 'recruitment',
-    label: 'Recruitment',
-    icon: Folder,
-    items: [
-      { href: '/dashboard/clients', label: 'Clients', icon: Handshake },
-      { href: '/dashboard/jobs', label: 'Job openings', icon: Briefcase },
-      { href: '/dashboard/applications', label: 'Applications', icon: FileCheck },
-      { href: '/dashboard/candidates', label: 'Candidates', icon: Users },
-      { href: '/dashboard/interviews', label: 'Interview Management', icon: CalendarCheck },
-    ],
-  },
+const primarySections: AccordionSection[] = [
   {
     id: 'people-hr',
     label: 'People & HR',
     icon: Users,
     items: [
-      { href: '/dashboard/staff-leave', label: 'Staff leave', icon: CalendarDays },
-      { href: '/dashboard/people/tasks', label: 'Assigned tasks', icon: ClipboardList },
+      { href: '/dashboard/employees', label: 'Employees', icon: Users },
+      { href: '/dashboard/departments', label: 'Departments', icon: Building2 },
       { href: '/dashboard/people/contracts', label: 'Contracts', icon: FileSignature },
+      { href: '/dashboard/credentials', label: 'Credentials', icon: BadgeCheck },
       { href: '/dashboard/people/performance', label: 'Performance', icon: TrendingUp },
+      { href: '/dashboard/people/tasks', label: 'Tasks', icon: ListTodo },
     ],
   },
   {
-    id: 'outsourcing',
-    label: 'Outsourcing',
-    icon: Folder,
+    id: 'time-attendance',
+    label: 'Time & Attendance',
+    icon: CalendarDays,
     items: [
-      { href: '/dashboard/outsourcing/clients', label: 'Clients', icon: Building2 },
-      { href: '/dashboard/outsourcing/departments', label: 'Departments', icon: FolderOpen },
-      { href: '/dashboard/outsourcing/employees', label: 'Employees', icon: Users },
-      { href: '/dashboard/outsourcing/leave', label: 'Leave Management', icon: CalendarDays },
-      { href: '/dashboard/outsourcing/attendance', label: 'Attendance', icon: Clock },
+      { href: '/dashboard/rota', label: 'Rota & scheduling', icon: CalendarDays },
+      { href: '/dashboard/attendance', label: 'Attendance', icon: Clock4 },
+      { href: '/dashboard/leave', label: 'Leave', icon: CalendarOff },
+      { href: '/dashboard/biometric-devices', label: 'Biometric devices', icon: Fingerprint },
     ],
   },
 ];
 
-const contentSection: AccordionSection = {
-  id: 'content',
-  label: 'Content',
-  icon: Newspaper,
-  items: [{ href: '/dashboard/insights', label: 'Insights', icon: BookOpen }],
-};
-
-const usersSection: AccordionSection = {
-  id: 'users',
-  label: 'Users',
-  icon: UsersRound,
+const payrollSection: AccordionSection = {
+  id: 'payroll',
+  label: 'Payroll',
+  icon: Banknote,
   items: [
-    { href: '/dashboard/users/staff', label: 'Staff', icon: UserCog },
-    { href: '/dashboard/users/recruitment-clients', label: 'Recruitment client logins', icon: KeyRound },
+    { href: '/dashboard/payroll', label: 'Payroll runs', icon: Banknote },
+    { href: '/dashboard/payroll/payslips', label: 'Payslips', icon: Receipt },
+    { href: '/dashboard/payroll/statutory', label: 'Statutory', icon: Landmark },
   ],
 };
 
-const accountsSection: AccordionSection = {
-  id: 'accounts',
-  label: 'Accounts',
-  icon: Landmark,
+const adminSection: AccordionSection = {
+  id: 'admin',
+  label: 'Admin',
+  icon: Shield,
   items: [
-    { href: '/dashboard/accounts', label: 'Overview', icon: LayoutDashboard },
-    {
-      href: '/dashboard/accounts/clients',
-      label: 'Clients',
-      icon: Building2,
-    },
-    { href: '/dashboard/accounts/invoices', label: 'Invoices', icon: FileText },
-    { href: '/dashboard/accounts/receipts', label: 'Receipts & allocations', icon: Wallet },
-    { href: '/dashboard/accounts/vendors', label: 'Vendors', icon: Store },
-    { href: '/dashboard/accounts/vendor-bills', label: 'Vendor bills', icon: FileStack },
-    { href: '/dashboard/accounts/statements', label: 'Statements', icon: ScrollText },
-    {
-      href: '/dashboard/accounts/payroll',
-      label: 'Payroll',
-      icon: Banknote,
-    },
+    { href: '/dashboard/users/staff', label: 'System users', icon: Shield },
+    { href: '/dashboard/admin/roles-permissions', label: 'Roles & permissions', icon: KeyRound },
+    { href: '/dashboard/admin/audit-log', label: 'Audit log', icon: History },
+    { href: '/dashboard/admin/ess-portal-users', label: 'ESS portal users', icon: UserCog },
+    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  ],
+};
+
+const reportsSection: AccordionSection = {
+  id: 'reports',
+  label: 'Reports',
+  icon: BarChart3,
+  items: [
+    { href: '/dashboard/reports', label: 'All reports', icon: BarChart3 },
   ],
 };
 
@@ -156,14 +130,15 @@ function NavLink({
     <Link
       href={href}
       title={label}
-      className={`flex items-center gap-3 rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
-        indent ? 'ml-2 pl-3 py-2.5' : 'px-3 py-2.5'
+      className={`relative flex h-9 items-center gap-3 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+        indent ? 'ml-2 pl-3 pr-2' : 'px-3'
       } ${
         isActive
-          ? 'bg-primary-50 text-primary-900 font-semibold border border-primary-100'
-          : 'text-neutral-600 hover:bg-neutral-100/90 hover:text-primary-900 border border-transparent'
+          ? 'bg-primary-50 text-primary-700 font-medium border border-primary-100'
+          : 'text-neutral-700 hover:bg-neutral-50 hover:text-ink border border-transparent'
       }`}
     >
+      {isActive ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary-500" /> : null}
       <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-700' : ''}`} />
       <span className="truncate">{label}</span>
     </Link>
@@ -190,10 +165,10 @@ function NavLinkIcon({
       href={href}
       title={label}
       aria-label={label}
-      className={`flex items-center justify-center w-11 h-11 mx-auto rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+      className={`flex items-center justify-center w-9 h-9 mx-auto rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
         isActive
-          ? 'bg-primary-100 text-primary-900 shadow-sm'
-          : 'text-neutral-500 hover:bg-neutral-100 hover:text-primary-800'
+          ? 'bg-primary-50 text-primary-700'
+          : 'text-neutral-500 hover:bg-neutral-50 hover:text-primary-700'
       }`}
     >
       <Icon className="w-5 h-5" />
@@ -246,18 +221,13 @@ export default function DashboardNav({
 }: DashboardNavProps) {
   const pathname = usePathname();
   const sections = useMemo<AccordionSection[]>(() => {
-    const chunks: AccordionSection[] = [...accordionSections, contentSection];
-    if (currentUserRole === 'admin') {
-      chunks.push(usersSection);
-    }
-    if (hasAccountsAccess) {
-      chunks.push(accountsSection);
-    }
+    const chunks: AccordionSection[] = [...primarySections, payrollSection, reportsSection];
+    if (currentUserRole === 'admin' || hasAccountsAccess || canViewSystemAnalytics) chunks.push(adminSection);
     return chunks;
-  }, [hasAccountsAccess, currentUserRole]);
+  }, [canViewSystemAnalytics, currentUserRole, hasAccountsAccess]);
 
   const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set([...accordionSections.map((s) => s.id), contentSection.id])
+    () => new Set([...primarySections.map((s) => s.id), payrollSection.id, reportsSection.id, adminSection.id])
   );
 
   useEffect(() => {
@@ -286,12 +256,9 @@ export default function DashboardNav({
     const flatItems: NavItem[] = [
       { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
       ...sections.flatMap((s) => s.items),
-      ...(canViewSystemAnalytics
-        ? [{ href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 } as NavItem]
-        : []),
     ];
     return (
-      <nav className="flex-1 py-2 px-1 overflow-y-auto overflow-x-hidden flex flex-col items-center gap-0.5">
+      <nav className="flex-1 py-2 px-1 overflow-y-auto overflow-x-hidden flex flex-col items-center gap-1">
         {flatItems.map((item) => (
           <NavLinkIcon key={item.href} {...item} pathname={pathname} />
         ))}
@@ -300,8 +267,8 @@ export default function DashboardNav({
   }
 
   return (
-    <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-      <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Menu</p>
+    <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+      <p className="px-3 pt-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-neutral-500">Menu</p>
       <NavLink href="/dashboard" label="Overview" icon={LayoutDashboard} pathname={pathname} />
 
       {sections.map((section) => {
@@ -312,7 +279,7 @@ export default function DashboardNav({
             <button
               type="button"
               onClick={() => toggleSection(section.id)}
-              className="flex w-full items-center gap-2 px-3 py-2 rounded-xl text-left transition-colors text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/80"
+              className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-left transition-colors text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
               aria-expanded={isExpanded}
               aria-controls={`nav-section-${section.id}`}
               id={`nav-trigger-${section.id}`}
@@ -323,7 +290,7 @@ export default function DashboardNav({
                 }`}
               />
               <FolderIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1 text-[11px] font-bold uppercase tracking-widest">{section.label}</span>
+              <span className="flex-1 text-[11px] font-semibold tracking-[0.02em]">{section.label}</span>
             </button>
             <div
               id={`nav-section-${section.id}`}
@@ -334,7 +301,7 @@ export default function DashboardNav({
               }`}
             >
               {/* Right padding so active state (border) is not clipped by overflow-hidden */}
-              <div className="mt-1 space-y-0.5 border-l-2 border-neutral-100 ml-4 pl-2 pr-2.5 pb-0.5">
+              <div className="mt-1 space-y-1 border-l border-neutral-200 ml-4 pl-2 pr-2 pb-1">
                 {section.items.map((item) => (
                   <NavLink key={item.href} {...item} pathname={pathname} indent />
                 ))}
@@ -344,11 +311,6 @@ export default function DashboardNav({
         );
       })}
 
-      {canViewSystemAnalytics ? (
-        <div className="pt-2 border-t border-neutral-100 mt-2">
-          <NavLink href="/dashboard/analytics" label="Analytics" icon={BarChart3} pathname={pathname} />
-        </div>
-      ) : null}
     </nav>
   );
 }

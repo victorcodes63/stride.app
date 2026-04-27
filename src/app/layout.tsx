@@ -1,28 +1,20 @@
 import type { Metadata } from "next";
-import { Figtree } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
 
-const figtree = Figtree({
-  variable: "--font-figtree",
-  subsets: ["latin"],
-  weight: ['300', '400', '500', '600'],
-  display: 'swap',
-});
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()?.replace(/\/$/, '') || 'https://www.eaglehr.co.ke';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()?.replace(/\/$/, '') || 'https://3rdparkhospital.com';
 
 export const metadata: Metadata = {
   title: {
-    default: "Eagle HR Consultants - Leading HR Excellence in Kenya",
-    template: "%s | Eagle HR Consultants",
+    default: "3rd Park Hospital HR",
+    template: "%s | 3rd Park Hospital HR",
   },
-  description: "Transform your organization with Kenya's premier HR consulting firm. Expert recruitment, training, HR outsourcing, and advisory services that drive success.",
-  keywords: "HR consulting, recruitment, training, HR outsourcing, Kenya, Nairobi, human resources, executive search, payroll management",
-  authors: [{ name: "Eagle HR Consultants" }],
-  creator: "Eagle HR Consultants",
-  publisher: "Eagle HR Consultants",
+  description: "3rd Park Hospital — internal HR & payroll. Improving the quality of your life through better health.",
+  keywords: "3rd Park Hospital, HRIS, Nairobi, healthcare, HR, payroll, Kenya",
+  authors: [{ name: "3rd Park Hospital" }],
+  creator: "3rd Park Hospital",
+  publisher: "3rd Park Hospital",
   formatDetection: {
     email: false,
     address: false,
@@ -33,16 +25,16 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: "Eagle HR Consultants - Leading HR Excellence in Kenya",
-    description: "Transform your organization with Kenya's premier HR consulting firm. Expert recruitment, training, HR outsourcing, and advisory services that drive success.",
+    title: "3rd Park Hospital HR",
+    description: "3rd Park Hospital — internal HR & payroll.",
     url: '/',
-    siteName: 'Eagle HR Consultants',
+    siteName: '3rd Park Hospital HR',
     images: [
       {
         url: '/og-image.svg',
         width: 1200,
         height: 630,
-        alt: 'Eagle HR Consultants - Professional HR Services in Kenya',
+        alt: '3rd Park Hospital',
       },
     ],
     locale: 'en_KE',
@@ -50,11 +42,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Eagle HR Consultants - Leading HR Excellence in Kenya",
-    description: "Transform your organization with Kenya's premier HR consulting firm. Expert recruitment, training, HR outsourcing, and advisory services that drive success.",
+    title: "3rd Park Hospital HR",
+    description: "3rd Park Hospital — internal HR & payroll.",
     images: ['/og-image.svg'],
-    creator: '@eaglehr',
-    site: '@eaglehr',
   },
   robots: {
     index: true,
@@ -76,7 +66,7 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/images/logo/logo_dark_ubxaCll.png', sizes: 'any' }
+      { url: '/brand/3rd-park-logo.webp', sizes: 'any', type: 'image/webp' },
     ],
     shortcut: '/favicon.ico',
     apple: '/apple-touch-icon.png',
@@ -86,7 +76,7 @@ export const metadata: Metadata = {
     'og:image:width': '1200',
     'og:image:height': '630',
     'og:image:type': 'image/webp',
-    'twitter:image:alt': 'Eagle HR Consultants - Professional HR Services in Kenya',
+    'twitter:image:alt': '3rd Park Hospital',
   },
 };
 
@@ -96,24 +86,24 @@ const jsonLd = (siteUrl: string) => ({
     {
       '@type': 'Organization',
       '@id': `${siteUrl}/#organization`,
-      name: 'Eagle HR Consultants',
-      url: siteUrl,
-      logo: { '@type': 'ImageObject', url: `${siteUrl}/images/logo/logo_dark_ubxaCll.png` },
+      name: '3rd Park Hospital',
+      url: 'https://3rdparkhospital.com',
+      logo: { '@type': 'ImageObject', url: `${siteUrl}/brand/3rd-park-logo.webp` },
       contactPoint: {
         '@type': 'ContactPoint',
-        telephone: '+254-700-178-680',
+        telephone: '+254-730-819-900',
         contactType: 'customer service',
-        email: 'info@eaglehr.co.ke',
+        email: 'info@3rdparkhospital.com',
         areaServed: 'KE',
       },
-      sameAs: [],
+      sameAs: ['https://3rdparkhospital.com'],
     },
     {
       '@type': 'WebSite',
       '@id': `${siteUrl}/#website`,
       url: siteUrl,
-      name: 'Eagle HR Consultants',
-      description: "Transform your organization with Kenya's premier HR consulting firm. Expert recruitment, training, HR outsourcing, and advisory services.",
+      name: '3rd Park Hospital HR',
+      description: '3rd Park Hospital — internal HR & payroll system.',
       publisher: { '@id': `${siteUrl}/#organization` },
       inLanguage: 'en-KE',
       potentialAction: {
@@ -131,7 +121,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable}>
+    <html lang="en">
       <body className="font-sans antialiased">
         {/* Google tag (gtag.js) */}
         <Script

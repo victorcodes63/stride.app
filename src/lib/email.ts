@@ -11,23 +11,23 @@ import { createInterviewToken } from '@/lib/interview-token';
 import { generatePayslipPdf } from '@/lib/payslip-pdf';
 import { APP_TIMEZONE } from '@/lib/timezone';
 
-const FROM_NAME = (process.env.SMTP_FROM_NAME && process.env.SMTP_FROM_NAME.trim()) || 'Eagle HR Recruitment';
+const FROM_NAME = (process.env.SMTP_FROM_NAME && process.env.SMTP_FROM_NAME.trim()) || '3rd Park Hospital HR';
 const FROM_EMAIL = process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL || '';
 
 /** Base URL for logo in email (must be absolute). Set NEXT_PUBLIC_SITE_URL in production. */
 const BASE_URL =
   (typeof process.env.NEXT_PUBLIC_SITE_URL === 'string' && process.env.NEXT_PUBLIC_SITE_URL.trim()) ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  'https://www.eaglehr.co.ke';
+  'https://app.example.com';
 /** For confirm/reschedule links: use localhost in dev (so links work when testing locally). */
 const INVITE_LINK_BASE =
   (typeof process.env.INVITE_LINK_BASE === 'string' && process.env.INVITE_LINK_BASE.trim()) ||
   (process.env.NODE_ENV === 'development' && !process.env.VERCEL_URL
     ? 'http://localhost:3000'
     : BASE_URL.replace(/\/$/, ''));
-const LOGO_URL = `${BASE_URL.replace(/\/$/, '')}/images/logo/logo_dark_ubxaCll.png`;
-const LOGO_CID = 'eaglehr-logo';
-const LOGO_FILE_PATH = resolve(process.cwd(), 'public/images/logo/logo_dark_ubxaCll.png');
+const LOGO_URL = `${BASE_URL.replace(/\/$/, '')}/brand/3rd-park-logo.webp`;
+const LOGO_CID = '3rd-park-hris-logo';
+const LOGO_FILE_PATH = resolve(process.cwd(), 'public/brand/3rd-park-logo.webp');
 
 export type EmailSendResult =
   | { sent: true; messageId?: string }
@@ -65,7 +65,7 @@ function getSmtpLogoAsset(): {
       src: `cid:${LOGO_CID}`,
       attachments: [
         {
-          filename: 'eaglehr-logo.png',
+          filename: '3rd-park-logo.webp',
           path: LOGO_FILE_PATH,
           cid: LOGO_CID,
         },
@@ -86,8 +86,8 @@ function getGraphLogoAsset(): {
       attachments: [
         {
           '@odata.type': '#microsoft.graph.fileAttachment',
-          name: 'eaglehr-logo.png',
-          contentType: 'image/png',
+          name: '3rd-park-logo.webp',
+          contentType: 'image/webp',
           contentId: LOGO_CID,
           isInline: true,
           contentBytes,
@@ -114,7 +114,7 @@ function getTransporter(): nodemailer.Transporter | null {
   });
 }
 
-/** Accounts mailbox transporter (accounts@eaglehr.co.ke) for payslips, invoices, etc. */
+/** Accounts mailbox transporter (set ACCOUNTS_SMTP_USER) for payslips, invoices, etc. */
 function getAccountsTransporter(): nodemailer.Transporter | null {
   const user = process.env.ACCOUNTS_SMTP_USER;
   const pass = process.env.ACCOUNTS_SMTP_PASS;
@@ -302,7 +302,7 @@ export async function sendApplicationReceivedEmail(params: {
   applicationId?: string;
 }): Promise<EmailSendResult> {
   const { to, applicantFirstName, jobTitle } = params;
-  const subject = `Application received – ${jobTitle} at Eagle HR Consultants`;
+  const subject = `[3rd Park HR] Application received - ${jobTitle} at 3rd Park Hospital`;
   const applicant = applicantFirstName || 'Applicant';
   const smtpLogoAsset = getSmtpLogoAsset();
   const graphLogoAsset = getGraphLogoAsset();
@@ -312,24 +312,24 @@ export async function sendApplicationReceivedEmail(params: {
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px;">
         <tr>
           <td style="padding: 24px 0 32px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-            <img src="${graphLogoAsset.src}" alt="Eagle HR Consultants" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
+            <img src="${graphLogoAsset.src}" alt="3rd Park Hospital" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
           </td>
         </tr>
         <tr>
           <td style="padding: 32px 0 24px;">
             <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">Dear ${applicant},</p>
-            <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">We acknowledge receipt of your application for the position of <strong>${jobTitle}</strong> at Eagle HR Consultants.</p>
+            <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">We acknowledge receipt of your application for the position of <strong>${jobTitle}</strong> at 3rd Park Hospital.</p>
             <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">Thank you for showing interest in joining our team.</p>
             <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6;">Should your profile match our requirements, a member of our recruitment team will get in touch with you.</p>
             <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6;">We appreciate the effort you have put into your application and look forward to working together.</p>
             <p style="margin: 0 0 8px; font-size: 16px; line-height: 1.6;">Sincerely,</p>
             <p style="margin: 0 0 4px; font-size: 16px; line-height: 1.6;"><strong>Recruitment Team</strong></p>
-            <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #0B1D39;"><strong>Eagle HR Consultants</strong></p>
+            <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #0B1D39;"><strong>3rd Park Hospital HR</strong></p>
           </td>
         </tr>
         <tr>
           <td style="padding: 24px 0; border-top: 1px solid #e5e7eb;">
-            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6b7280;">Eagle HR Consultants recruits and hires people from a range of backgrounds, including people with disabilities. If you need special arrangements or accommodations during the recruitment process, kindly reach out as soon as possible to help us better understand what accommodations would be helpful.</p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6b7280;">3rd Park Hospital HR, 3rd Parklands Avenue, Park Medical Centre (PMC), 9th Floor, Parklands, Nairobi, Kenya. +254 730 819 900 | +254 707 333 111 | info@3rdparkhospital.com</p>
           </td>
         </tr>
       </table>
@@ -404,7 +404,7 @@ export async function sendApplicationRejectedEmail(params: {
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 600px; background-color: #ffffff;">
         <tr>
           <td style="padding: 32px 24px; text-align: center; background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
-            <img src="${graphLogoAsset.src}" alt="Eagle HR Consultants" width="160" style="display: inline-block; max-width: 160px; height: auto;" />
+            <img src="${graphLogoAsset.src}" alt="3rd Park Hospital" width="160" style="display: inline-block; max-width: 160px; height: auto;" />
           </td>
         </tr>
         <tr>
@@ -415,12 +415,12 @@ export async function sendApplicationRejectedEmail(params: {
             <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.65; color: #374151;">We encourage you to apply for future vacancies that match your skills and experience. We keep all applications on file and will consider you for suitable opportunities as they arise.</p>
             <p style="margin: 0 0 8px; font-size: 16px; line-height: 1.5; color: #1f2937;">Sincerely,</p>
             <p style="margin: 0 0 2px; font-size: 16px; font-weight: 600; color: #0B1D39;">Recruitment Team</p>
-            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0B1D39;">Eagle HR Consultants</p>
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0B1D39;">3rd Park Hospital HR</p>
           </td>
         </tr>
         <tr>
           <td style="padding: 24px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #64748b;">Eagle HR Consultants recruits and hires people from a range of backgrounds. If you need special arrangements or accommodations during the recruitment process, kindly reach out as soon as possible.</p>
+            <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #64748b;">3rd Park Hospital HR, 3rd Parklands Avenue, Park Medical Centre (PMC), 9th Floor, Parklands, Nairobi, Kenya. +254 730 819 900 | +254 707 333 111 | info@3rdparkhospital.com</p>
           </td>
         </tr>
       </table>
@@ -532,7 +532,7 @@ export async function sendInterviewInviteEmail(params: {
         <!-- Header -->
         <tr>
           <td style="padding: 32px 24px; text-align: center; background-color: #ffffff; border-bottom: 1px solid #e2e8f0;">
-            <img src="${graphLogoAsset.src}" alt="Eagle HR Consultants" width="160" style="display: inline-block; max-width: 160px; height: auto;" />
+            <img src="${graphLogoAsset.src}" alt="3rd Park Hospital" width="160" style="display: inline-block; max-width: 160px; height: auto;" />
           </td>
         </tr>
         <!-- Content -->
@@ -596,21 +596,21 @@ export async function sendInterviewInviteEmail(params: {
             <!-- Signature -->
             <p style="margin: 0 0 4px; font-size: 16px; line-height: 1.5; color: #1f2937;">Sincerely,</p>
             <p style="margin: 0 0 2px; font-size: 16px; font-weight: 600; color: #0B1D39;">Recruitment Team</p>
-            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0B1D39;">Eagle HR Consultants</p>
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0B1D39;">3rd Park Hospital HR</p>
           </td>
         </tr>
         <!-- Footer -->
         <tr>
           <td style="padding: 24px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #64748b;">Eagle HR Consultants recruits and hires people from a range of backgrounds. If you need special arrangements or accommodations during the recruitment process, kindly reach out as soon as possible.</p>
+            <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #64748b;">3rd Park Hospital HR, 3rd Parklands Avenue, Park Medical Centre (PMC), 9th Floor, Parklands, Nairobi, Kenya. +254 730 819 900 | +254 707 333 111 | info@3rdparkhospital.com</p>
           </td>
         </tr>
       </table>
     </div>
   `;
 
-  let graphAttachments: Array<Record<string, unknown>> = [...(graphLogoAsset.attachments || [])];
-  let smtpAttachments: Array<{ filename: string; path?: string; content?: Buffer }> = [
+  const graphAttachments: Array<Record<string, unknown>> = [...(graphLogoAsset.attachments || [])];
+  const smtpAttachments: Array<{ filename: string; path?: string; content?: Buffer }> = [
     ...(smtpLogoAsset.attachments || []),
   ];
   if (officialLetterPath?.trim()) {
@@ -687,7 +687,7 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Send contact form submission to info@eaglehr.co.ke.
+ * Send contact form submission to CONTACT_FORM_TO (default: info@example.com).
  */
 export async function sendContactFormEmail(params: {
   name: string;
@@ -699,7 +699,7 @@ export async function sendContactFormEmail(params: {
 }): Promise<EmailSendResult> {
   const { name, email, phone, company, subject, message } = params;
   const subjectLabel = SUBJECT_LABELS[subject] || subject;
-  const to = 'info@eaglehr.co.ke';
+  const to = process.env.CONTACT_FORM_TO?.trim() || 'info@3rdparkhospital.com';
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #374151;">
@@ -715,11 +715,11 @@ export async function sendContactFormEmail(params: {
         <p style="margin: 0 0 8px; font-weight: 600;">Message</p>
         <p style="margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${escapeHtml(message)}</p>
       </div>
-      <p style="margin: 16px 0 0; font-size: 12px; color: #9ca3af;">Sent via Eagle HR website contact form</p>
+      <p style="margin: 16px 0 0; font-size: 12px; color: #9ca3af;">Sent via 3rd Park Hospital HR contact form</p>
     </div>
   `;
 
-  const emailSubject = `[Contact Form] ${subjectLabel} – ${name}`;
+  const emailSubject = `[3rd Park HR] Contact Form - ${subjectLabel} - ${name}`;
 
   const graphResult = await sendViaMicrosoftGraph({
     to,
@@ -781,7 +781,7 @@ export interface PayslipEmailData {
   biweeklyAttendance?: { period1: string[]; period2: string[] };
 }
 
-const ACCOUNTS_FROM_NAME = (process.env.ACCOUNTS_SMTP_FROM_NAME?.trim()) || 'Eagle HR Accounts';
+const ACCOUNTS_FROM_NAME = (process.env.ACCOUNTS_SMTP_FROM_NAME?.trim()) || '3rd Park Hospital HR (Accounts)';
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -826,7 +826,7 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
         <tr>
           <td style="padding:24px 0 20px;text-align:center;border-bottom:2px solid #0B1D39;">
-            <img src="${LOGO_URL}" alt="Eagle HR" width="160" style="display:inline-block;max-width:160px;height:auto;" />
+            <img src="${LOGO_URL}" alt="3rd Park Hospital" width="160" style="display:inline-block;max-width:160px;height:auto;" />
           </td>
         </tr>
         <tr>
@@ -877,7 +877,7 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
         </tr>
         <tr>
           <td style="padding:16px 0;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">
-            Computer-generated payslip. For queries, contact Eagle HR Consultants.
+            Computer-generated payslip. For queries, contact 3rd Park Hospital HR.
           </td>
         </tr>
       </table>
@@ -886,7 +886,7 @@ function buildPayslipHtml(data: PayslipEmailData, month: number, year: number): 
 }
 
 /**
- * Send payslip email from accounts@eaglehr.co.ke.
+ * Send payslip email from ACCOUNTS_SMTP_USER.
  * Uses ACCOUNTS_SMTP_USER and ACCOUNTS_SMTP_PASS; falls back to SMTP_HOST/SMTP_PORT if ACCOUNTS_* not set.
  * Attaches a PDF version of the payslip while keeping the HTML body.
  */
@@ -927,7 +927,7 @@ export async function sendPayslipEmail(params: {
   const config = getAccountsSmtpConfig();
   console.log('[sendPayslipEmail] Accounts SMTP config:', JSON.stringify(config, null, 0));
 
-  const subject = `Payslip – ${MONTH_NAMES[(params.month || 1) - 1]} ${params.year} | Eagle HR`;
+  const subject = `[3rd Park HR] Payslip - ${MONTH_NAMES[(params.month || 1) - 1]} ${params.year}`;
   const html = buildPayslipHtml(params.data, params.month, params.year);
   const monthName = MONTH_NAMES[(params.month || 1) - 1];
   const pdfFilename = `Payslip_${params.data.employeeName.replace(/\s+/g, '_')}_${monthName}_${params.year}.pdf`;

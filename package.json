@@ -1,5 +1,5 @@
 {
-  "name": "eagle-hr-website",
+  "name": "3rd-park-hospital-hr",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -31,8 +31,11 @@
     "db:sync-accounts-clients": "node prisma/run-sync-accounts-clients.js",
     "db:seed-sample-invoice": "node prisma/seed-sample-invoice.js",
     "db:update-resume-paths": "node prisma/update-resume-paths.js",
+    "env:check": "node scripts/env-check.mjs",
     "smoke:test": "node scripts/smoke-test.mjs",
-    "test:accounts-smtp": "node scripts/test-accounts-smtp.mjs"
+    "test:accounts-smtp": "node scripts/test-accounts-smtp.mjs",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -70,6 +73,7 @@
     "eslint-config-next": "15.5.9",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

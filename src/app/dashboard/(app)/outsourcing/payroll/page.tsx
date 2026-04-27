@@ -27,11 +27,6 @@ interface PayrollRecord {
   period2Gross?: string | null;
 }
 
-interface ClientOption {
-  id: string;
-  name: string;
-}
-
 interface DepartmentOption {
   id: string;
   name: string;
@@ -75,10 +70,9 @@ export default function OutsourcingPayrollPage() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
-  const [scope, setScope] = useState<'all' | 'client' | 'department'>('all');
+  const [scope, setScope] = useState<'all' | 'department'>('all');
   const [clientId, setClientId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
-  const [clients, setClients] = useState<ClientOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +97,7 @@ export default function OutsourcingPayrollPage() {
       const params = new URLSearchParams();
       params.set('month', String(month));
       params.set('year', String(year));
-      if (scope === 'client' && clientId.trim()) params.set('clientId', clientId.trim());
+      if (clientId.trim()) params.set('clientId', clientId.trim());
       if (scope === 'department' && departmentId.trim()) params.set('departmentId', departmentId.trim());
       const res = await fetch(`/api/outsourcing/payroll?${params}`);
       const data = await res.json();
@@ -114,18 +108,6 @@ export default function OutsourcingPayrollPage() {
       setPayrolls([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchClients = async () => {
-    try {
-      const res = await fetch('/api/outsourcing/clients');
-      const data = await res.json().catch(() => []);
-      if (res.ok && Array.isArray(data)) {
-        setClients(data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
-      }
-    } catch {
-      setClients([]);
     }
   };
 
@@ -144,7 +126,16 @@ export default function OutsourcingPayrollPage() {
   };
 
   useEffect(() => {
-    fetchClients();
+    fetch('/api/outsourcing/clients')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data[0]?.id) {
+          const id = String(data[0].id);
+          setClientId(id);
+          void fetchDepartments(id);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -152,13 +143,13 @@ export default function OutsourcingPayrollPage() {
   }, [month, year, scope, clientId, departmentId]);
 
   useEffect(() => {
-    if (scope === 'department' && clientId.trim()) {
+    if (clientId.trim()) {
       fetchDepartments(clientId.trim());
     } else {
       setDepartments([]);
       setDepartmentId('');
     }
-  }, [scope, clientId]);
+  }, [clientId]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -166,7 +157,7 @@ export default function OutsourcingPayrollPage() {
     setError(null);
     try {
       const body: Record<string, unknown> = { month, year };
-      if (scope === 'client' && clientId.trim()) body.clientId = clientId.trim();
+      if (clientId.trim()) body.clientId = clientId.trim();
       if (scope === 'department' && departmentId.trim()) body.departmentId = departmentId.trim();
       const res = await fetch('/api/outsourcing/payroll/generate', {
         method: 'POST',
@@ -188,13 +179,12 @@ export default function OutsourcingPayrollPage() {
     const params = new URLSearchParams();
     params.set('month', String(month));
     params.set('year', String(year));
-    if (scope === 'client' && clientId.trim()) params.set('clientId', clientId.trim());
+    if (clientId.trim()) params.set('clientId', clientId.trim());
     if (scope === 'department' && departmentId.trim()) params.set('departmentId', departmentId.trim());
-    return `/dashboard/outsourcing/payroll/payslips?${params}`;
+    return `/dashboard/payroll/payslips?${params}`;
   };
 
-  const canGenerate = scope === 'all' || (scope === 'client' && clientId.trim()) || (scope === 'department' && departmentId.trim());
-  const canUsePayrollInputImport = !!clientId.trim();
+  const canGenerate = scope === 'all' || (scope === 'department' && departmentId.trim());
 
   const runPayrollImportPreview = async (file: File) => {
     setImportingPayrollInput(true);
@@ -228,16 +218,12 @@ export default function OutsourcingPayrollPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!canUsePayrollInputImport) {
-      setError('Select a client first (Scope: client or department) before importing payroll input.');
-      return;
-    }
     setSelectedPayrollInputFile(file);
     await runPayrollImportPreview(file);
   };
 
   const handleCreateMissingEmployees = async () => {
-    if (!importPreview || !clientId.trim()) return;
+    if (!importPreview) return;
     const missingRows = importPreview.unmatchedRows.map((r) => ({
       nationalId: r.nationalId,
       employeeName: r.employeeName,
@@ -250,7 +236,7 @@ export default function OutsourcingPayrollPage() {
       const res = await fetch('/api/outsourcing/payroll/import/create-missing-employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: clientId.trim(), missingRows }),
+        body: JSON.stringify({ clientId: clientId.trim() || null, missingRows }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to create missing employees.');
@@ -265,13 +251,13 @@ export default function OutsourcingPayrollPage() {
   };
 
   const handleCommitPayrollImport = async () => {
-    if (!selectedPayrollInputFile || !clientId.trim()) return;
+    if (!selectedPayrollInputFile) return;
     setCommittingPayrollInput(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.append('file', selectedPayrollInputFile);
-      formData.append('clientId', clientId.trim());
+      if (clientId.trim()) formData.append('clientId', clientId.trim());
       formData.append('month', String(month));
       formData.append('year', String(year));
       const res = await fetch('/api/outsourcing/payroll/import/commit', {
@@ -324,7 +310,7 @@ export default function OutsourcingPayrollPage() {
     setError(null);
     try {
       const body: Record<string, unknown> = { month, year };
-      if (scope === 'client' && clientId.trim()) body.clientId = clientId.trim();
+      if (clientId.trim()) body.clientId = clientId.trim();
       if (scope === 'department' && departmentId.trim()) body.departmentId = departmentId.trim();
       const res = await fetch('/api/outsourcing/payroll/recalculate-statutory', {
         method: 'POST',
@@ -347,8 +333,8 @@ export default function OutsourcingPayrollPage() {
       <nav className="mb-4 sm:mb-5" aria-label="Breadcrumb">
         <ol className="flex items-center gap-1.5 text-sm text-neutral-500">
           <li>
-            <Link href="/dashboard/outsourcing/clients" className="hover:text-primary-700 transition-colors">
-              Outsourcing
+            <Link href="/dashboard" className="hover:text-primary-700 transition-colors">
+              Dashboard
             </Link>
           </li>
           <li aria-hidden="true">/</li>
@@ -364,7 +350,7 @@ export default function OutsourcingPayrollPage() {
             Payroll
           </h1>
           <p className="text-neutral-600 text-sm sm:text-base">
-            Generate payroll and payslips by month. Scope by all employees, client, or department.
+            Generate payroll and payslips by month for hospital staff.
           </p>
         </div>
       </div>
@@ -417,59 +403,27 @@ export default function OutsourcingPayrollPage() {
             <label className="block text-xs font-medium text-neutral-600 mb-1">Scope</label>
             <select
               value={scope}
-              onChange={(e) => setScope(e.target.value as 'all' | 'client' | 'department')}
+              onChange={(e) => setScope(e.target.value as 'all' | 'department')}
               className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All employees</option>
-              <option value="client">By client</option>
               <option value="department">By department</option>
             </select>
           </div>
-          {scope === 'client' && (
+          {scope === 'department' && (
             <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1">Client</label>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">Department</label>
               <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 min-w-[200px]"
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 min-w-[180px]"
               >
-                <option value="">Select client</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="">Select department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
             </div>
-          )}
-          {scope === 'department' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Client</label>
-                <select
-                  value={clientId}
-                  onChange={(e) => { setClientId(e.target.value); setDepartmentId(''); }}
-                  className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 min-w-[200px]"
-                >
-                  <option value="">Select client</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Department</label>
-                <select
-                  value={departmentId}
-                  onChange={(e) => setDepartmentId(e.target.value)}
-                  disabled={!clientId.trim()}
-                  className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 min-w-[180px] disabled:opacity-50"
-                >
-                  <option value="">Select department</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-            </>
           )}
           <div className="flex gap-2">
             <button
@@ -512,12 +466,8 @@ export default function OutsourcingPayrollPage() {
             <button
               type="button"
               onClick={() => {
-                if (!canUsePayrollInputImport) {
-                  setError('Select a client first (Scope: client or department) to download/import payroll input.');
-                  return;
-                }
                 window.open(
-                  `/api/outsourcing/employees/template?mode=payroll-input&clientId=${encodeURIComponent(clientId.trim())}`,
+                  `/api/outsourcing/employees/template?mode=payroll-input`,
                   '_blank',
                 );
               }}
@@ -535,7 +485,7 @@ export default function OutsourcingPayrollPage() {
             />
             <button
               type="button"
-              disabled={!canUsePayrollInputImport || importingPayrollInput}
+              disabled={importingPayrollInput}
               onClick={() => {
                 const el = document.getElementById('payroll-input-import-file') as HTMLInputElement | null;
                 el?.click();
@@ -602,7 +552,7 @@ export default function OutsourcingPayrollPage() {
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50/80">
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Employee</th>
-                  <th className="text-left px-4 py-3 font-medium text-neutral-600">Client</th>
+                  <th className="text-left px-4 py-3 font-medium text-neutral-600">Facility</th>
                   <th className="text-left px-4 py-3 font-medium text-neutral-600">Dept</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Basic</th>
                   <th className="text-right px-4 py-3 font-medium text-neutral-600">Gross</th>
@@ -660,7 +610,7 @@ export default function OutsourcingPayrollPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/dashboard/outsourcing/payroll/payslips?month=${month}&year=${year}&employeeIds=${encodeURIComponent(p.employeeId)}`}
+                        href={`/dashboard/payroll/payslips?month=${month}&year=${year}&employeeIds=${encodeURIComponent(p.employeeId)}`}
                         title={`View payslip for ${p.employeeName}`}
                         className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-primary-50 hover:text-primary-700 transition-colors mr-1"
                       >
@@ -707,7 +657,7 @@ export default function OutsourcingPayrollPage() {
               Add missing employees?
             </h3>
             <p className="text-sm text-neutral-600 mt-1">
-              {importPreview.totals.unmatched} row(s) have National IDs not found in this client. Create these employees now, then continue payroll import?
+              {importPreview.totals.unmatched} row(s) have National IDs not found in this hospital workspace. Create these employees now, then continue payroll import?
             </p>
             <ul className="mt-3 text-sm text-neutral-700 list-disc list-inside space-y-1 max-h-48 overflow-auto">
               {importPreview.unmatchedRows.slice(0, 20).map((r, idx) => (

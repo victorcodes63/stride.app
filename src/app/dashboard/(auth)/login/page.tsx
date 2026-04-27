@@ -1,10 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 
 const STAFF_LOGIN_PATH = '/api/auth/login';
@@ -52,6 +51,9 @@ function StaffLoginContent({ initialError }: { initialError: string }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    document.title = 'Login - 3rd Park Hospital HR';
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,35 +89,14 @@ function StaffLoginContent({ initialError }: { initialError: string }) {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <Image
-        src="/brand/3rd-park-reception.webp"
-        alt="3rd Park reception"
-        fill
-        priority
-        className="object-cover"
-        sizes="100vw"
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a6b80]/70 via-[#0a6b80]/60 to-[#085f72]/70" />
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[#00a2c9]/30 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-[#00a2c9]/25 blur-3xl" />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 pb-24 pt-8 sm:px-6"
-      >
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/45 bg-white/78 p-6 shadow-2xl backdrop-blur-2xl sm:p-8">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/55 via-white/20 to-white/10" />
-          <div className="relative">
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-8 sm:px-6">
+        <div className="w-full max-w-md rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-8 flex items-center justify-center">
             <Link href="/careers" className="inline-block">
               <Image
                 src="/brand/3rd-park-logo.webp"
-                alt="3rd Park HRIS"
+                alt="3rd Park Hospital"
                 width={180}
                 height={56}
                 className="h-11 w-auto object-contain"
@@ -124,12 +105,13 @@ function StaffLoginContent({ initialError }: { initialError: string }) {
             </Link>
           </div>
 
-            <h1 className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-[2.15rem]">
-              Staff Sign In
-            </h1>
-            <p className="mb-7 mt-2 text-center text-sm text-slate-500">
-              Use your hospital account to continue.
-            </p>
+          <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900">
+            3rd Park Hospital HR
+          </h1>
+          <p className="mb-1 mt-2 text-center text-sm text-slate-500">
+            Improving the quality of your life through better health
+          </p>
+          <p className="mb-7 text-center text-sm text-slate-500">Staff sign in</p>
 
           {(hasMicrosoftOAuth || hasGoogleOAuth) && (
             <>
@@ -246,28 +228,15 @@ function StaffLoginContent({ initialError }: { initialError: string }) {
                 )}
               </button>
           </form>
-          </div>
         </div>
-      </motion.div>
-
-      <footer className="absolute inset-x-0 bottom-0 z-20 border-t border-white/20 bg-primary-900/35 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 py-3 text-xs text-white/90 sm:flex-row sm:px-6">
-          <p>© {new Date().getFullYear()} 3rd Park Hospital</p>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="transition hover:text-[#00a2c9]">
-              Public Home
-            </Link>
-            <Link href="/careers" className="transition hover:text-[#00a2c9]">
-              Careers
-            </Link>
-            <a
-              href="https://3rdparkhospital.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="transition hover:text-[#00a2c9]"
-            >
-              Main Website
-            </a>
+      </div>
+      <footer className="border-t border-neutral-200 bg-white">
+        <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 py-3 text-xs text-neutral-600 sm:flex-row sm:px-6">
+          <p>© {new Date().getFullYear()} 3rd Park Hospital HR</p>
+          <div className="text-right">
+            3rd Parklands Avenue, Park Medical Centre (PMC), 9th Floor, Parklands, Nairobi, Kenya
+            <br />
+            +254 730 819 900 · +254 707 333 111 · info@3rdparkhospital.com
           </div>
         </div>
       </footer>

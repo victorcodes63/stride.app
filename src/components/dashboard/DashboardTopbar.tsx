@@ -9,14 +9,12 @@ import {
   X,
   ChevronDown,
   Plus,
-  Briefcase,
   CalendarCheck,
-  Handshake,
+  FileSignature,
   UserCog,
   LogOut,
   User,
   HelpCircle,
-  KeyRound,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 import type { UserSummary } from '@/types/dashboard';
@@ -44,14 +42,13 @@ function formatNotifTime(iso: string): string {
 }
 
 const QUICK_ACTIONS_BASE = [
-  { label: 'Add job', href: '/dashboard/jobs/new', icon: Briefcase },
-  { label: 'Schedule interview', href: '/dashboard/interviews', icon: CalendarCheck },
-  { label: 'Add client', href: '/dashboard/clients/new', icon: Handshake },
+  { label: 'Add employee', href: '/dashboard/employees/new', icon: UserCog },
+  { label: 'Schedule rota shift', href: '/dashboard/rota', icon: CalendarCheck },
+  { label: 'Create contract', href: '/dashboard/people/contracts', icon: FileSignature },
 ];
 
 const QUICK_ACTIONS_ADMIN = [
   { label: 'Add staff member', href: '/dashboard/users/staff', icon: UserCog },
-  { label: 'Recruitment client logins', href: '/dashboard/users/recruitment-clients', icon: KeyRound },
 ] as const;
 
 interface DashboardTopbarProps {
@@ -132,7 +129,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
   };
 
   const displayName = currentUser?.name || 'Staff User';
-  const displayEmail = currentUser?.email || 'staff@eaglehr.co.ke';
+  const displayEmail = currentUser?.email || 'staff@3rdparkhospital.com';
   const initials = getInitials(displayName);
   const quickActions =
     currentUser?.role === 'admin'
@@ -140,17 +137,17 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
       : QUICK_ACTIONS_BASE;
 
   return (
-    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 h-16 bg-white border-b border-neutral-200 flex items-center justify-between gap-4 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
+    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 h-16 bg-white border-b border-neutral-200 flex items-center justify-between gap-4 px-6 md:px-8 xl:px-12">
       {/* Search — opens command palette on focus or use Cmd+K / Ctrl+K */}
       <div className="flex-1 max-w-xl min-w-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" />
           <input
             type="search"
-            placeholder="Search jobs, candidates, applications... (⌘K)"
+            placeholder="Search employees, departments, payroll... (⌘K)"
             onFocus={() => setPaletteOpen(true)}
             readOnly
-            className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-primary-900 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors cursor-pointer"
+            className="w-full h-9 pl-10 pr-4 bg-white border border-neutral-200 rounded-md text-sm text-ink placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:ring-offset-2 focus:border-primary-500 transition-colors cursor-pointer"
             aria-label="Search"
           />
         </div>
@@ -169,7 +166,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
           <button
             type="button"
             onClick={() => setQuickActionsOpen((prev) => !prev)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-primary-900 transition-colors text-sm font-medium"
+            className="flex h-9 items-center gap-1.5 px-3 rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors text-sm font-medium"
             aria-label="Quick actions"
             aria-expanded={quickActionsOpen}
           >
@@ -178,13 +175,13 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
             <ChevronDown className="w-4 h-4 text-neutral-400" />
           </button>
           {quickActionsOpen && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden py-1">
+            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden py-1">
               {quickActions.map(({ label, href, icon: Icon }) => (
                 <Link
                   key={href + label}
                   href={href}
                   onClick={() => setQuickActionsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-900 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
                 >
                   <Icon className="w-4 h-4 text-neutral-500 shrink-0" />
                   {label}
@@ -199,7 +196,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
           href="/contact"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-600 transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
           aria-label="Help / Contact"
           title="Help & contact"
         >
@@ -217,25 +214,25 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
                 return next;
               });
             }}
-            className="relative p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-primary-900 transition-colors"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
             aria-label="Notifications"
             aria-expanded={notificationsOpen}
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-semibold text-white">
+              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning text-[10px] font-semibold text-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
           {notificationsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-neutral-50">
-                <h3 className="text-sm font-semibold text-primary-900">Notifications</h3>
+                <h3 className="text-sm font-semibold text-ink">Notifications</h3>
                 <button
                   type="button"
                   onClick={() => setNotificationsOpen(false)}
-                  className="p-1 rounded-lg text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
+                  className="p-1 rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
                   aria-label="Close"
                 >
                   <X className="w-4 h-4" />
@@ -266,7 +263,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
                       };
                       const inner = (
                         <span className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-primary-900 truncate">{n.title}</p>
+                          <p className="text-sm font-medium text-ink truncate">{n.title}</p>
                           <p className="text-xs text-neutral-600 line-clamp-2">{n.body}</p>
                           <p className="text-xs text-neutral-400 mt-0.5">{formatNotifTime(n.createdAt)}</p>
                         </span>
@@ -276,7 +273,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
                           <button
                             type="button"
                             onClick={() => void markReadAndGo()}
-                            className={`w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors flex gap-3 ${n.unread ? 'bg-primary-50/50' : ''}`}
+                            className={`w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors flex gap-3 ${n.unread ? 'bg-primary-50' : ''}`}
                           >
                             {inner}
                           </button>
@@ -299,7 +296,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
                       setNotifications((prev) => prev.map((x) => ({ ...x, unread: false })));
                       setUnreadCount(0);
                     }}
-                    className="text-xs font-medium text-primary-600 hover:text-primary-800"
+                    className="text-xs font-medium text-primary-600 hover:text-primary-700"
                   >
                     Mark all read
                   </button>
@@ -314,29 +311,29 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
           <button
             type="button"
             onClick={() => setUserMenuOpen((prev) => !prev)}
-            className="flex items-center gap-2 p-1.5 rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-primary-900 transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
             aria-label="User menu"
             aria-expanded={userMenuOpen}
           >
-            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
               <span className="text-xs font-semibold text-primary-700">{initials}</span>
             </div>
             <div className="hidden md:block text-left min-w-0">
-              <p className="text-sm font-medium text-primary-900 truncate">{displayName}</p>
+              <p className="text-sm font-medium text-ink truncate">{displayName}</p>
               <p className="text-xs text-neutral-500 truncate">{displayEmail}</p>
             </div>
             <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
           </button>
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-60 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden py-1">
+            <div className="absolute right-0 top-full mt-1 w-60 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden py-1">
               <div className="px-4 py-3 border-b border-neutral-100">
-                <p className="text-sm font-medium text-primary-900">{displayName}</p>
+                <p className="text-sm font-medium text-ink">{displayName}</p>
                 <p className="text-xs text-neutral-500 truncate">{displayEmail}</p>
               </div>
               <Link
                 href="/dashboard"
                 onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-900 transition-colors"
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
               >
                 <User className="w-4 h-4 text-neutral-500" />
                 Dashboard home
@@ -344,7 +341,7 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-neutral-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-neutral-700 hover:bg-danger/10 hover:text-danger transition-colors"
               >
                 <LogOut className="w-4 h-4 text-neutral-500" />
                 Sign out
