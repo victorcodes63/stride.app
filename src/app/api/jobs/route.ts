@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import {
-  getInMemoryJobs,
-  createInMemoryJob,
-  CreateJobInput,
-} from '@/lib/jobs-store';
+import { CreateJobInput } from '@/lib/jobs-store';
 import { JobListing } from '@/types/ats';
 import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 import { parseDateTimeAsNairobi } from '@/lib/timezone';
+import { resolveJobCompanyAndClientId } from '@/lib/recruitment-workspace';
 
 type PrismaJobForListing = {
   id: string;
@@ -36,9 +33,9 @@ type PrismaJobForListing = {
 };
 
 function prismaJobToListing(job: PrismaJobForListing): JobListing {
-  const requirements = typeof job.requirements === 'string' ? job.requirements : (Array.isArray(job.requirements) ? job.requirements : []);
-  const responsibilities = typeof job.responsibilities === 'string' ? job.responsibilities : (Array.isArray(job.responsibilities) ? job.responsibilities : []);
-  const benefits = typeof job.benefits === 'string' ? job.benefits : (Array.isArray(job.benefits) ? job.benefits : []);
+  const requirements = typeof job.requirements === 'string' ? job.requirements : '';
+  const responsibilities = typeof job.responsibilities === 'string' ? job.responsibilities : '';
+  const benefits = typeof job.benefits === 'string' ? job.benefits : '';
   const skills = Array.isArray(job.skills) ? job.skills : [];
   const salary =
     job.salary && typeof job.salary === 'object' && 'min' in job.salary && 'max' in job.salary
@@ -56,9 +53,9 @@ function prismaJobToListing(job: PrismaJobForListing): JobListing {
     category: job.category,
     postedDate: job.postedDate.toISOString(),
     description: job.description,
-    requirements: requirements as string[] | string,
-    responsibilities: responsibilities as string[] | string,
-    benefits: benefits as string[] | string,
+    requirements,
+    responsibilities,
+    benefits,
     salary,
     experience: job.experience ?? '',
     education: job.education ?? '',
@@ -72,6 +69,9 @@ function prismaJobToListing(job: PrismaJobForListing): JobListing {
 }
 
 export async function GET(request: NextRequest) {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
   const { searchParams } = new URL(request.url);
   const activeOnly = searchParams.get('activeOnly') === 'true';
   const keyword = searchParams.get('keyword')?.toLowerCase();
@@ -79,9 +79,8 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category');
 
   try {
-    if (process.env.DATABASE_URL) {
-      const now = new Date();
-      const jobs = await prisma.job.findMany({
+    const now = new Date();
+    const jobs = await prisma.job.findMany({
         where: {
           ...(activeOnly
             ? {
@@ -115,37 +114,18 @@ export async function GET(request: NextRequest) {
         include: { client: true, _count: { select: { applications: true } } },
         orderBy: { postedDate: 'desc' },
       });
-      const list = jobs.map((job) => {
-        const listing = prismaJobToListing(job as unknown as PrismaJobForListing);
-        if (activeOnly) {
-          if (job.concealCompany || job.client?.isAnonymous) listing.company = 'Confidential';
-          if (!(job as { salaryPublic?: boolean }).salaryPublic) listing.salary = undefined;
-        }
-        return listing;
-      });
-      return NextResponse.json(list);
-    }
+    const list = jobs.map((job) => {
+      const listing = prismaJobToListing(job as unknown as PrismaJobForListing);
+      if (activeOnly) {
+        if (job.concealCompany) listing.company = 'Confidential';
+        if (!(job as { salaryPublic?: boolean }).salaryPublic) listing.salary = undefined;
+      }
+      return listing;
+    });
+    return NextResponse.json(list);
   } catch (_e) {
-    // DATABASE_URL set but Prisma failed (e.g. not migrated) — fall through to in-memory
+    return NextResponse.json({ error: 'Failed to load jobs.' }, { status: 500 });
   }
-
-  const list = getInMemoryJobs(activeOnly, activeOnly);
-  let filtered = list;
-  if (keyword) {
-    filtered = filtered.filter(
-      (j) =>
-        j.title.toLowerCase().includes(keyword) ||
-        j.company.toLowerCase().includes(keyword) ||
-        j.description.toLowerCase().includes(keyword)
-    );
-  }
-  if (location) {
-    filtered = filtered.filter((j) => j.location.toLowerCase().includes(location));
-  }
-  if (category) {
-    filtered = filtered.filter((j) => j.category === category);
-  }
-  return NextResponse.json(filtered);
 }
 
 export async function POST(request: NextRequest) {
@@ -157,7 +137,6 @@ export async function POST(request: NextRequest) {
   }
 
   const b = body as Record<string, unknown>;
-  const clientId = typeof b.clientId === 'string' ? b.clientId.trim() || undefined : undefined;
   let company = typeof b.company === 'string' ? b.company.trim() : '';
   const title = typeof b.title === 'string' ? b.title.trim() : '';
   const location = typeof b.location === 'string' ? b.location.trim() : '';
@@ -191,60 +170,27 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  let resolvedClientId: string | undefined = clientId;
+  let resolvedClientId: string | null | undefined;
 
-  if (clientId) {
-    // Resolve company from selected client (name or "Confidential" if anonymous)
-    try {
-      if (process.env.DATABASE_URL) {
-        const client = await prisma.client.findUnique({ where: { id: clientId } });
-        if (client) company = client.isAnonymous ? 'Confidential' : client.name;
-        else return NextResponse.json({ error: 'Client not found.' }, { status: 400 });
-      } else {
-        const { getInMemoryClientById } = await import('@/lib/clients-store');
-        const client = getInMemoryClientById(clientId);
-        if (client) company = client.isAnonymous ? 'Confidential' : client.name;
-        else return NextResponse.json({ error: 'Client not found.' }, { status: 400 });
-      }
-    } catch (_e) {
-      return NextResponse.json({ error: 'Client not found.' }, { status: 400 });
-    }
-  } else if (company) {
-    // No client selected: find or create a client by company name so it appears on Clients page
-    try {
-      if (process.env.DATABASE_URL) {
-        const existing = await prisma.client.findFirst({
-          where: { name: { equals: company.trim(), mode: 'insensitive' } },
-        });
-        if (existing) {
-          resolvedClientId = existing.id;
-          company = existing.isAnonymous ? 'Confidential' : existing.name;
-        } else {
-          const created = await prisma.client.create({
-            data: { name: company.trim(), isAnonymous: false },
-          });
-          resolvedClientId = created.id;
-          company = created.name;
-        }
-      } else {
-        const { getInMemoryClientByName, createInMemoryClient } = await import('@/lib/clients-store');
-        const existing = getInMemoryClientByName(company);
-        if (existing) {
-          resolvedClientId = existing.id;
-          company = existing.isAnonymous ? 'Confidential' : existing.name;
-        } else {
-          const created = createInMemoryClient({ name: company.trim(), isAnonymous: false });
-          resolvedClientId = created.id;
-          company = created.name;
-        }
-      }
-    } catch (_e) {
-      return NextResponse.json({ error: 'Failed to find or create client.' }, { status: 500 });
-    }
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
+  try {
+    const { company: resolvedName, clientId: linked } = await resolveJobCompanyAndClientId(
+      prisma,
+      company || undefined
+    );
+    company = resolvedName;
+    resolvedClientId = linked;
+  } catch {
+    return NextResponse.json({ error: 'Failed to resolve employer settings.' }, { status: 500 });
   }
 
   if (!company) {
-    return NextResponse.json({ error: 'Company is required (or select a client).' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Company / employer name is required (set it on the job or under Recruitment → Organization).' },
+      { status: 400 }
+    );
   }
   if (!location) {
     return NextResponse.json({ error: 'Location is required.' }, { status: 400 });
@@ -318,10 +264,9 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    if (process.env.DATABASE_URL) {
-      const year = new Date().getFullYear();
-      const prefix = `JOB-${year}-`;
-      const existing = await prisma.job.findMany({
+    const year = new Date().getFullYear();
+    const prefix = `JOB-${year}-`;
+    const existing = await prisma.job.findMany({
         where: { referenceId: { startsWith: prefix } },
         select: { referenceId: true },
         orderBy: { referenceId: 'desc' },
@@ -338,7 +283,7 @@ export async function POST(request: NextRequest) {
         return !!existing;
       });
 
-      const job = await prisma.job.create({
+    const job = await prisma.job.create({
         data: {
           referenceId,
           slug,
@@ -366,12 +311,8 @@ export async function POST(request: NextRequest) {
           applicationDeadline: applicationDeadline ?? null,
         },
       });
-      return NextResponse.json(prismaJobToListing(job as unknown as PrismaJobForListing));
-    }
+    return NextResponse.json(prismaJobToListing(job as unknown as PrismaJobForListing));
   } catch (_e) {
-    // Fall through to in-memory
+    return NextResponse.json({ error: 'Failed to create job.' }, { status: 500 });
   }
-
-  const job = createInMemoryJob(input);
-  return NextResponse.json(job);
 }

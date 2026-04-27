@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getInMemoryApplications } from '@/lib/applications-store';
 import { reportApiError } from '@/lib/monitoring';
 import type { ApplicationWithDetails } from '@/types/dashboard';
 import ExcelJS from 'exceljs';
 import { sortEmploymentByRecency } from '@/lib/employment-sort';
 
 export async function GET(request: NextRequest) {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
   const { searchParams } = new URL(request.url);
   const jobId = searchParams.get('jobId') || undefined;
   const clientId = searchParams.get('clientId') || undefined;
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
   let applications: ApplicationWithDetails[] = [];
 
   try {
-    if (process.env.DATABASE_URL) {
+    {
       const candidateWhere: Record<string, unknown> = {
         ...(nationality?.trim()
           ? { nationality: { contains: nationality.trim(), mode: 'insensitive' as const } }
@@ -87,14 +89,12 @@ export async function GET(request: NextRequest) {
         filtered = filtered.filter((a) => {
           const fd = a.formData as {
             professionalCertificationsList?: { name: string }[];
-            professionalCertifications?: string;
           } | null;
           if (!fd) return false;
           const fromList = fd.professionalCertificationsList?.some((c) =>
             (c.name ?? '').toLowerCase().includes(q)
           );
-          const fromLegacy = (fd.professionalCertifications ?? '').toLowerCase().includes(q);
-          return Boolean(fromList || fromLegacy);
+          return Boolean(fromList);
         });
       }
       if (membership?.trim()) {
@@ -161,22 +161,6 @@ export async function GET(request: NextRequest) {
           requiredCertifications: a.job.requiredCertifications ?? null,
         },
       }));
-    } else {
-      applications = getInMemoryApplications({
-        jobId,
-        clientId: clientId || undefined,
-        status: status as 'pending' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | undefined,
-        nationality: nationality?.trim() || undefined,
-        homeCounty: homeCounty?.trim() || undefined,
-        educationLevel: educationLevel?.trim() || undefined,
-        discipline: discipline?.trim() || undefined,
-        employmentType: employmentType?.trim() || undefined,
-        certificate: certificate?.trim() || undefined,
-        membership: membership?.trim() || undefined,
-        minExperience: minExp,
-        maxExperience: maxExp,
-        employerCompany: employerCompany?.trim() || undefined,
-      });
     }
   } catch (e) {
     await reportApiError({
@@ -192,7 +176,7 @@ export async function GET(request: NextRequest) {
   }
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Eagle HR ATS';
+  workbook.creator = '3rd Park HRIS';
   workbook.created = new Date();
 
   const dateStr = new Date().toISOString().slice(0, 10);
@@ -307,9 +291,7 @@ export async function GET(request: NextRequest) {
       ).join('\n||\n')
       : '';
     const workExpYears = totalWorkExperienceYears(fd?.employmentHistory);
-    const profCertsStr =
-      (fd?.professionalCertificationsList?.map((x) => x.name).join(', ') ||
-        fd?.professionalCertifications) ?? '';
+    const profCertsStr = fd?.professionalCertificationsList?.map((x) => x.name).join(', ') ?? '';
     const membershipsStr =
       fd?.professionalMemberships?.map((m) => `${m.name} (${m.membershipNo})`).join('; ') ?? '';
 

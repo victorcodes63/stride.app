@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import {
-  createInMemoryApplication,
-  getInMemoryApplications,
-} from '@/lib/applications-store';
-import { getInMemoryJobSummary, getInMemoryJobRaw } from '@/lib/jobs-store';
 import { sendApplicationReceivedEmail } from '@/lib/email';
 import { reportApiError } from '@/lib/monitoring';
 import { parseStaffSession } from '@/lib/auth-session';
@@ -96,6 +91,9 @@ function totalWorkExperienceYears(
 }
 
 export async function GET(request: NextRequest) {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
   const rawSession = request.cookies.get(STAFF_SESSION_COOKIE)?.value;
   const currentUserId = rawSession ? parseStaffSession(rawSession).userId : undefined;
 
@@ -127,7 +125,6 @@ export async function GET(request: NextRequest) {
   const skip = (page - 1) * limit;
 
   try {
-    if (process.env.DATABASE_URL) {
       const candidateWhere: Record<string, unknown> = {
         ...(nationality?.trim()
           ? { nationality: { contains: nationality.trim(), mode: 'insensitive' as const } }
@@ -187,14 +184,12 @@ export async function GET(request: NextRequest) {
         filtered = filtered.filter((a) => {
           const fd = a.formData as {
             professionalCertificationsList?: { name: string }[];
-            professionalCertifications?: string;
           } | null;
           if (!fd) return false;
           const fromList = fd.professionalCertificationsList?.some((c) =>
             (c.name ?? '').toLowerCase().includes(q)
           );
-          const fromLegacy = (fd.professionalCertifications ?? '').toLowerCase().includes(q);
-          return Boolean(fromList || fromLegacy);
+          return Boolean(fromList);
         });
       }
       if (membership?.trim()) {
@@ -266,71 +261,15 @@ export async function GET(request: NextRequest) {
         hired,
       };
       return NextResponse.json(response);
-    }
   } catch (_e) {
-    // fall through to in-memory
+    return NextResponse.json({ error: 'Failed to load applications.' }, { status: 500 });
   }
-
-  let fullList = getInMemoryApplications({
-    jobId,
-    clientId: clientId || undefined,
-    status: status as 'pending' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | undefined,
-    nationality: nationality?.trim() || undefined,
-    homeCounty: homeCounty?.trim() || undefined,
-    educationLevel: educationLevel?.trim() || undefined,
-    discipline: educationDiscipline?.trim() || undefined,
-    employmentType: employmentType?.trim() || undefined,
-    certificate: certificate?.trim() || undefined,
-    membership: membership?.trim() || undefined,
-    minExperience: minExp,
-    maxExperience: maxExp,
-    employerCompany: employerCompany?.trim() || undefined,
-  });
-  if (search?.trim()) {
-    const q = search.trim().toLowerCase();
-    fullList = fullList.filter(
-      (a) =>
-        `${a.candidate.firstName} ${a.candidate.lastName}`.toLowerCase().includes(q) ||
-        a.candidate.email.toLowerCase().includes(q) ||
-        a.job.title.toLowerCase().includes(q)
-    );
-  }
-  const total = fullList.length;
-  const paginated = fullList.slice(skip, skip + limit);
-  const applications: ApplicationListItem[] = paginated.map((a) => ({
-    id: a.id,
-    jobId: a.jobId,
-    candidateId: a.candidateId,
-    status: a.status,
-    appliedDate: a.appliedDate,
-    resumePath: a.resumePath,
-    viewedByMe: a.viewedByMe ?? true,
-    candidate: {
-      id: a.candidate.id,
-      firstName: a.candidate.firstName,
-      lastName: a.candidate.lastName,
-      email: a.candidate.email,
-      resumePath: a.candidate.resumePath,
-    },
-    job: {
-      id: a.job.id,
-      title: a.job.title,
-      company: a.job.company,
-      location: a.job.location,
-      clientName: a.job.clientName ?? null,
-    },
-  }));
-  const response: ApplicationsListApiResponse = {
-    applications,
-    total,
-    pending: fullList.filter((a) => a.status === 'pending').length,
-    shortlisted: fullList.filter((a) => a.status === 'shortlisted').length,
-    hired: fullList.filter((a) => a.status === 'hired').length,
-  };
-  return NextResponse.json(response);
 }
 
 export async function POST(request: NextRequest) {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
   let body: unknown;
   try {
     body = await request.json();
@@ -417,7 +356,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (process.env.DATABASE_URL) {
       const job = await prisma.job.findUnique({ where: { id: jobId } });
       if (!job) {
         return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
@@ -563,7 +501,6 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json(result);
-    }
   } catch (e) {
     await reportApiError({
       route: 'POST /api/applications',
@@ -572,77 +509,4 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ error: 'Failed to create application.' }, { status: 500 });
   }
-
-  // In-memory fallback
-  const jobSummary = getInMemoryJobSummary(jobId);
-  if (!jobSummary) {
-    return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
-  }
-  const inMemoryJob = getInMemoryJobRaw(jobId);
-  const inMemDeadline = inMemoryJob?.applicationDeadline;
-  if (inMemDeadline && new Date(inMemDeadline) < new Date()) {
-    return NextResponse.json(
-      { error: 'The application deadline for this job has passed.' },
-      { status: 400 }
-    );
-  }
-
-  const existingInMemoryApplication = getInMemoryApplications({ jobId }).find(
-    (a) => a.candidate.email.toLowerCase() === email.toLowerCase()
-  );
-  if (existingInMemoryApplication) {
-    return NextResponse.json(
-      { error: 'You have already submitted an application for this job.' },
-      { status: 409 }
-    );
-  }
-  if (phone) {
-    const duplicatePhoneInMemory = getInMemoryApplications().find(
-      (a) =>
-        (a.candidate.phone ?? '').trim() === phone.trim() &&
-        a.candidate.email.toLowerCase() !== email.toLowerCase()
-    );
-    if (duplicatePhoneInMemory) {
-      return NextResponse.json(
-        {
-          error:
-            'An applicant with this phone number already exists under a different email. Please use the original email or contact support.',
-        },
-        { status: 409 }
-      );
-    }
-  }
-
-  const app = createInMemoryApplication({
-    jobId,
-    job: jobSummary,
-        candidate: {
-      id: '',
-      firstName,
-      lastName,
-      email,
-      phone: phone ?? null,
-      location: location ?? null,
-      nationality: nationality ?? null,
-      homeCounty: homeCounty ?? null,
-      experience,
-      education: education ?? null,
-      resumePath: resumePath ?? null,
-      createdAt: new Date().toISOString(),
-    },
-    coverLetter,
-    resumePath,
-    salaryExpectations: salaryExpectations ?? null,
-    formData: formData as ApplicationWithDetails['formData'] | undefined,
-  });
-
-  await sendConfirmationEmailNonBlocking({
-    to: app.candidate.email,
-    applicantFirstName: app.candidate.firstName,
-    jobTitle: app.job.title,
-    companyName: app.job.company,
-    applicationId: app.id,
-  });
-
-  return NextResponse.json(app);
 }

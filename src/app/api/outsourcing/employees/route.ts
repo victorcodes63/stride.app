@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/lib/prisma';
+import { getOrCreateHospitalClient } from '@/lib/hospital-client';
 import {
   allocateNextEmployeeNumber,
   deriveEmployeePrefixFromName,
@@ -10,10 +11,12 @@ import { normalizeEmployeeNationalId } from '@/lib/outsourcing-employee-national
 export async function GET(request: NextRequest) {
   try {
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
     const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get('clientId') || undefined;
+    const requestedClientId = searchParams.get('clientId') || undefined;
+    const hospitalClient = await getOrCreateHospitalClient(prisma);
+    const clientId = requestedClientId || hospitalClient.id;
     const departmentId = searchParams.get('departmentId') || undefined;
     const jobTitle = searchParams.get('jobTitle') || undefined;
 
@@ -47,6 +50,11 @@ export async function GET(request: NextRequest) {
       bankBranch: e.bankBranch ?? null,
       bankAccountNumber: e.bankAccountNumber ?? null,
       baseSalary: e.baseSalary != null ? Number(e.baseSalary) : null,
+      employmentStatus: e.employmentStatus,
+      employmentStatusEffectiveFrom: e.employmentStatusEffectiveFrom?.toISOString().slice(0, 10) ?? null,
+      employmentStatusEffectiveTo: e.employmentStatusEffectiveTo?.toISOString().slice(0, 10) ?? null,
+      managerEmployeeId: e.managerEmployeeId ?? null,
+      managerName: null,
       clientId: e.outsourcingClientId,
       clientName: e.client.name,
       departmentId: e.departmentId,
@@ -86,13 +94,12 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
-    const clientId = strField(body, 'clientId');
+    const requestedClientId = strField(body, 'clientId');
     const firstName = strField(body, 'firstName') ?? '';
     const lastName = strField(body, 'lastName') ?? '';
     const emailRaw = strField(body, 'email');
-    if (!clientId) {
-      return NextResponse.json({ error: 'clientId is required.' }, { status: 400 });
-    }
+    const hospitalClient = await getOrCreateHospitalClient(prisma);
+    const clientId = requestedClientId || hospitalClient.id;
     if (!firstName || !lastName) {
       return NextResponse.json({ error: 'firstName and lastName are required.' }, { status: 400 });
     }
@@ -134,6 +141,16 @@ export async function POST(request: NextRequest) {
       departmentId = null;
     }
     const dateOfJoiningRaw = strField(body, 'dateOfJoining');
+    const employmentStatus = (strField(body, 'employmentStatus') as
+      | 'active'
+      | 'probation'
+      | 'on_leave'
+      | 'suspended'
+      | 'terminated'
+      | null) ?? null;
+    const managerEmployeeId = strField(body, 'managerEmployeeId');
+    const attendancePolicyId = strField(body, 'attendancePolicyId');
+    const leavePolicyId = strField(body, 'leavePolicyId');
     let dateOfJoining: Date | undefined;
     if (dateOfJoiningRaw) {
       const d = new Date(dateOfJoiningRaw);
@@ -167,6 +184,8 @@ export async function POST(request: NextRequest) {
         bankName: strField(body, 'bankName') ?? undefined,
         bankBranch: strField(body, 'bankBranch') ?? undefined,
         bankAccountNumber: strField(body, 'bankAccountNumber') ?? undefined,
+        managerEmployeeId: managerEmployeeId ?? undefined,
+        employmentStatus: employmentStatus ?? undefined,
         baseSalary:
           body.baseSalary != null && String(body.baseSalary).trim() !== ''
             ? new Decimal(Math.max(0, parseFloat(String(body.baseSalary).replace(/,/g, '')) || 0))
@@ -177,6 +196,25 @@ export async function POST(request: NextRequest) {
         department: { select: { id: true, name: true } },
       },
     });
+
+    if (attendancePolicyId) {
+      await prisma.attendancePolicyAssignment.create({
+        data: {
+          employeeId: employee.id,
+          attendancePolicyId,
+          effectiveFrom: new Date(),
+        },
+      }).catch(() => null);
+    }
+    if (leavePolicyId) {
+      await prisma.leavePolicyAssignment.create({
+        data: {
+          employeeId: employee.id,
+          leavePolicyId,
+          effectiveFrom: new Date(),
+        },
+      }).catch(() => null);
+    }
     return NextResponse.json({
       id: employee.id,
       employeeNumber: employee.employeeNumber,
@@ -185,6 +223,9 @@ export async function POST(request: NextRequest) {
       email: employee.email,
       clientId: employee.outsourcingClientId,
       clientName: employee.client.name,
+      employmentStatus: employee.employmentStatus,
+      managerEmployeeId: employee.managerEmployeeId,
+      managerName: null,
       departmentId: employee.departmentId,
       departmentName: employee.department?.name ?? null,
     });

@@ -30,6 +30,11 @@ function mapEmployeeToJson(e: {
   bankName: string | null;
   bankBranch: string | null;
   bankAccountNumber: string | null;
+  managerEmployeeId: string | null;
+  employmentStatus: 'active' | 'probation' | 'on_leave' | 'suspended' | 'terminated';
+  employmentStatusEffectiveFrom: Date | null;
+  employmentStatusEffectiveTo: Date | null;
+  employmentEndedAt: Date | null;
   baseSalary: unknown;
   outsourcingClientId: string;
   departmentId: string | null;
@@ -54,6 +59,12 @@ function mapEmployeeToJson(e: {
     bankName: e.bankName ?? null,
     bankBranch: e.bankBranch ?? null,
     bankAccountNumber: e.bankAccountNumber ?? null,
+    managerEmployeeId: e.managerEmployeeId ?? null,
+    managerName: null,
+    employmentStatus: e.employmentStatus,
+    employmentStatusEffectiveFrom: e.employmentStatusEffectiveFrom?.toISOString().slice(0, 10) ?? null,
+    employmentStatusEffectiveTo: e.employmentStatusEffectiveTo?.toISOString().slice(0, 10) ?? null,
+    employmentEndedAt: e.employmentEndedAt?.toISOString().slice(0, 10) ?? null,
     baseSalary: e.baseSalary != null ? Number(e.baseSalary as number) : null,
     clientId: e.outsourcingClientId,
     clientName: e.client.name,
@@ -122,6 +133,17 @@ export async function PATCH(
   const departmentId = b.departmentId !== undefined
     ? (typeof b.departmentId === 'string' && b.departmentId.trim() ? b.departmentId.trim() : null)
     : undefined;
+  const managerEmployeeId =
+    b.managerEmployeeId !== undefined
+      ? (typeof b.managerEmployeeId === 'string' && b.managerEmployeeId.trim() ? b.managerEmployeeId.trim() : null)
+      : undefined;
+  const employmentStatus =
+    b.employmentStatus !== undefined ? str(b, 'employmentStatus') : undefined;
+  const employmentStatusEffectiveFrom = b.employmentStatusEffectiveFrom !== undefined ? date(b, 'employmentStatusEffectiveFrom') : undefined;
+  const employmentStatusEffectiveTo = b.employmentStatusEffectiveTo !== undefined ? date(b, 'employmentStatusEffectiveTo') : undefined;
+  const employmentEndedAt = b.employmentEndedAt !== undefined ? date(b, 'employmentEndedAt') : undefined;
+  const attendancePolicyId = b.attendancePolicyId !== undefined ? str(b, 'attendancePolicyId') : undefined;
+  const leavePolicyId = b.leavePolicyId !== undefined ? str(b, 'leavePolicyId') : undefined;
 
   if (firstName !== undefined && !firstName) {
     return NextResponse.json({ error: 'First name is required.' }, { status: 400 });
@@ -151,6 +173,11 @@ export async function PATCH(
   if (bankBranch !== undefined) data.bankBranch = bankBranch;
   if (bankAccountNumber !== undefined) data.bankAccountNumber = bankAccountNumber;
   if (departmentId !== undefined) data.departmentId = departmentId;
+  if (managerEmployeeId !== undefined) data.managerEmployeeId = managerEmployeeId;
+  if (employmentStatus !== undefined) data.employmentStatus = employmentStatus;
+  if (employmentStatusEffectiveFrom !== undefined) data.employmentStatusEffectiveFrom = employmentStatusEffectiveFrom;
+  if (employmentStatusEffectiveTo !== undefined) data.employmentStatusEffectiveTo = employmentStatusEffectiveTo;
+  if (employmentEndedAt !== undefined) data.employmentEndedAt = employmentEndedAt;
   if (b.baseSalary !== undefined) {
     const raw = b.baseSalary;
     if (raw === null || raw === '') data.baseSalary = null;
@@ -207,6 +234,25 @@ export async function PATCH(
         department: { select: { id: true, name: true } },
       },
     });
+
+    if (attendancePolicyId !== undefined && attendancePolicyId) {
+      await prisma.attendancePolicyAssignment.create({
+        data: {
+          employeeId: id,
+          attendancePolicyId,
+          effectiveFrom: new Date(),
+        },
+      }).catch(() => null);
+    }
+    if (leavePolicyId !== undefined && leavePolicyId) {
+      await prisma.leavePolicyAssignment.create({
+        data: {
+          employeeId: id,
+          leavePolicyId,
+          effectiveFrom: new Date(),
+        },
+      }).catch(() => null);
+    }
     return NextResponse.json(mapEmployeeToJson(employee));
   } catch (e) {
     const err = e as { code?: string; meta?: { target?: string[] } };

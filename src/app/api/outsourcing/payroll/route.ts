@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
 
 export async function GET(request: NextRequest) {
   try {
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month');
     const year = searchParams.get('year');
-    const clientId = searchParams.get('clientId') || undefined;
+    const requestedClientId = searchParams.get('clientId') || undefined;
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
     const departmentId = searchParams.get('departmentId') || undefined;
     const employeeIdsCsv = searchParams.get('employeeIds') || '';
     const employeeIds = employeeIdsCsv
@@ -79,7 +81,20 @@ export async function GET(request: NextRequest) {
       ahl: String(p.ahl ?? 0),
       netPay: String(p.netPay),
       status: p.status,
+      attendanceSummaryStatus: 'legacy',
     }));
+
+    for (const row of list) {
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 1));
+      const summary = await prisma.attendanceDaySummary.aggregate({
+        where: { employeeId: row.employeeId, workDate: { gte: start, lt: end } },
+        _sum: { minutesWorked: true },
+        _count: { _all: true },
+      });
+      (row as Record<string, unknown>).attendanceDays = summary._count._all;
+      (row as Record<string, unknown>).attendanceMinutes = summary._sum.minutesWorked ?? 0;
+    }
 
     return NextResponse.json(list);
   } catch (e) {

@@ -6,10 +6,10 @@ import { reportApiError } from '@/lib/monitoring';
 
 const STAFF_SESSION_COOKIE = 'staff_session';
 const COOKIE_MAX_AGE = getStaffSessionMaxAgeSeconds();
-const ALLOWED_DOMAIN = (process.env.STAFF_ALLOWED_DOMAIN || 'eaglehr.co.ke').toLowerCase();
-
-// Dev-only fallback when STAFF_PASSWORD is not set (never used in production)
-const DEV_FALLBACK_PASSWORD = 'eaglehr';
+const ALLOWED_DOMAINS = (process.env.STAFF_ALLOWED_DOMAIN || 'example.com')
+  .split(',')
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,9 +18,13 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const normalizedPassword = typeof password === 'string' ? password : '';
 
-    const staffPassword = process.env.STAFF_PASSWORD;
-    const staffEmail = process.env.STAFF_EMAIL; // optional: legacy restriction to one email
-    const isProduction = process.env.NODE_ENV === 'production';
+    const staffEmail = process.env.STAFF_EMAIL;
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { error: 'Database not configured for staff login.' },
+        { status: 503 }
+      );
+    }
 
     if (!normalizedEmail || !normalizedPassword) {
       return NextResponse.json(
@@ -29,9 +33,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!normalizedEmail.endsWith(`@${ALLOWED_DOMAIN}`)) {
+    const domainOk = ALLOWED_DOMAINS.some((domain) => normalizedEmail.endsWith(`@${domain}`));
+    if (!domainOk) {
+      const domainHint =
+        ALLOWED_DOMAINS.length === 1
+          ? `Use your @${ALLOWED_DOMAINS[0]} email to sign in.`
+          : 'Use an authorized staff email to sign in.';
       return NextResponse.json(
-        { error: `Use your @${ALLOWED_DOMAIN} email to sign in.` },
+        { error: domainHint },
         { status: 401 }
       );
     }
@@ -43,52 +52,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Primary path: enforce allowlist from User table.
-    if (process.env.DATABASE_URL) {
-      const user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-      });
-      if (!user) {
-        return NextResponse.json(
-          { error: 'No staff account found for this email. Ask an admin to add you.' },
-          { status: 401 }
-        );
-      }
-      if (!user.isActive) {
-        return NextResponse.json(
-          { error: 'Your account is inactive. Contact an administrator.' },
-          { status: 403 }
-        );
-      }
-      const passwordOk = await bcrypt.compare(normalizedPassword, user.passwordHash);
-      if (!passwordOk) {
-        return NextResponse.json(
-          { error: 'Incorrect password. Please try again.' },
-          { status: 401 }
-        );
-      }
-
-      const response = NextResponse.json({ success: true });
-      response.cookies.set(STAFF_SESSION_COOKIE, `local:${user.id}:${user.role}`, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: COOKIE_MAX_AGE,
-        path: '/',
-      });
-      return response;
-    }
-
-    // Dev fallback when DB is unavailable.
-    const effectivePassword = staffPassword || (isProduction ? '' : DEV_FALLBACK_PASSWORD);
-    if (isProduction && !effectivePassword) {
-      console.error('Staff login is not configured: DATABASE_URL and STAFF_PASSWORD missing.');
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (!user) {
       return NextResponse.json(
-        { error: 'Staff login is not configured.' },
-        { status: 500 }
+        { error: 'No staff account found for this email. Ask an admin to add you.' },
+        { status: 401 }
       );
     }
-    if (!effectivePassword || normalizedPassword !== effectivePassword) {
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: 'Your account is inactive. Contact an administrator.' },
+        { status: 403 }
+      );
+    }
+    const passwordOk = await bcrypt.compare(normalizedPassword, user.passwordHash);
+    if (!passwordOk) {
       return NextResponse.json(
         { error: 'Incorrect password. Please try again.' },
         { status: 401 }
@@ -96,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true });
-    response.cookies.set(STAFF_SESSION_COOKIE, `legacy:${normalizedEmail}`, {
+    response.cookies.set(STAFF_SESSION_COOKIE, `local:${user.id}:${user.role}`, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
