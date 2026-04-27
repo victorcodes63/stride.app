@@ -3,13 +3,22 @@ import { prisma } from '@/lib/prisma';
 import { sendPayslipEmail } from '@/lib/email';
 import { normalizeAttendance } from '@/lib/biweekly-attendance';
 import { isBiweeklyClient } from '@/lib/biweekly-payroll';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     const body = await request.json().catch(() => ({}));
     const month = body.month != null ? parseInt(String(body.month), 10) : new Date().getMonth() + 1;
     const year = body.year != null ? parseInt(String(body.year), 10) : new Date().getFullYear();
-    const clientId = typeof body.clientId === 'string' ? body.clientId : undefined;
+    const requestedClientId = typeof body.clientId === 'string' ? body.clientId : undefined;
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
     const departmentId = typeof body.departmentId === 'string' ? body.departmentId : undefined;
     const testTo = typeof body.testTo === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.testTo) ? body.testTo : undefined;
     const employeeIds = Array.isArray(body.employeeIds)
@@ -26,14 +35,12 @@ export async function POST(request: NextRequest) {
         year,
         ...(employeeIds?.length
           ? { employeeId: { in: employeeIds } }
-          : clientId || departmentId
-            ? {
-                employee: {
-                  ...(clientId ? { outsourcingClientId: clientId } : {}),
-                  ...(departmentId ? { departmentId } : {}),
-                },
-              }
-            : {}),
+          : {
+              employee: {
+                outsourcingClientId: clientId,
+                ...(departmentId ? { departmentId } : {}),
+              },
+            }),
       },
       include: {
         employee: {

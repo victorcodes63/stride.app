@@ -7,9 +7,13 @@ import {
   deriveEmployeePrefixFromName,
 } from '@/lib/outsourcing-employee-number';
 import { normalizeEmployeeNationalId } from '@/lib/outsourcing-employee-national-id';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canViewSalaryFields, unauthorizedResponse } from '@/lib/demo-route-access';
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
       bankName: e.bankName ?? null,
       bankBranch: e.bankBranch ?? null,
       bankAccountNumber: e.bankAccountNumber ?? null,
-      baseSalary: e.baseSalary != null ? Number(e.baseSalary) : null,
+      baseSalary: canViewSalaryFields(user) && e.baseSalary != null ? Number(e.baseSalary) : null,
       employmentStatus: e.employmentStatus,
       employmentStatusEffectiveFrom: e.employmentStatusEffectiveFrom?.toISOString().slice(0, 10) ?? null,
       employmentStatusEffectiveTo: e.employmentStatusEffectiveTo?.toISOString().slice(0, 10) ?? null,
@@ -85,6 +89,8 @@ function strField(b: Record<string, unknown>, key: string): string | null {
 /** Create a single employee (form or API). Requires clientId, firstName, lastName; email optional. */
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
     }

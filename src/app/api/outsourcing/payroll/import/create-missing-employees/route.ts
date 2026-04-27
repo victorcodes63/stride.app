@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { allocateNextEmployeeNumber, deriveEmployeePrefixFromName } from '@/lib/outsourcing-employee-number';
 import { normalizeEmployeeNationalId } from '@/lib/outsourcing-employee-national-id';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 type MissingSeed = {
   nationalId: string;
@@ -21,6 +24,11 @@ function splitName(fullName: string | null | undefined): { firstName: string; la
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
     }
@@ -31,11 +39,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
     const b = body as { clientId?: string; missingRows?: MissingSeed[] };
-    const clientId = typeof b.clientId === 'string' ? b.clientId.trim() : '';
+    const requestedClientId = typeof b.clientId === 'string' ? b.clientId.trim() : '';
     const missingRows = Array.isArray(b.missingRows) ? b.missingRows : [];
-    if (!clientId || missingRows.length === 0) {
-      return NextResponse.json({ error: 'clientId and missingRows[] are required.' }, { status: 400 });
+    if (missingRows.length === 0) {
+      return NextResponse.json({ error: 'missingRows[] is required.' }, { status: 400 });
     }
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
 
     const client = await prisma.outsourcingClient.findUnique({
       where: { id: clientId },

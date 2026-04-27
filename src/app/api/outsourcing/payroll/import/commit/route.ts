@@ -5,6 +5,9 @@ import { parsePayrollImportWorkbook } from '@/lib/payroll-import-template';
 import { normalizeEmployeeNationalId } from '@/lib/outsourcing-employee-national-id';
 import { calculateStatutoryForPayroll } from '@/lib/payroll-calc';
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 function toDecimal(n: number): Decimal {
   return new Decimal(Math.round((n + Number.EPSILON) * 100) / 100);
@@ -12,17 +15,24 @@ function toDecimal(n: number): Decimal {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
     }
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const clientId = String(formData.get('clientId') ?? '').trim();
+    const requestedClientId = String(formData.get('clientId') ?? '').trim();
     const month = parseInt(String(formData.get('month') ?? ''), 10);
     const year = parseInt(String(formData.get('year') ?? ''), 10);
-    if (!file || !clientId || !Number.isFinite(month) || month < 1 || month > 12 || !Number.isFinite(year)) {
-      return NextResponse.json({ error: 'file, clientId, month, and year are required.' }, { status: 400 });
+    if (!file || !Number.isFinite(month) || month < 1 || month > 12 || !Number.isFinite(year)) {
+      return NextResponse.json({ error: 'file, month, and year are required.' }, { status: 400 });
     }
+
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
 
     const client = await prisma.outsourcingClient.findUnique({
       where: { id: clientId },

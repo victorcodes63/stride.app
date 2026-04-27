@@ -706,6 +706,69 @@ async function main() {
     update: { name: 'Samuel Odera', passwordHash: hashed, role: UserRole.staff, staffUserType: StaffUserType.finance, isActive: true },
     create: { email: roleEmails.samuel, name: 'Samuel Odera', passwordHash: hashed, role: UserRole.staff, staffUserType: StaffUserType.finance, isActive: true },
   });
+  const seededUsers = await prisma.user.findMany({
+    where: { email: { in: [demoAdmin, roleEmails.alice, roleEmails.samuel] } },
+    select: { id: true, email: true, name: true },
+  });
+  const userByEmail = new Map(seededUsers.map((u) => [u.email.toLowerCase(), u]));
+  const james = employeeByEmail.get(roleEmails.james);
+  const david = employeeByEmail.get(roleEmails.david);
+  const esther = employeeByEmail.get(roleEmails.esther);
+  const roseEmp = employeeByEmail.get(roleEmails.rose);
+  await prisma.auditEvent.createMany({
+    data: [
+      {
+        actorUserId: userByEmail.get(roleEmails.alice)?.id ?? null,
+        actorEmail: roleEmails.alice,
+        action: 'employee.salary.view',
+        entityType: 'Employee',
+        entityId: james?.id ?? null,
+        route: 'GET /api/outsourcing/employees/[id]',
+        metadata: { message: 'Alice Muthoni viewed employee salary: Dr. James Mwangi' },
+        createdAt: new Date(Date.UTC(currentYear, 3, 26, 7, 30, 0)),
+      },
+      {
+        actorUserId: userByEmail.get(roleEmails.samuel)?.id ?? null,
+        actorEmail: roleEmails.samuel,
+        action: 'payroll.run.approve',
+        entityType: 'PayrollBatch',
+        entityId: `${marchYear}-03`,
+        route: 'POST /api/outsourcing/payroll/generate',
+        metadata: { message: `Samuel Odera approved payroll run March ${marchYear}` },
+        createdAt: new Date(Date.UTC(currentYear, 3, 1, 11, 15, 0)),
+      },
+      {
+        actorUserId: userByEmail.get(roleEmails.alice)?.id ?? null,
+        actorEmail: roleEmails.alice,
+        action: 'attendance.correction',
+        entityType: 'Attendance',
+        entityId: david?.id ?? null,
+        route: 'POST /api/outsourcing/attendance',
+        metadata: { message: 'Alice Muthoni corrected attendance: David Kamau clockOut 20:00 -> 21:30' },
+        createdAt: new Date(Date.UTC(currentYear, 3, 23, 18, 0, 0)),
+      },
+      {
+        actorUserId: userByEmail.get(demoAdmin)?.id ?? null,
+        actorEmail: demoAdmin,
+        action: 'employee.create',
+        entityType: 'Employee',
+        entityId: esther?.id ?? null,
+        route: 'POST /api/outsourcing/employees',
+        metadata: { message: 'demo@3rdparkhospital.com created employee: Esther Nyambura' },
+        createdAt: new Date(Date.UTC(currentYear, 3, 15, 8, 0, 0)),
+      },
+      {
+        actorUserId: userByEmail.get(roleEmails.alice)?.id ?? null,
+        actorEmail: roleEmails.alice,
+        action: 'leave.approval',
+        entityType: 'LeaveApplication',
+        entityId: roseEmp?.id ?? null,
+        route: 'PATCH /api/staff/leave/applications/[id]',
+        metadata: { message: 'Alice Muthoni approved leave: Rose Wangari annual leave' },
+        createdAt: new Date(Date.UTC(currentYear, 3, 25, 12, 30, 0)),
+      },
+    ],
+  });
 
   const clinicalCount = employeesSeed.filter((e) => e.clinical).length;
   const nonClinicalCount = employeesSeed.length - clinicalCount;

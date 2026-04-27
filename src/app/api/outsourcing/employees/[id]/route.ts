@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '@/lib/prisma';
 import { normalizeEmployeeNationalId } from '@/lib/outsourcing-employee-national-id';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canViewSalaryFields, unauthorizedResponse } from '@/lib/demo-route-access';
+import { logAuditEvent } from '@/lib/audit-events';
 
 function str(b: Record<string, unknown>, key: string): string | null {
   const v = b[key];
@@ -14,7 +17,8 @@ function date(b: Record<string, unknown>, key: string): Date | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-function mapEmployeeToJson(e: {
+function mapEmployeeToJson(
+  e: {
   id: string;
   employeeNumber: string | null;
   firstName: string;
@@ -42,7 +46,9 @@ function mapEmployeeToJson(e: {
   updatedAt: Date;
   client: { id: string; name: string };
   department: { id: string; name: string } | null;
-}) {
+  },
+  canViewSalary: boolean
+) {
   return {
     id: e.id,
     employeeNumber: e.employeeNumber ?? null,
@@ -65,7 +71,7 @@ function mapEmployeeToJson(e: {
     employmentStatusEffectiveFrom: e.employmentStatusEffectiveFrom?.toISOString().slice(0, 10) ?? null,
     employmentStatusEffectiveTo: e.employmentStatusEffectiveTo?.toISOString().slice(0, 10) ?? null,
     employmentEndedAt: e.employmentEndedAt?.toISOString().slice(0, 10) ?? null,
-    baseSalary: e.baseSalary != null ? Number(e.baseSalary as number) : null,
+    baseSalary: canViewSalary && e.baseSalary != null ? Number(e.baseSalary as number) : null,
     clientId: e.outsourcingClientId,
     clientName: e.client.name,
     departmentId: e.departmentId,
@@ -79,6 +85,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await requireStaffUser(_request);
+  if (!user) return unauthorizedResponse();
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Employee id required' }, { status: 400 });
 
@@ -94,7 +102,15 @@ export async function GET(
       },
     });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-    return NextResponse.json(mapEmployeeToJson(employee));
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: canViewSalaryFields(user) ? 'employee.salary.view' : 'employee.profile.view',
+      entityType: 'Employee',
+      entityId: employee.id,
+      route: 'GET /api/outsourcing/employees/[id]',
+      metadata: { includesSalary: canViewSalaryFields(user) },
+    });
+    return NextResponse.json(mapEmployeeToJson(employee, canViewSalaryFields(user)));
   } catch (e) {
     console.error('[outsourcing/employees GET]', e);
     return NextResponse.json({ error: 'Failed to load employee' }, { status: 500 });
@@ -105,6 +121,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await requireStaffUser(request);
+  if (!user) return unauthorizedResponse();
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Employee id required' }, { status: 400 });
 
@@ -253,7 +271,7 @@ export async function PATCH(
         },
       }).catch(() => null);
     }
-    return NextResponse.json(mapEmployeeToJson(employee));
+    return NextResponse.json(mapEmployeeToJson(employee, canViewSalaryFields(user)));
   } catch (e) {
     const err = e as { code?: string; meta?: { target?: string[] } };
     if (err.code === 'P2025') return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
@@ -272,6 +290,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await requireStaffUser(_request);
+  if (!user) return unauthorizedResponse();
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Employee id required' }, { status: 400 });
 

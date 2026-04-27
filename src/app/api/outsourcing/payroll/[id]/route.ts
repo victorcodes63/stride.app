@@ -9,12 +9,19 @@ import {
   workingDaysInPeriod,
 } from '@/lib/biweekly-attendance';
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireStaffUser(_request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     const id = (await params).id;
     const p = await prisma.payroll.findUnique({
       where: { id },
@@ -54,6 +61,13 @@ export async function GET(
       p.year,
       p.month
     );
+    const periodStart = new Date(Date.UTC(p.year, p.month - 1, 1));
+    const periodEnd = new Date(Date.UTC(p.year, p.month, 1));
+    const attendanceSummary = await prisma.attendanceDaySummary.aggregate({
+      where: { employeeId: p.employeeId, workDate: { gte: periodStart, lt: periodEnd } },
+      _count: { _all: true },
+      _sum: { minutesWorked: true, overtimeMinutes: true, lateMinutes: true },
+    });
     return NextResponse.json({
       id: p.id,
       employeeId: p.employeeId,
@@ -88,6 +102,12 @@ export async function GET(
         : null,
       accountsClientId: p.accountsClientId,
       accountsClientName: p.accountsClient?.name ?? null,
+      reconciledAttendance: {
+        days: attendanceSummary._count._all,
+        minutesWorked: attendanceSummary._sum.minutesWorked ?? 0,
+        overtimeMinutes: attendanceSummary._sum.overtimeMinutes ?? 0,
+        lateMinutes: attendanceSummary._sum.lateMinutes ?? 0,
+      },
     });
   } catch (e) {
     console.error('[payroll GET id]', e);
@@ -105,6 +125,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     const id = (await params).id;
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
 

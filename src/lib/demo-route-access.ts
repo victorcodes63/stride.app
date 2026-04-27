@@ -1,0 +1,22 @@
+import { NextResponse } from 'next/server';
+import type { StaffUser } from '@/lib/staff-api-auth';
+
+export function canAccessPayroll(user: StaffUser): boolean {
+  return user.role === 'admin' || user.staffUserType === 'finance';
+}
+
+export function canAccessCredentials(user: StaffUser): boolean {
+  return user.role === 'admin' || user.staffUserType === 'business_manager';
+}
+
+export function canViewSalaryFields(user: StaffUser): boolean {
+  return canAccessPayroll(user);
+}
+
+export function unauthorizedResponse() {
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+}
+
+export function forbiddenResponse(message = 'Insufficient permissions') {
+  return NextResponse.json({ error: message }, { status: 403 });
+}

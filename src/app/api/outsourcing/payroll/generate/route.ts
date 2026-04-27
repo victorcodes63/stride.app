@@ -5,9 +5,16 @@ import { calculateStatutoryForPayroll } from '@/lib/payroll-calc';
 import { isBiweeklyClient } from '@/lib/biweekly-payroll';
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
 import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
     }

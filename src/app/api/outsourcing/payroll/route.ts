@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
+import { logAuditEvent } from '@/lib/audit-events';
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
@@ -96,6 +104,14 @@ export async function GET(request: NextRequest) {
       (row as Record<string, unknown>).attendanceMinutes = summary._sum.minutesWorked ?? 0;
     }
 
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: 'payroll.records.view',
+      entityType: 'PayrollBatch',
+      entityId: `${y}-${m}-${clientId ?? 'all'}`,
+      route: 'GET /api/outsourcing/payroll',
+      metadata: { month: m, year: y, departmentId: departmentId ?? null, count: list.length },
+    });
     return NextResponse.json(list);
   } catch (e) {
     console.error('[payroll GET]', e);

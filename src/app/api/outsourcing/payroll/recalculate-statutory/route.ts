@@ -4,6 +4,9 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { calculateStatutoryForPayroll } from '@/lib/payroll-calc';
 import { isBiweeklyClient } from '@/lib/biweekly-payroll';
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
+import { resolveHospitalClientId } from '@/lib/hospital-client';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 
 function toDecimal(n: number): Decimal {
   return new Decimal(Math.round(n * 100) / 100);
@@ -11,10 +14,16 @@ function toDecimal(n: number): Decimal {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) {
+      return forbiddenResponse('Payroll access is restricted to finance and admins.');
+    }
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const month = body.month != null ? parseInt(String(body.month), 10) : undefined;
     const year = body.year != null ? parseInt(String(body.year), 10) : undefined;
-    const clientId = typeof body.clientId === 'string' ? body.clientId : undefined;
+    const requestedClientId = typeof body.clientId === 'string' ? body.clientId : undefined;
+    const clientId = await resolveHospitalClientId(prisma, requestedClientId);
     const departmentId = typeof body.departmentId === 'string' ? body.departmentId : undefined;
 
     if (Number.isNaN(month) || month < 1 || month > 12 || Number.isNaN(year)) {
@@ -25,14 +34,10 @@ export async function POST(request: NextRequest) {
       where: {
         month: month!,
         year: year!,
-        ...(clientId || departmentId
-          ? {
-              employee: {
-                ...(clientId ? { outsourcingClientId: clientId } : {}),
-                ...(departmentId ? { departmentId } : {}),
-              },
-            }
-          : {}),
+        employee: {
+          outsourcingClientId: clientId,
+          ...(departmentId ? { departmentId } : {}),
+        },
       },
       include: {
         employee: {
