@@ -91,7 +91,11 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
   }, []);
 
   useEffect(() => {
-    loadNotifications();
+    void loadNotifications();
+    const interval = setInterval(() => {
+      void loadNotifications();
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   useEffect(() => {

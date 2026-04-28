@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Clock3 } from 'lucide-react';
+import { Bell, CalendarDays, Clock3, Home, Receipt, User, X } from 'lucide-react';
 
 type EssMe = {
   id: string;
@@ -17,6 +17,31 @@ export default function EssAppLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<EssMe | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    body: string;
+    href?: string | null;
+    unread: boolean;
+    createdAt: string;
+  }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/ess/notifications?limit=30');
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        notifications?: Array<{ id: string; title: string; body: string; href?: string | null; unread: boolean; createdAt: string }>;
+        unreadCount?: number;
+      };
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+      setUnreadCount(typeof data.unreadCount === 'number' ? data.unreadCount : 0);
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -46,63 +71,141 @@ export default function EssAppLayout({ children }: { children: React.ReactNode }
     }
   }, [me?.mustResetPassword, pathname, router]);
 
+  useEffect(() => {
+    void fetchNotifications();
+    const interval = setInterval(() => {
+      void fetchNotifications();
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   async function onLogout() {
     await fetch('/api/ess/auth/logout', { method: 'POST' });
     router.replace('/ess/login');
     router.refresh();
   }
 
+  const navItems = [
+    { href: '/ess', label: 'Overview', icon: Home },
+    { href: '/ess/leave', label: 'Leave', icon: CalendarDays },
+    { href: '/ess/payslips', label: 'Payslips', icon: Receipt },
+    { href: '/ess/attendance', label: 'Attendance', icon: Clock3 },
+    { href: '/ess/profile', label: 'Profile', icon: User },
+  ];
+
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50 pb-24">
       <header className="border-b border-neutral-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div>
-            <p className="text-sm text-neutral-500">Employee Self Service</p>
-            <p className="text-sm font-semibold text-primary-900">{me?.name || 'Loading...'}</p>
+            <p className="text-base text-neutral-500">Employee self service</p>
+            <p className="text-base font-semibold text-primary-900">{me?.name || 'Loading...'}</p>
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="px-3 py-1.5 rounded-md border border-neutral-300 text-sm text-neutral-700 hover:bg-neutral-100"
-          >
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setNotificationsOpen((v) => !v);
+                if (!notificationsOpen) void fetchNotifications();
+              }}
+              className="relative min-h-12 rounded-md border border-neutral-300 px-3 text-base text-neutral-700"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="min-h-12 rounded-md border border-neutral-300 px-4 text-base text-neutral-700"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <nav className="mb-6 flex flex-wrap gap-2">
-          {[
-            { href: '/ess', label: 'Overview' },
-            { href: '/ess/profile', label: 'Profile' },
-            { href: '/ess/leave', label: 'Leave' },
-            { href: '/ess/attendance', label: 'Attendance', icon: Clock3 },
-            ...(me?.role === 'manager' || me?.role === 'hr'
-              ? [{ href: '/ess/leave-approvals', label: 'Leave approvals' }]
-              : []),
-            { href: '/ess/payslips', label: 'Payslips' },
-            { href: '/ess/account-security', label: 'Account security' },
-          ].map((item) => {
+      {notificationsOpen && (
+        <div className="fixed inset-x-0 top-16 z-40 mx-auto w-full max-w-6xl px-4">
+          <div className="w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-md md:ml-auto md:max-w-md">
+            <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-ink">Notifications</h3>
+              <button type="button" onClick={() => setNotificationsOpen(false)} className="rounded p-1 text-neutral-500 hover:bg-neutral-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-neutral-500">No notifications yet.</p>
+              ) : (
+                <ul className="divide-y divide-neutral-100">
+                  {notifications.map((n) => (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (n.unread) {
+                            await fetch('/api/ess/notifications', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ids: [n.id] }),
+                            });
+                            setUnreadCount((c) => Math.max(0, c - 1));
+                          }
+                          setNotificationsOpen(false);
+                          if (n.href) router.push(n.href);
+                        }}
+                        className={`w-full px-4 py-3 text-left hover:bg-neutral-50 ${n.unread ? 'bg-primary-50' : ''}`}
+                      >
+                        <p className="text-sm font-medium text-ink">{n.title}</p>
+                        <p className="text-xs text-neutral-600">{n.body}</p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {notifications.length > 0 && (
+              <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch('/api/ess/notifications', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ markAllRead: true }),
+                    });
+                    setNotifications((prev) => prev.map((x) => ({ ...x, unread: false })));
+                    setUnreadCount(0);
+                  }}
+                  className="text-xs font-medium text-primary-600"
+                >
+                  Mark all read
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="mx-auto max-w-6xl px-4 py-6 text-base">
+        {children}
+      </div>
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white">
+        <div className="mx-auto grid max-w-6xl grid-cols-5">
+          {navItems.map((item) => {
             const active = pathname === item.href;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-1.5 rounded-md text-sm border ${
-                  active
-                    ? 'border-primary-200 bg-primary-50 text-primary-700 font-medium'
-                    : 'border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100'
-                }`}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {item.icon ? <item.icon className="h-3.5 w-3.5" aria-hidden="true" /> : null}
-                  {item.label}
-                </span>
+              <Link key={item.href} href={item.href} className={`flex min-h-12 flex-col items-center justify-center gap-1 text-xs ${active ? 'text-[#00a2c9]' : 'text-neutral-500'}`}>
+                <item.icon className="h-5 w-5" strokeWidth={1.75} />
+                {item.label}
               </Link>
             );
           })}
-        </nav>
-        {children}
-      </div>
+        </div>
+      </nav>
     </div>
   );
 }
