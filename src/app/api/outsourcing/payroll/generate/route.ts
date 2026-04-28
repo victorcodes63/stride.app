@@ -7,6 +7,7 @@ import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-l
 import { resolveHospitalClientId } from '@/lib/hospital-client';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
+import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
           where: {
             employeeId: e.id,
             workDate: { gte: periodStart, lt: periodEnd },
+            status: { in: [...ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL] },
           },
           _sum: { overtimeMinutes: true },
         });
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
               nssf: new Decimal(stat.nssf),
               nhif: new Decimal(stat.nhif),
               ahl: new Decimal(stat.ahl),
+              nita: new Decimal(stat.nita),
               netPay: new Decimal(stat.netPay),
               allowances: overtimeAllowance,
               deductions: [],
@@ -159,6 +162,7 @@ export async function POST(request: NextRequest) {
             nssf: new Decimal(stat.nssf),
             nhif: new Decimal(stat.nhif),
             ahl: new Decimal(stat.ahl),
+            nita: new Decimal(stat.nita),
             netPay: new Decimal(stat.netPay),
             allowances: overtimeAllowance,
             deductions: [],

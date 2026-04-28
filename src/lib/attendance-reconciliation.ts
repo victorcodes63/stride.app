@@ -1,10 +1,33 @@
 import type { PrismaClient } from '@prisma/client';
+import {
+  computeAttendance,
+  type EnginePunch,
+  type EngineShiftAssignment,
+} from '@/lib/shift-engine/computeAttendance';
 
 type ReconcileOptions = {
   employeeId: string;
   workDate: string; // YYYY-MM-DD
   actorUserId?: string | null;
 };
+
+/** Inputs for pure metrics (tests + shift engine path). */
+export type ReconcileEventInput = {
+  kind: string;
+  observedAt: Date;
+  source: string;
+};
+
+export type ReconcileShiftInput = {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  breakMinutes: number;
+};
+
+const SHIFT_TOLERANCE_HOURS = 4;
+const DUPLICATE_PUNCH_WINDOW_SECONDS = 60;
+const TOLERANCE_MS = SHIFT_TOLERANCE_HOURS * 60 * 60 * 1000;
 
 function toWorkDate(input: string): Date {
   return new Date(`${input}T00:00:00.000Z`);
@@ -14,6 +37,126 @@ function toYmdUtc(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function scheduledWorkMinutes(shift: ReconcileShiftInput): number {
+  return Math.max(
+    0,
+    Math.round((shift.endsAt.getTime() - shift.startsAt.getTime()) / 60000) - shift.breakMinutes
+  );
+}
+
+function mapKindToPunchType(kind: string): 'clock_in' | 'clock_out' | null {
+  if (kind === 'check_in') return 'clock_in';
+  if (kind === 'check_out') return 'clock_out';
+  return null;
+}
+
+function mapSourceToEngineSource(source: string): EnginePunch['source'] {
+  if (source === 'manual') return 'manual';
+  return 'device';
+}
+
+function eventsToEnginePunches(events: ReconcileEventInput[], employeeId: string): EnginePunch[] {
+  const punches: EnginePunch[] = [];
+  for (const e of events) {
+    const type = mapKindToPunchType(String(e.kind));
+    if (!type) continue;
+    punches.push({
+      employeeId,
+      type,
+      timestamp: e.observedAt,
+      source: mapSourceToEngineSource(String(e.source)),
+    });
+  }
+  return punches;
+}
+
+function shiftsToEngineAssignments(
+  shiftRows: ReconcileShiftInput[],
+  employeeId: string
+): EngineShiftAssignment[] {
+  return shiftRows.map((row) => ({
+    id: row.id,
+    employeeId,
+    scheduledStart: row.startsAt,
+    scheduledEnd: row.endsAt,
+  }));
+}
+
+/**
+ * Pure reconciliation metrics for days with shift assignments.
+ * Uses `computeAttendance` for debounce, cross-midnight pairing, and multi-shift matching.
+ * Overtime minutes follow production rules: worked minutes minus scheduled shift length (minus break), not engine daily buckets.
+ */
+export function computeReconciledSummaryMetrics(
+  events: ReconcileEventInput[],
+  shiftRows: ReconcileShiftInput[],
+  employeeId: string
+): {
+  firstInAt: Date | null;
+  lastOutAt: Date | null;
+  minutesWorked: number;
+  overtimeMinutes: number;
+  summaryStatus: 'draft' | 'reconciled';
+} {
+  const punches = eventsToEnginePunches(events, employeeId);
+  const engineAssignments = shiftsToEngineAssignments(shiftRows, employeeId);
+  const records = computeAttendance(punches, engineAssignments, {
+    shiftMatchToleranceHours: SHIFT_TOLERANCE_HOURS,
+    duplicatePunchWindowSeconds: DUPLICATE_PUNCH_WINDOW_SECONDS,
+  });
+
+  let minutesWorked = 0;
+  let overtimeMinutes = 0;
+  let firstInAt: Date | null = null;
+  let lastOutAt: Date | null = null;
+  let anyPending = false;
+
+  for (const r of records) {
+    if (r.status === 'pending_review') anyPending = true;
+    if (r.clockIn && (!firstInAt || r.clockIn.getTime() < firstInAt.getTime())) firstInAt = r.clockIn;
+    if (r.clockOut && (!lastOutAt || r.clockOut.getTime() > lastOutAt.getTime())) lastOutAt = r.clockOut;
+
+    const shift = shiftRows.find((s) => s.id === r.shiftAssignmentId);
+    if (r.clockIn && r.clockOut && r.clockOut.getTime() > r.clockIn.getTime() && shift) {
+      const segmentMinutes = Math.round((r.clockOut.getTime() - r.clockIn.getTime()) / 60000);
+      minutesWorked += segmentMinutes;
+      const scheduledMinutes = scheduledWorkMinutes(shift);
+      overtimeMinutes += Math.max(0, segmentMinutes - scheduledMinutes);
+    }
+  }
+
+  const complete = Boolean(firstInAt && lastOutAt && lastOutAt.getTime() > firstInAt.getTime());
+  const summaryStatus =
+    events.length === 0 ? 'draft' : anyPending || !complete ? 'draft' : 'reconciled';
+
+  return { firstInAt, lastOutAt, minutesWorked, overtimeMinutes, summaryStatus };
+}
+
+function legacyFirstLastMetrics(events: ReconcileEventInput[]): {
+  firstInAt: Date | null;
+  lastOutAt: Date | null;
+  minutesWorked: number;
+  overtimeMinutes: number;
+  summaryStatus: 'draft' | 'reconciled';
+} {
+  const firstIn = events.find((e) => e.kind === 'check_in');
+  const lastOut = [...events].reverse().find((e) => e.kind === 'check_out');
+  let minutesWorked = 0;
+  if (firstIn && lastOut && lastOut.observedAt.getTime() > firstIn.observedAt.getTime()) {
+    minutesWorked = Math.round((lastOut.observedAt.getTime() - firstIn.observedAt.getTime()) / 60000);
+  }
+  const complete = Boolean(
+    firstIn && lastOut && lastOut.observedAt.getTime() > firstIn.observedAt.getTime()
+  );
+  return {
+    firstInAt: firstIn?.observedAt ?? null,
+    lastOutAt: lastOut?.observedAt ?? null,
+    minutesWorked,
+    overtimeMinutes: 0,
+    summaryStatus: events.length === 0 ? 'draft' : !complete ? 'draft' : 'reconciled',
+  };
+}
+
 export async function resolveReconcileWorkDatesForObservedAt(
   db: PrismaClient,
   employeeId: string,
@@ -21,12 +164,11 @@ export async function resolveReconcileWorkDatesForObservedAt(
 ): Promise<string[]> {
   const base = toYmdUtc(observedAt);
   const dates = new Set<string>([base]);
-  const toleranceMs = 4 * 60 * 60 * 1000;
   const candidateAssignments = await db.shiftAssignment.findMany({
     where: {
       employeeId,
-      startsAt: { lte: new Date(observedAt.getTime() + toleranceMs) },
-      endsAt: { gte: new Date(observedAt.getTime() - toleranceMs) },
+      startsAt: { lte: new Date(observedAt.getTime() + TOLERANCE_MS) },
+      endsAt: { gte: new Date(observedAt.getTime() - TOLERANCE_MS) },
     },
     select: { workDate: true },
     take: 5,
@@ -47,7 +189,7 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
   });
   if (!employee) throw new Error('Employee not found');
 
-  const assignment = await db.shiftAssignment.findFirst({
+  const assignments = await db.shiftAssignment.findMany({
     where: {
       employeeId: options.employeeId,
       workDate,
@@ -55,13 +197,14 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
     orderBy: { startsAt: 'asc' },
   });
 
-  const toleranceMs = 4 * 60 * 60 * 1000;
-  const rangeStart = assignment
-    ? new Date(assignment.startsAt.getTime() - toleranceMs)
-    : workDate;
-  const rangeEnd = assignment
-    ? new Date(assignment.endsAt.getTime() + toleranceMs)
-    : new Date(workDate.getTime() + 24 * 60 * 60 * 1000);
+  let rangeStart = workDate;
+  let rangeEnd = new Date(workDate.getTime() + 24 * 60 * 60 * 1000);
+  if (assignments.length > 0) {
+    rangeStart = new Date(
+      Math.min(...assignments.map((a) => a.startsAt.getTime() - TOLERANCE_MS))
+    );
+    rangeEnd = new Date(Math.max(...assignments.map((a) => a.endsAt.getTime() + TOLERANCE_MS)));
+  }
 
   const events = await db.attendanceEvent.findMany({
     where: {
@@ -71,19 +214,33 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
     orderBy: { observedAt: 'asc' },
   });
 
-  const firstIn = events.find((e) => e.kind === 'check_in');
-  const lastOut = [...events].reverse().find((e) => e.kind === 'check_out');
-  let minutesWorked = 0;
-  let overtimeMinutes = 0;
-  if (firstIn && lastOut && lastOut.observedAt > firstIn.observedAt) {
-    minutesWorked = Math.round((lastOut.observedAt.getTime() - firstIn.observedAt.getTime()) / 60000);
-    if (assignment) {
-      const scheduledMinutes = Math.max(
-        0,
-        Math.round((assignment.endsAt.getTime() - assignment.startsAt.getTime()) / 60000) - assignment.breakMinutes
-      );
-      overtimeMinutes = Math.max(0, minutesWorked - scheduledMinutes);
-    }
+  const shiftInputs: ReconcileShiftInput[] = assignments.map((a) => ({
+    id: a.id,
+    startsAt: a.startsAt,
+    endsAt: a.endsAt,
+    breakMinutes: a.breakMinutes,
+  }));
+
+  let firstInAt: Date | null;
+  let lastOutAt: Date | null;
+  let minutesWorked: number;
+  let overtimeMinutes: number;
+  let summaryStatus: 'draft' | 'reconciled';
+
+  if (assignments.length > 0) {
+    const m = computeReconciledSummaryMetrics(events, shiftInputs, options.employeeId);
+    firstInAt = m.firstInAt;
+    lastOutAt = m.lastOutAt;
+    minutesWorked = m.minutesWorked;
+    overtimeMinutes = m.overtimeMinutes;
+    summaryStatus = m.summaryStatus;
+  } else {
+    const legacy = legacyFirstLastMetrics(events);
+    firstInAt = legacy.firstInAt;
+    lastOutAt = legacy.lastOutAt;
+    minutesWorked = legacy.minutesWorked;
+    overtimeMinutes = legacy.overtimeMinutes;
+    summaryStatus = legacy.summaryStatus;
   }
 
   const attendancePolicyId = employee.attendancePolicyAssignments[0]?.attendancePolicyId ?? null;
@@ -94,11 +251,11 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
       outsourcingClientId: employee.outsourcingClientId,
       workDate,
       attendancePolicyId,
-      firstInAt: firstIn?.observedAt ?? null,
-      lastOutAt: lastOut?.observedAt ?? null,
+      firstInAt,
+      lastOutAt,
       minutesWorked,
       overtimeMinutes,
-      status: events.length > 0 ? 'reconciled' : 'draft',
+      status: summaryStatus,
       sourceBreakdown: {
         biometric: events.filter((e) => e.source === 'biometric').length,
         manual: events.filter((e) => e.source === 'manual').length,
@@ -107,11 +264,11 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
     },
     update: {
       attendancePolicyId,
-      firstInAt: firstIn?.observedAt ?? null,
-      lastOutAt: lastOut?.observedAt ?? null,
+      firstInAt,
+      lastOutAt,
       minutesWorked,
       overtimeMinutes,
-      status: events.length > 0 ? 'reconciled' : 'draft',
+      status: summaryStatus,
       sourceBreakdown: {
         biometric: events.filter((e) => e.source === 'biometric').length,
         manual: events.filter((e) => e.source === 'manual').length,
@@ -125,8 +282,8 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
   });
 
   const exceptionRows: Array<{ type: 'missing_check_in' | 'missing_check_out'; description: string }> = [];
-  if (!firstIn) exceptionRows.push({ type: 'missing_check_in', description: 'No check-in event found for this shift/day window.' });
-  if (!lastOut) exceptionRows.push({ type: 'missing_check_out', description: 'No check-out event found for this shift/day window.' });
+  if (!firstInAt) exceptionRows.push({ type: 'missing_check_in', description: 'No check-in event found for this shift/day window.' });
+  if (!lastOutAt) exceptionRows.push({ type: 'missing_check_out', description: 'No check-out event found for this shift/day window.' });
 
   if (exceptionRows.length > 0) {
     await db.attendanceException.createMany({
@@ -143,3 +300,8 @@ export async function reconcileAttendanceDay(db: PrismaClient, options: Reconcil
   return summary;
 }
 
+/** Payroll and payslip views should only sum overtime from finalized day rows. */
+export const ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL: Array<'reconciled' | 'approved'> = [
+  'reconciled',
+  'approved',
+];

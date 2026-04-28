@@ -11,6 +11,7 @@ import {
 import { mapOutsourcingClientsToAccountsClients } from '@/lib/payroll-accounts-link';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
+import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 
 export async function GET(
   _request: NextRequest,
@@ -66,7 +67,15 @@ export async function GET(
     const attendanceSummary = await prisma.attendanceDaySummary.aggregate({
       where: { employeeId: p.employeeId, workDate: { gte: periodStart, lt: periodEnd } },
       _count: { _all: true },
-      _sum: { minutesWorked: true, overtimeMinutes: true, lateMinutes: true },
+      _sum: { minutesWorked: true, lateMinutes: true },
+    });
+    const overtimeEligible = await prisma.attendanceDaySummary.aggregate({
+      where: {
+        employeeId: p.employeeId,
+        workDate: { gte: periodStart, lt: periodEnd },
+        status: { in: [...ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL] },
+      },
+      _sum: { overtimeMinutes: true },
     });
     return NextResponse.json({
       id: p.id,
@@ -90,6 +99,7 @@ export async function GET(
       nssf: String(p.nssf),
       nhif: String(p.nhif),
       ahl: String(p.ahl ?? 0),
+      nita: String(p.nita ?? 0),
       netPay: String(p.netPay),
       status: p.status,
       biweeklyAllocation,
@@ -105,7 +115,7 @@ export async function GET(
       reconciledAttendance: {
         days: attendanceSummary._count._all,
         minutesWorked: attendanceSummary._sum.minutesWorked ?? 0,
-        overtimeMinutes: attendanceSummary._sum.overtimeMinutes ?? 0,
+        overtimeMinutes: overtimeEligible._sum.overtimeMinutes ?? 0,
         lateMinutes: attendanceSummary._sum.lateMinutes ?? 0,
       },
     });
@@ -241,6 +251,7 @@ export async function PATCH(
     let nssf: Decimal;
     let nhif: Decimal;
     let ahl: Decimal;
+    let nita: Decimal;
     let netPay: Decimal;
 
     if (recalculateStatutory) {
@@ -254,12 +265,14 @@ export async function PATCH(
       nssf = toDecimal(calc.nssf);
       nhif = toDecimal(calc.nhif);
       ahl = toDecimal(calc.ahl);
+      nita = toDecimal(calc.nita);
       netPay = toDecimal(calc.netPay);
     } else {
       paye = payeOverride ?? existing.paye;
       nssf = nssfOverride ?? existing.nssf;
       nhif = nhifOverride ?? existing.nhif;
       ahl = ahlOverride ?? existing.ahl;
+      nita = existing.nita != null ? toDecimal(existing.nita) : toDecimal(0);
       const payeNum = Number(paye);
       const nssfNum = Number(nssf);
       const nhifNum = Number(nhif);
@@ -316,6 +329,7 @@ export async function PATCH(
         nssf,
         nhif,
         ahl,
+        nita,
         netPay,
       },
     });
@@ -334,6 +348,7 @@ export async function PATCH(
       nssf: String(updated.nssf),
       nhif: String(updated.nhif),
       ahl: String(updated.ahl),
+      nita: String(updated.nita ?? 0),
       netPay: String(updated.netPay),
     });
   } catch (e) {
