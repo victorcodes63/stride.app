@@ -88,6 +88,7 @@ export default function EssAppLayout({ children }: { children: React.ReactNode }
   const navItems = [
     { href: '/ess', label: 'Overview', icon: Home },
     { href: '/ess/leave', label: 'Leave', icon: CalendarDays },
+    { href: '/ess/grievances', label: 'Grievances', icon: Bell },
     { href: '/ess/payslips', label: 'Payslips', icon: Receipt },
     { href: '/ess/attendance', label: 'Attendance', icon: Clock3 },
     { href: '/ess/profile', label: 'Profile', icon: User },
@@ -194,7 +195,7 @@ export default function EssAppLayout({ children }: { children: React.ReactNode }
         {children}
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white">
-        <div className="mx-auto grid max-w-6xl grid-cols-5">
+        <div className="mx-auto grid max-w-6xl grid-cols-6">
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (

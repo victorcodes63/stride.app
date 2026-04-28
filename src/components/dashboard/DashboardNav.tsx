@@ -64,6 +64,7 @@ const primarySections: AccordionSection[] = [
       { href: '/dashboard/people/contracts', label: 'Contracts', icon: FileSignature },
       { href: '/dashboard/credentials', label: 'Credentials', icon: BadgeCheck },
       { href: '/dashboard/people/performance', label: 'Performance', icon: TrendingUp },
+      { href: '/dashboard/disciplinary', label: 'Disciplinary', icon: Shield },
       { href: '/dashboard/onboarding', label: 'Onboarding', icon: ListTodo },
     ],
   },

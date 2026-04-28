@@ -83,6 +83,7 @@ export default function EditEmployeePage() {
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [viewerRole, setViewerRole] = useState<'admin' | 'staff' | 'viewer' | null>(null);
   const [viewerStaffType, setViewerStaffType] = useState<string | null>(null);
+  const [disciplinaryCases, setDisciplinaryCases] = useState<Array<{ id: string; caseNumber: string; status: string; subject: string; resolvedAt: string | null }>>([]);
   const [docForm, setDocForm] = useState<{
     title: string;
     category: DocumentCategory;
@@ -100,6 +101,7 @@ export default function EditEmployeePage() {
 
   const canUploadDocuments = viewerRole === 'admin' || viewerStaffType === 'business_manager';
   const canDeleteDocuments = viewerRole === 'admin';
+  const canViewDisciplinary = viewerRole === 'admin' || viewerStaffType === 'operations' || viewerStaffType === 'business_manager';
 
   const fetchDocuments = async (employeeId: string) => {
     setDocumentsLoading(true);
@@ -176,6 +178,8 @@ export default function EditEmployeePage() {
         if (!cancelled) {
           const employeeId = id as string;
           await fetchDocuments(employeeId);
+          const disciplinary = await fetch(`/api/disciplinary/cases?employeeId=${employeeId}`).then((r) => r.json().catch(() => []));
+          setDisciplinaryCases(Array.isArray(disciplinary) ? disciplinary : []);
           const wf = await fetch(`/api/onboarding/workflows?employeeId=${employeeId}`).then((r) => r.json().catch(() => []));
           setWorkflows(Array.isArray(wf) ? wf : []);
         }
@@ -481,6 +485,48 @@ export default function EditEmployeePage() {
           </div>
 
           <div className="border-t border-neutral-100 pt-5 sm:pt-6">
+            {canViewDisciplinary ? (
+              <div className="mb-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-base sm:text-lg font-semibold text-primary-900">Disciplinary</h2>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const payload = {
+                        employeeId: id,
+                        subject: `New disciplinary case for ${form.firstName} ${form.lastName}`,
+                        description: 'Document incident details here.',
+                        type: 'MISCONDUCT',
+                        severity: 'MINOR',
+                        incidentDate: new Date().toISOString(),
+                      };
+                      const res = await fetch('/api/disciplinary/cases', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                      });
+                      const body = await res.json().catch(() => null);
+                      if (res.ok && body?.id) router.push(`/dashboard/disciplinary/cases/${body.id}`);
+                    }}
+                    className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700"
+                  >
+                    New case
+                  </button>
+                </div>
+                {disciplinaryCases.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600">No disciplinary cases on file.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {disciplinaryCases.map((item) => (
+                      <Link key={item.id} href={`/dashboard/disciplinary/cases/${item.id}`} className="block rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50">
+                        <p className="text-sm font-semibold text-primary-900">{item.caseNumber} - {item.subject}</p>
+                        <p className="text-xs text-neutral-600">Status: {item.status.replaceAll('_', ' ')}</p>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base sm:text-lg font-semibold text-primary-900">Documents</h2>

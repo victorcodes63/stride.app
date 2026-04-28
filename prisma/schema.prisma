@@ -257,6 +257,9 @@ model Employee {
   leaveBalanceLedgers LeaveBalanceLedger[]
   documents      EmployeeDocument[]
   onboardingWorkflows OnboardingWorkflow[]
+  disciplinaryCases   DisciplinaryCase[]
+  grievancesFiled     Grievance[]
+  grievancesAgainst   Grievance[] @relation("GrievanceAgainst")
 
   @@index([outsourcingClientId])
   @@index([departmentId])
@@ -265,6 +268,152 @@ model Employee {
   @@index([email])
   /// One national ID maps to at most one employee record system-wide (multiple NULL allowed).
   @@unique([idNumber])
+}
+
+model DisciplinaryCase {
+  id           String  @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  caseNumber   String  @unique
+  type         DisciplinaryCaseType
+  status       DisciplinaryCaseStatus @default(OPEN)
+  severity     DisciplinarySeverity   @default(MINOR)
+  subject      String
+  description  String   @db.Text
+  incidentDate DateTime
+  reportedDate DateTime @default(now())
+  reportedById String
+  reportedBy   User     @relation("CaseReporter", fields: [reportedById], references: [id])
+  actions      DisciplinaryAction[]
+  documents    DisciplinaryDocument[]
+  resolution   String?  @db.Text
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?    @relation("CaseResolver", fields: [resolvedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([type])
+}
+
+model DisciplinaryAction {
+  id                    String @id @default(cuid())
+  caseId                 String
+  disciplinaryCase       DisciplinaryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                   DisciplinaryActionType
+  description            String   @db.Text
+  actionDate             DateTime @default(now())
+  performedById          String
+  performedBy            User     @relation("DisciplinaryActionPerformer", fields: [performedById], references: [id])
+  employeeResponse       String?  @db.Text
+  employeeAcknowledged   Boolean  @default(false)
+  acknowledgedAt         DateTime?
+  nextActionDue          DateTime?
+  letterGenerated        Boolean  @default(false)
+  notes                  String?  @db.Text
+  overrideSequence       Boolean  @default(false)
+  overrideReason         String?  @db.Text
+
+  @@index([caseId, actionDate])
+}
+
+model DisciplinaryDocument {
+  id           String @id @default(cuid())
+  caseId        String
+  disciplinaryCase DisciplinaryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title        String
+  filePath     String
+  fileName     String
+  uploadedById String
+  uploadedBy   User     @relation("DisciplinaryDocumentUploader", fields: [uploadedById], references: [id])
+  uploadedAt   DateTime @default(now())
+
+  @@index([caseId])
+}
+
+model Grievance {
+  id                 String @id @default(cuid())
+  employeeId         String
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  grievanceNumber    String @unique
+  status             GrievanceStatus @default(SUBMITTED)
+  subject            String
+  description        String @db.Text
+  category           GrievanceCategory
+  againstId          String?
+  against            Employee? @relation("GrievanceAgainst", fields: [againstId], references: [id])
+  investigationNotes String? @db.Text
+  resolution         String? @db.Text
+  resolvedAt         DateTime?
+  resolvedById       String?
+  resolvedBy         User? @relation("GrievanceResolver", fields: [resolvedById], references: [id])
+  submittedAt        DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+enum DisciplinaryCaseType {
+  MISCONDUCT
+  POOR_PERFORMANCE
+  POLICY_VIOLATION
+  INSUBORDINATION
+  ABSENTEEISM
+  HARASSMENT
+  NEGLIGENCE
+  OTHER
+}
+
+enum DisciplinaryCaseStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  HEARING_SCHEDULED
+  AWAITING_RESPONSE
+  RESOLVED
+  ESCALATED
+  CLOSED
+}
+
+enum DisciplinarySeverity {
+  MINOR
+  MODERATE
+  SERIOUS
+  GROSS
+}
+
+enum DisciplinaryActionType {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SHOW_CAUSE_LETTER
+  HEARING
+  SUSPENSION
+  DEMOTION
+  TERMINATION
+  CASE_DISMISSED
+}
+
+enum GrievanceStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  INVESTIGATING
+  RESOLVED
+  ESCALATED
+  WITHDRAWN
+}
+
+enum GrievanceCategory {
+  WORKPLACE_SAFETY
+  HARASSMENT
+  DISCRIMINATION
+  WORKLOAD
+  MANAGEMENT
+  COMPENSATION
+  POLICY
+  OTHER
 }
 
 enum EmployeeDocumentCategory {
@@ -1188,6 +1337,11 @@ model User {
   uploadedEmployeeDocuments  EmployeeDocument[]
   onboardingAssignedTasks    OnboardingTask[] @relation("OnboardingTaskAssignee")
   onboardingCompletedTasks   OnboardingTask[] @relation("OnboardingTaskCompletedBy")
+  reportedCases              DisciplinaryCase[] @relation("CaseReporter")
+  resolvedCases              DisciplinaryCase[] @relation("CaseResolver")
+  disciplinaryActions        DisciplinaryAction[] @relation("DisciplinaryActionPerformer")
+  uploadedDisciplinaryDocuments DisciplinaryDocument[] @relation("DisciplinaryDocumentUploader")
+  resolvedGrievances         Grievance[] @relation("GrievanceResolver")
 
   @@index([email])
   @@index([isActive])

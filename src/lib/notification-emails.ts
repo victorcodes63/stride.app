@@ -18,7 +18,13 @@ export type NotificationEvent =
   | 'attendance_corrected'
   | 'password_changed'
   | 'user_invited'
-  | 'profile_change_requested';
+  | 'profile_change_requested'
+  | 'disciplinary_case_opened'
+  | 'disciplinary_action_added'
+  | 'disciplinary_acknowledged'
+  | 'disciplinary_case_resolved'
+  | 'grievance_submitted'
+  | 'grievance_status_changed';
 
 type TemplateResult = { subject: string; html: string };
 
