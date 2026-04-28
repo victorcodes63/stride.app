@@ -5,6 +5,7 @@ import {
   nairobiYmd,
   prismaDateToYmd,
 } from '@/lib/nairobi-calendar';
+import { sendNotification } from '@/lib/notifications';
 
 const SCHEDULER_KEY = 'contract-reminders';
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -45,26 +46,30 @@ async function milestoneAlreadySent(
 }
 
 async function notifyManagers(
-  db: Prisma.TransactionClient,
   params: {
     contractId: string;
     userIds: string[];
     title: string;
     body: string;
     href: string;
+    kind: ContractReminderKind;
   },
 ) {
-  for (const userId of params.userIds) {
-    await db.staffNotification.create({
-      data: {
-        userId,
-        title: params.title,
-        body: params.body,
-        href: params.href,
-        contractId: params.contractId,
-      },
-    });
-  }
+  const priority = params.kind === 'seven_days' || params.kind === 'expiry_day' ? 'urgent' : 'info';
+  const channel = params.kind === 'seven_days' || params.kind === 'expiry_day' ? 'both' : 'in_app';
+  await sendNotification({
+    event: 'contract_expiring',
+    recipientUserIds: params.userIds,
+    title: params.title,
+    body: params.body,
+    href: params.href,
+    priority,
+    channel,
+    metadata: {
+      contractId: params.contractId,
+      kind: params.kind,
+    },
+  });
 }
 
 /** Returns counts for observability. Caller runs once per Nairobi calendar day (scheduler lock). */
@@ -109,12 +114,13 @@ export async function runContractReminders(
       if (latest && now.getTime() - latest.sentAt.getTime() < WEEK_MS) continue;
 
       const body = `${label} (${clientName}) ended on ${endDisplay}. Follow up or turn off reminders on the contract.`;
-      await notifyManagers(db, {
+      await notifyManagers({
         contractId: c.id,
         userIds: managerIds,
         title: `Expired contract — ${clientName}`,
         body,
         href,
+        kind: 'expired_weekly',
       });
       await db.contractReminderSent.create({
         data: { contractId: c.id, kind: 'expired_weekly' },
@@ -145,12 +151,13 @@ export async function runContractReminders(
       if (await milestoneAlreadySent(db, c.id, kind)) continue;
 
       const body = `${label} for ${clientName} — ${milestoneLabel(kind)} (ends ${endDisplay}).`;
-      await notifyManagers(db, {
+      await notifyManagers({
         contractId: c.id,
         userIds: managerIds,
         title: `Contract reminder — ${clientName}`,
         body,
         href,
+        kind,
       });
       await db.contractReminderSent.create({
         data: { contractId: c.id, kind },
