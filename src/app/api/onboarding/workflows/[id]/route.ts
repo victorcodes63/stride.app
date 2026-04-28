@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { WorkflowStatus } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireStaffUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { id } = await params;
+  const workflow = await prisma.onboardingWorkflow.findUnique({
+    where: { id },
+    include: {
+      employee: { include: { department: true } },
+      template: true,
+      tasks: { orderBy: { order: 'asc' } },
+    },
+  });
+  if (!workflow) return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
+  return NextResponse.json(workflow);
+}
+
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireStaffUser(request);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { id } = await params;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const status = body?.status as WorkflowStatus | undefined;
+  if (!status) return NextResponse.json({ error: 'status is required' }, { status: 400 });
+
+  const workflow = await prisma.onboardingWorkflow.update({
+    where: { id },
+    data: {
+      status,
+      completedAt: status === WorkflowStatus.COMPLETED ? new Date() : null,
+    },
+  });
+  return NextResponse.json(workflow);
+}

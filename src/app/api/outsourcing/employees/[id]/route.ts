@@ -8,6 +8,7 @@ import { logAuditEvent } from '@/lib/audit-events';
 import { ensureEssUserForEmployee } from '@/lib/ess-provision';
 import { diffSensitiveFields } from '@/lib/audit-helpers';
 import { getHrUserIds, sendNotification } from '@/lib/notifications';
+import { startWorkflowForEmployee } from '@/lib/onboarding-workflows';
 
 function str(b: Record<string, unknown>, key: string): string | null {
   const v = b[key];
@@ -224,6 +225,7 @@ export async function PATCH(
         firstName: true,
         lastName: true,
         outsourcingClientId: true,
+        employmentStatus: true,
         baseSalary: true,
         bankAccountNumber: true,
         idNumber: true,
@@ -331,6 +333,11 @@ export async function PATCH(
       }
     } catch (err) {
       console.error('[notifications] Failed to send employee_terminated:', err);
+    }
+    if (existing.employmentStatus !== 'terminated' && employee.employmentStatus === 'terminated') {
+      await startWorkflowForEmployee({ employeeId: employee.id, type: 'OFFBOARDING' }).catch((error) =>
+        console.error('[onboarding] Failed to auto-start offboarding:', error),
+      );
     }
     return NextResponse.json(mapEmployeeToJson(employee, canViewSalaryFields(user)));
   } catch (e) {

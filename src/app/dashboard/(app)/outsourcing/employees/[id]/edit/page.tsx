@@ -75,6 +75,7 @@ export default function EditEmployeePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<EmployeeDocumentItem[]>([]);
+  const [workflows, setWorkflows] = useState<Array<{ id: string; type: string; status: string; tasks: Array<{ status: string }> }>>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -173,7 +174,10 @@ export default function EditEmployeePage() {
           }
         }
         if (!cancelled) {
-          await fetchDocuments(id);
+          const employeeId = id as string;
+          await fetchDocuments(employeeId);
+          const wf = await fetch(`/api/onboarding/workflows?employeeId=${employeeId}`).then((r) => r.json().catch(() => []));
+          setWorkflows(Array.isArray(wf) ? wf : []);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load employee');
@@ -448,6 +452,32 @@ export default function EditEmployeePage() {
                 <input id="bankAccountNumber" type="text" value={form.bankAccountNumber} onChange={update('bankAccountNumber')} className={inputClass} />
               </div>
             </div>
+          </div>
+
+          <div className="border-t border-neutral-100 pt-5 sm:pt-6">
+            <h2 className="text-base sm:text-lg font-semibold text-primary-900 mb-3 sm:mb-4">Onboarding</h2>
+            {(() => {
+              const active = workflows.find((workflow) => workflow.status === 'IN_PROGRESS');
+              const completed = workflows.filter((workflow) => workflow.status === 'COMPLETED').length;
+              const totalTasks = active?.tasks.length ?? 0;
+              const done = active?.tasks.filter((task) => task.status === 'COMPLETED').length ?? 0;
+              const overdue = active?.tasks.filter((task) => task.status === 'OVERDUE').length ?? 0;
+              return (
+                <div className="mb-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                  <p>
+                    {active
+                      ? `${active.type} ${done}/${totalTasks} complete - ${Math.max(totalTasks - done, 0)} tasks remaining, ${overdue} overdue`
+                      : 'No active onboarding/offboarding workflow'}
+                  </p>
+                  <p className="mt-1">Completed workflows: {completed}</p>
+                  {active ? (
+                    <Link href={`/dashboard/onboarding/${active.id}`} className="mt-2 inline-flex text-primary-700 hover:underline">
+                      Open workflow details
+                    </Link>
+                  ) : null}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="border-t border-neutral-100 pt-5 sm:pt-6">

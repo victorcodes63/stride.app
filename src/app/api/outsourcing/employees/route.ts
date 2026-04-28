@@ -12,6 +12,7 @@ import { canViewSalaryFields, unauthorizedResponse } from '@/lib/demo-route-acce
 import { ensureEssUserForEmployee } from '@/lib/ess-provision';
 import { logAuditEvent } from '@/lib/audit-events';
 import { getHrUserIds, sendNotification } from '@/lib/notifications';
+import { startWorkflowForEmployee } from '@/lib/onboarding-workflows';
 
 export async function GET(request: NextRequest) {
   try {
@@ -253,6 +254,9 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[notifications] Failed to send employee_created:', err);
     }
+    await startWorkflowForEmployee({ employeeId: employee.id, type: 'ONBOARDING' }).catch((error) =>
+      console.error('[onboarding] Failed to auto-start onboarding:', error),
+    );
     return NextResponse.json({
       id: employee.id,
       employeeNumber: employee.employeeNumber,
