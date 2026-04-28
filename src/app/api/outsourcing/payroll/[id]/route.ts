@@ -13,6 +13,7 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 import { logAuditEvent } from '@/lib/audit-events';
+import { getPayrollUserIds, sendNotification } from '@/lib/notifications';
 
 export async function GET(
   _request: NextRequest,
@@ -166,6 +167,10 @@ export async function PATCH(
     const leavePayBody = body.leavePay != null ? toDecimal(body.leavePay) : undefined;
     let recalculateStatutory = body.recalculateStatutory === true;
     const proRateBiweekly = body.proRateBiweeklyFromAttendance === true;
+    const statusOverride =
+      body.status === 'draft' || body.status === 'approved' || body.status === 'paid'
+        ? body.status
+        : undefined;
 
     const existing = await prisma.payroll.findUnique({
       where: { id },
@@ -325,6 +330,7 @@ export async function PATCH(
         ...(body.biweeklyAttendance !== undefined || proRateBiweekly
           ? { biweeklyAttendance: attendanceNorm as object }
           : {}),
+        ...(statusOverride ? { status: statusOverride } : {}),
         grossPay: toDecimal(finalGrossPay),
         paye,
         nssf,
@@ -350,6 +356,26 @@ export async function PATCH(
         recalculateStatutory,
       },
     });
+    try {
+      if (statusChanged && (statusOverride === 'approved' || statusOverride === 'paid')) {
+        const payrollUserIds = await getPayrollUserIds();
+        await sendNotification({
+          event: statusOverride === 'approved' ? 'payroll_approved' : 'payroll_locked',
+          recipientUserIds: payrollUserIds,
+          title: statusOverride === 'approved' ? 'Payroll approved' : 'Payroll locked',
+          body:
+            statusOverride === 'approved'
+              ? `${updated.month}/${updated.year} payroll has been approved by ${user.name}.`
+              : `${updated.month}/${updated.year} payroll is now locked. Payslips can be distributed.`,
+          href: '/dashboard/outsourcing/payroll',
+          priority: 'info',
+          channel: 'in_app',
+          metadata: { month: updated.month, year: updated.year, approver: user.name },
+        });
+      }
+    } catch (err) {
+      console.error('[notifications] Failed to send payroll status notification:', err);
+    }
 
     return NextResponse.json({
       id: updated.id,

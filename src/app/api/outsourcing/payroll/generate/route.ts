@@ -9,6 +9,7 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 import { logAuditEvent } from '@/lib/audit-events';
+import { getPayrollUserIds, sendNotification } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -186,6 +187,21 @@ export async function POST(request: NextRequest) {
         skipped: employees.length - toCreate.length,
       },
     });
+    try {
+      const payrollUserIds = await getPayrollUserIds();
+      await sendNotification({
+        event: 'payroll_generated',
+        recipientUserIds: payrollUserIds,
+        title: 'Payroll draft ready',
+        body: `${month}/${year} payroll has been generated and is ready for review.`,
+        href: '/dashboard/outsourcing/payroll',
+        priority: 'info',
+        channel: 'in_app',
+        metadata: { month, year, clientId },
+      });
+    } catch (err) {
+      console.error('[notifications] Failed to send payroll_generated:', err);
+    }
 
     return NextResponse.json({
       created: toCreate.length,

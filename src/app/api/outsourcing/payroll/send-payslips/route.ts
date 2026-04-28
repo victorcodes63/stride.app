@@ -7,6 +7,7 @@ import { resolveHospitalClientId } from '@/lib/hospital-client';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { logAuditEvent } from '@/lib/audit-events';
+import { getEssPortalUserIdForEmployee, sendNotification } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,6 +110,23 @@ export async function POST(request: NextRequest) {
       });
       if (result.sent) {
         sent.push(employeeName);
+        try {
+          const essId = await getEssPortalUserIdForEmployee(p.employee.id);
+          if (essId) {
+            await sendNotification({
+              event: 'payslip_ready',
+              recipientEssPortalUserIds: [essId],
+              title: 'Payslip available',
+              body: `Your payslip for ${month}/${year} is now available.`,
+              href: '/ess/payslips',
+              priority: 'info',
+              channel: 'both',
+              metadata: { period: `${month}/${year}` },
+            });
+          }
+        } catch (err) {
+          console.error('[notifications] Failed to send payslip_ready:', err);
+        }
       } else {
         errors.push(`${employeeName}: ${result.error || 'Failed to send'}`);
         if (result.diagnostics && !diagnostics) {
