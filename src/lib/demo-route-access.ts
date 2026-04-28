@@ -9,6 +9,14 @@ export function canAccessCredentials(user: StaffUser): boolean {
   return user.role === 'admin' || user.staffUserType === 'business_manager';
 }
 
+export function canAccessEmployeeDocuments(user: StaffUser): boolean {
+  return user.role === 'admin' || user.staffUserType === 'business_manager';
+}
+
+export function canDeleteEmployeeDocuments(user: StaffUser): boolean {
+  return user.role === 'admin';
+}
+
 export function canViewSalaryFields(user: StaffUser): boolean {
   return canAccessPayroll(user);
 }

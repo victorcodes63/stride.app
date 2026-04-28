@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { Pencil } from 'lucide-react';
+import { Download, FileText, Pencil, Plus, Shield, Trash2, X } from 'lucide-react';
 
 const inputClass =
   'w-full min-w-0 px-4 py-2.5 sm:py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base';
@@ -12,6 +12,40 @@ interface DepartmentOption {
   id: string;
   name: string;
 }
+
+type DocumentCategory =
+  | 'CONTRACT'
+  | 'IDENTIFICATION'
+  | 'QUALIFICATION'
+  | 'PERFORMANCE'
+  | 'DISCIPLINARY'
+  | 'POLICY_ACKNOWLEDGMENT'
+  | 'MEDICAL'
+  | 'OTHER';
+
+interface EmployeeDocumentItem {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  fileName: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  uploadedBy: { name: string; email: string };
+  uploadedAt: string;
+  notes: string | null;
+  downloadUrl: string;
+}
+
+const CATEGORY_OPTIONS: { value: DocumentCategory; label: string }[] = [
+  { value: 'CONTRACT', label: 'Contract' },
+  { value: 'IDENTIFICATION', label: 'Identification' },
+  { value: 'QUALIFICATION', label: 'Qualification' },
+  { value: 'PERFORMANCE', label: 'Performance' },
+  { value: 'DISCIPLINARY', label: 'Disciplinary' },
+  { value: 'POLICY_ACKNOWLEDGMENT', label: 'Policy acknowledgment' },
+  { value: 'MEDICAL', label: 'Medical' },
+  { value: 'OTHER', label: 'Other' },
+];
 
 export default function EditEmployeePage() {
   const router = useRouter();
@@ -40,9 +74,66 @@ export default function EditEmployeePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<EmployeeDocumentItem[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [viewerRole, setViewerRole] = useState<'admin' | 'staff' | 'viewer' | null>(null);
+  const [viewerStaffType, setViewerStaffType] = useState<string | null>(null);
+  const [docForm, setDocForm] = useState<{
+    title: string;
+    category: DocumentCategory;
+    notes: string;
+    file: File | null;
+  }>({
+    title: '',
+    category: 'CONTRACT',
+    notes: '',
+    file: null,
+  });
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const canUploadDocuments = viewerRole === 'admin' || viewerStaffType === 'business_manager';
+  const canDeleteDocuments = viewerRole === 'admin';
+
+  const fetchDocuments = async (employeeId: string) => {
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+    try {
+      const res = await fetch(`/api/outsourcing/employees/${employeeId}/documents`);
+      const data = await res.json().catch(() => []);
+      if (!res.ok) throw new Error(data.error || 'Failed to load documents');
+      setDocuments(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setDocuments([]);
+      setDocumentsError(e instanceof Error ? e.message : 'Failed to load documents');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchViewer() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || cancelled) return;
+        setViewerRole(data.role ?? null);
+        setViewerStaffType(data.staffUserType ?? null);
+      } catch {
+        // no-op
+      }
+    }
+    void fetchViewer();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -80,6 +171,9 @@ export default function EditEmployeePage() {
           if (!cancelled && Array.isArray(deptData)) {
             setDepartments(deptData.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
           }
+        }
+        if (!cancelled) {
+          await fetchDocuments(id);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load employee');
@@ -149,6 +243,60 @@ export default function EditEmployeePage() {
     } catch {
       setError('Something went wrong. Please try again.');
       setSubmitting(false);
+    }
+  };
+
+  const groupedDocuments = CATEGORY_OPTIONS.map((category) => ({
+    ...category,
+    items: documents.filter((doc) => doc.category === category.value),
+  })).filter((group) => group.items.length > 0);
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !canUploadDocuments) return;
+    if (!docForm.file) {
+      setDocumentsError('Please choose a document file.');
+      return;
+    }
+    if (!docForm.title.trim()) {
+      setDocumentsError('Document title is required.');
+      return;
+    }
+    setUploadingDocument(true);
+    setDocumentsError(null);
+    try {
+      const body = new FormData();
+      body.append('file', docForm.file);
+      body.append('title', docForm.title.trim());
+      body.append('category', docForm.category);
+      if (docForm.notes.trim()) body.append('notes', docForm.notes.trim());
+      const res = await fetch(`/api/outsourcing/employees/${id}/documents`, { method: 'POST', body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to upload document');
+      setShowUploadModal(false);
+      setDocForm({ title: '', category: 'CONTRACT', notes: '', file: null });
+      await fetchDocuments(id);
+    } catch (err) {
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!id || !canDeleteDocuments) return;
+    if (!window.confirm('Delete this document? This cannot be undone.')) return;
+    setDeletingDocumentId(docId);
+    setDocumentsError(null);
+    try {
+      const res = await fetch(`/api/outsourcing/employees/${id}/documents/${docId}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to delete document');
+      await fetchDocuments(id);
+    } catch (err) {
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to delete document');
+    } finally {
+      setDeletingDocumentId(null);
     }
   };
 
@@ -302,6 +450,106 @@ export default function EditEmployeePage() {
             </div>
           </div>
 
+          <div className="border-t border-neutral-100 pt-5 sm:pt-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold text-primary-900">Documents</h2>
+                <p className="text-sm text-neutral-600">Upload and manage employee HR documents in one place.</p>
+              </div>
+              {canUploadDocuments ? (
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary-900 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800"
+                >
+                  <Plus className="h-4 w-4" />
+                  Upload
+                </button>
+              ) : null}
+            </div>
+
+            {documentsError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{documentsError}</div>
+            ) : null}
+
+            {documentsLoading ? (
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">Loading documents...</div>
+            ) : groupedDocuments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50/70 px-6 py-10 text-center">
+                <FileText className="mx-auto mb-3 h-12 w-12 text-neutral-400" />
+                <p className="text-base font-semibold text-neutral-900">No documents uploaded</p>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Upload contracts, identification, qualifications, and other HR documents.
+                </p>
+                {canUploadDocuments ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadModal(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary-900 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Upload document
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {groupedDocuments.map((group) => (
+                  <div key={group.value}>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-neutral-500">{group.label}</p>
+                    <div className="space-y-2">
+                      {group.items.map((doc) => (
+                        <div key={doc.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-primary-900">{doc.title}</p>
+                                <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+                                  {group.label}
+                                </span>
+                                {doc.category === 'MEDICAL' ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                    <Shield className="h-3 w-3" />
+                                    Sensitive
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 text-xs text-neutral-600">
+                                Uploaded by {doc.uploadedBy.name} on {new Date(doc.uploadedAt).toLocaleDateString()}
+                              </p>
+                              <p className="mt-1 text-xs text-neutral-500">{doc.fileName}</p>
+                              {doc.notes ? <p className="mt-1 text-xs text-neutral-600">{doc.notes}</p> : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={doc.downloadUrl}
+                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                Download
+                              </a>
+                              {canDeleteDocuments ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  disabled={deletingDocumentId === doc.id}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  {deletingDocumentId === doc.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="pt-6 sm:pt-8 mt-6 sm:mt-8 border-t border-neutral-200 flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-3 sm:gap-4">
             <Link
               href="/dashboard/outsourcing/employees"
@@ -320,6 +568,81 @@ export default function EditEmployeePage() {
           </div>
         </div>
       </form>
+      {showUploadModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-xl bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-primary-900">Upload document</h3>
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(false)}
+                className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUploadDocument} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-primary-900">Document file (PDF)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setDocForm((prev) => ({ ...prev, file: e.target.files?.[0] ?? null }))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-primary-900">Title</label>
+                <input
+                  type="text"
+                  value={docForm.title}
+                  onChange={(e) => setDocForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className={inputClass}
+                  placeholder="Employment contract, National ID copy, etc."
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-primary-900">Category</label>
+                <select
+                  value={docForm.category}
+                  onChange={(e) => setDocForm((prev) => ({ ...prev, category: e.target.value as DocumentCategory }))}
+                  className={inputClass}
+                >
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-primary-900">Notes (optional)</label>
+                <textarea
+                  value={docForm.notes}
+                  onChange={(e) => setDocForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  className={`${inputClass} min-h-[88px]`}
+                />
+              </div>
+              <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingDocument}
+                  className="rounded-lg bg-primary-900 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+                >
+                  {uploadingDocument ? 'Uploading...' : 'Upload document'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -255,6 +255,7 @@ model Employee {
   attendanceSummaries AttendanceDaySummary[]
   attendanceExceptions AttendanceException[]
   leaveBalanceLedgers LeaveBalanceLedger[]
+  documents      EmployeeDocument[]
 
   @@index([outsourcingClientId])
   @@index([departmentId])
@@ -263,6 +264,38 @@ model Employee {
   @@index([email])
   /// One national ID maps to at most one employee record system-wide (multiple NULL allowed).
   @@unique([idNumber])
+}
+
+enum EmployeeDocumentCategory {
+  CONTRACT
+  IDENTIFICATION
+  QUALIFICATION
+  PERFORMANCE
+  DISCIPLINARY
+  POLICY_ACKNOWLEDGMENT
+  MEDICAL
+  OTHER
+}
+
+model EmployeeDocument {
+  id         String                   @id @default(cuid())
+  employeeId String
+  employee   Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  title      String
+  category   EmployeeDocumentCategory
+  filePath   String
+  fileName   String
+  fileSize   Int?
+  mimeType   String?
+
+  notes      String?
+  uploadedBy String
+  uploader   User                     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  uploadedAt DateTime                 @default(now())
+
+  @@index([employeeId])
+  @@index([category])
 }
 
 enum EmployeeEmploymentStatus {
@@ -1046,6 +1079,7 @@ model User {
   leaveBalanceLedgersCreated LeaveBalanceLedger[]
   leaveApprovalSteps         LeaveApprovalStep[]
   leaveApprovalActions       LeaveApprovalAction[]
+  uploadedEmployeeDocuments  EmployeeDocument[]
 
   @@index([email])
   @@index([isActive])
