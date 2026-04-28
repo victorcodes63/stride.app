@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
+import { ToastViewport } from "@/components/ui/toast";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()?.replace(/\/$/, '') || 'https://3rdparkhospital.com';
 
@@ -141,6 +142,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteUrl)) }}
         />
         {children}
+        <ToastViewport />
         <CookieConsent />
       </body>
     </html>
