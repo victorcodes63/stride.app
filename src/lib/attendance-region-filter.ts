@@ -1,4 +1,4 @@
-/** Query param values for GET /api/outsourcing/attendance — matches Stabex-style employee numbers (STB-UG-*, STB-KE-*). */
+/** Query param values for GET /api/outsourcing/attendance — entity-specific employee number prefixes. */
 export type AttendanceRegionParam = 'uganda' | 'kenya';
 
 export function parseAttendanceRegionParam(raw: string | null | undefined): AttendanceRegionParam | null {

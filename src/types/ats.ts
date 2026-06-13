@@ -77,6 +77,7 @@ export interface JobAnalytics {
 }
 
 export interface JobSearchFilters {
+  employerId?: string;
   keyword?: string;
   location?: string;
   category?: string;

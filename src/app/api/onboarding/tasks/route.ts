@@ -3,6 +3,7 @@ import { OnboardingTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { getRoleKeysForUser } from '@/lib/onboarding-workflows';
+import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client';
 
 export async function GET(request: NextRequest) {
   const user = await requireStaffUser(request);
@@ -15,8 +16,10 @@ export async function GET(request: NextRequest) {
     .filter(Boolean) as OnboardingTaskStatus[];
 
   const roleKeys = getRoleKeysForUser(user);
+  const workspaceClientId = await resolvePrimaryWorkspaceClientId(prisma, null, request);
   const tasks = await prisma.onboardingTask.findMany({
     where: {
+      workflow: { employee: { outsourcingClientId: workspaceClientId } },
       ...(statuses.length > 0 ? { status: { in: statuses } } : {}),
       ...(mineOnly
         ? {

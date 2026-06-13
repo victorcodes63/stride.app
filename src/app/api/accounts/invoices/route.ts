@@ -7,6 +7,12 @@ import { computeInvoiceVatFromSubtotal } from '@/lib/accounts-invoice-totals';
 import { sumCreditTotalsByInvoiceIds } from '@/lib/accounts-credit-note-totals';
 import { reportApiError } from '@/lib/monitoring';
 import { getOrCreatePrimaryAccountsClient } from '@/lib/primary-accounts-client';
+import { requireRecentSensitiveAuth } from '@/lib/admin-security';
+import { logAuditEvent } from '@/lib/audit-events';
+import {
+  paymentBankForAccountId,
+  resolvePaymentAccountId,
+} from '@/lib/payment-accounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -171,6 +177,8 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   }
+  const reauthError = requireRecentSensitiveAuth(request, user.id);
+  if (reauthError) return reauthError;
 
   let body: unknown;
   try {
@@ -242,6 +250,8 @@ export async function POST(request: NextRequest) {
     typeof b.paymentBank === 'string' && PAYMENT_BANK_VALUES.has(b.paymentBank)
       ? b.paymentBank
       : 'consultancy_fees';
+  const paymentAccountIdInput =
+    typeof b.paymentAccountId === 'string' ? b.paymentAccountId.trim() || null : null;
 
   const currencyOverride = str(b.currency);
   const notes = b.notes != null && typeof b.notes === 'string' ? b.notes.trim() || null : null;
@@ -318,8 +328,17 @@ export async function POST(request: NextRequest) {
       });
       const invoiceNumber = (maxInvoiceNumber._max.invoiceNumber ?? 0) + 1;
 
-      // Do not pass paymentBank on create: rely on DB default (consultancy_fees). Some dev setups had a stale
-      // bundled Prisma client that rejected paymentBank on create; follow-up update sets payroll_only when needed.
+      const paymentAccountId = await resolvePaymentAccountId(tx, {
+        paymentAccountId: paymentAccountIdInput,
+        paymentBank,
+      });
+      if (!paymentAccountId) {
+        throw Object.assign(new Error('PAYMENT_ACCOUNT_NOT_FOUND'), {
+          code: 'PAYMENT_ACCOUNT_NOT_FOUND',
+        });
+      }
+      const resolvedPaymentBank = await paymentBankForAccountId(tx, paymentAccountId);
+
       const inv = await tx.accountsInvoice.create({
         data: {
           clientId,
@@ -333,6 +352,8 @@ export async function POST(request: NextRequest) {
           ...(totalOverrideIncVat !== undefined ? { totalOverrideIncVat } : {}),
           status: 'unpaid',
           notes,
+          paymentAccountId,
+          paymentBank: resolvedPaymentBank,
           lines: {
             create: lineCreates,
           },
@@ -340,22 +361,26 @@ export async function POST(request: NextRequest) {
         select: { id: true, invoiceNumber: true },
       });
 
-      if (paymentBank === 'payroll_only') {
-        await tx.accountsInvoice.update({
-          where: { id: inv.id },
-          data: { paymentBank: 'payroll_only' },
-        });
-      }
-
       return inv;
     });
 
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: 'accounts.invoice.created',
+      entityType: 'AccountsInvoice',
+      entityId: result.id,
+      route: 'POST /api/accounts/invoices',
+      metadata: { invoiceNumber: result.invoiceNumber, clientId },
+    });
     return NextResponse.json(
       { id: result.id, invoiceNumber: result.invoiceNumber },
       { status: 201 },
     );
   } catch (error: unknown) {
     const err = error as { code?: string };
+    if (err.code === 'PAYMENT_ACCOUNT_NOT_FOUND') {
+      return NextResponse.json({ error: 'Payment account not found or inactive.' }, { status: 400 });
+    }
     if (err.code === 'CLIENT_NOT_FOUND') {
       return NextResponse.json({ error: 'Billing client not found.' }, { status: 404 });
     }

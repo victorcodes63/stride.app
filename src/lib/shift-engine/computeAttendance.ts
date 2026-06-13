@@ -203,7 +203,11 @@ function selectBestShiftForClockOut(
     .filter((a) => inShiftWindow(punch.timestamp, a, toleranceHours))
     .filter((a) => {
       const current = matchedByShift.get(shiftKey(a));
-      return Boolean(current?.clockIn) && current?.clockOut == null && punch.timestamp.getTime() >= current.clockIn!.getTime();
+      return (
+        Boolean(current?.clockIn) &&
+        current?.clockOut == null &&
+        punch.timestamp.getTime() >= (current?.clockIn?.getTime() ?? 0)
+      );
     });
   if (candidates.length === 0) return null;
   return candidates.sort((a, b) => {

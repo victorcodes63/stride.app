@@ -92,7 +92,7 @@ export function buildObligationLines(
     },
     {
       obligationType: 'nssf',
-      authority: 'NSSF eServices',
+      authority: 'NSSF Portal',
       employeeAmount: totals.totalNssfEmployee,
       employerAmount: totals.totalNssfEmployer,
       liabilityAmount: to2(totals.totalNssfEmployee + totals.totalNssfEmployer),
@@ -101,7 +101,7 @@ export function buildObligationLines(
     },
     {
       obligationType: 'shif',
-      authority: 'SHA Employer Portal',
+      authority: 'SHA Portal',
       employeeAmount: totals.totalShif,
       employerAmount: 0,
       liabilityAmount: totals.totalShif,
@@ -110,7 +110,7 @@ export function buildObligationLines(
     },
     {
       obligationType: 'housing_levy',
-      authority: 'KRA Housing Levy',
+      authority: 'KRA iTax',
       employeeAmount: totals.totalAhlEmployee,
       employerAmount: totals.totalAhlEmployer,
       liabilityAmount: to2(totals.totalAhlEmployee + totals.totalAhlEmployer),

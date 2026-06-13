@@ -160,7 +160,7 @@ async function main() {
   const contractActive = await prisma.accountsContract.create({
     data: {
       clientId: primary.id,
-      title: 'Active outsourcing retainer',
+      title: 'Active HR services retainer',
       reference: 'CNT-SEED-ACTIVE',
       startDate: startLastYear,
       endDate: utcDayFromToday(90),
@@ -318,7 +318,7 @@ async function main() {
       {
         userId: user.id,
         title: `Contract reminder — ${clientName}`,
-        body: `Active outsourcing retainer for ${clientName} — 1 month before expiry (ends ${ymd(contractActive.endDate)}).`,
+        body: `Active HR services retainer for ${clientName} — 1 month before expiry (ends ${ymd(contractActive.endDate)}).`,
         href: `/dashboard/people/contracts/${contractActive.id}`,
         contractId: contractActive.id,
         event: 'contract_expiring',

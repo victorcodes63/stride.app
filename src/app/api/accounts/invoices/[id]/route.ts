@@ -5,6 +5,10 @@ import { getAccountsAccess } from '@/lib/accounts-access';
 import { computeInvoiceVatFromLines } from '@/lib/accounts-invoice-totals';
 import { sumCreditTotalForInvoice } from '@/lib/accounts-credit-note-totals';
 import { reportApiError } from '@/lib/monitoring';
+import {
+  paymentBankForAccountId,
+  resolvePaymentAccountId,
+} from '@/lib/payment-accounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +107,7 @@ export async function GET(
       totalOverrideIncVat: inv.totalOverrideIncVat != null ? Number(inv.totalOverrideIncVat) : null,
       status: inv.status,
       paymentBank: inv.paymentBank,
+      paymentAccountId: inv.paymentAccountId,
       notes: inv.notes,
       createdAt: inv.createdAt.toISOString(),
       updatedAt: inv.updatedAt.toISOString(),
@@ -174,7 +179,14 @@ export async function PATCH(
       ? (body as { status: unknown }).status
       : undefined;
 
+  const paymentAccountIdRaw =
+    body && typeof body === 'object' && 'paymentAccountId' in body
+      ? (body as { paymentAccountId: unknown }).paymentAccountId
+      : undefined;
+
   const hasPaymentBank = typeof paymentBank === 'string' && PAYMENT_BANK_VALUES.has(paymentBank);
+  const hasPaymentAccountId =
+    typeof paymentAccountIdRaw === 'string' && paymentAccountIdRaw.trim().length > 0;
   const hasStatus = typeof statusRaw === 'string' && INVOICE_STATUS_VALUES.has(statusRaw);
 
   const hasIssueDate = 'issueDate' in payload;
@@ -193,11 +205,11 @@ export async function PATCH(
     hasNotes ||
     hasLines;
 
-  if (!hasPaymentBank && !hasStatus && !hasEditFields) {
+  if (!hasPaymentBank && !hasPaymentAccountId && !hasStatus && !hasEditFields) {
     return NextResponse.json(
       {
         error:
-          'Send paymentBank, status, and/or editable invoice fields (issueDate, dueDate, taxDate, vatRateBps, totalOverrideIncVat, notes, lines).',
+          'Send paymentAccountId, paymentBank, status, and/or editable invoice fields (issueDate, dueDate, taxDate, vatRateBps, totalOverrideIncVat, notes, lines).',
       },
       { status: 400 },
     );
@@ -218,6 +230,7 @@ export async function PATCH(
 
   const data: {
     paymentBank?: 'payroll_only' | 'consultancy_fees';
+    paymentAccountId?: string | null;
     status?: 'unpaid' | 'partial' | 'paid';
     issueDate?: Date;
     dueDate?: Date | null;
@@ -226,8 +239,21 @@ export async function PATCH(
     totalOverrideIncVat?: number | null;
     notes?: string | null;
   } = {};
-  if (hasPaymentBank) {
+  if (hasPaymentAccountId) {
+    const resolvedId = await resolvePaymentAccountId(prisma, {
+      paymentAccountId: paymentAccountIdRaw as string,
+    });
+    if (!resolvedId) {
+      return NextResponse.json({ error: 'Payment account not found or inactive.' }, { status: 400 });
+    }
+    data.paymentAccountId = resolvedId;
+    data.paymentBank = await paymentBankForAccountId(prisma, resolvedId);
+  } else if (hasPaymentBank) {
+    const resolvedId = await resolvePaymentAccountId(prisma, {
+      paymentBank: paymentBank as 'payroll_only' | 'consultancy_fees',
+    });
     data.paymentBank = paymentBank as 'payroll_only' | 'consultancy_fees';
+    if (resolvedId) data.paymentAccountId = resolvedId;
   }
   if (hasStatus) {
     data.status = statusRaw as 'unpaid' | 'partial' | 'paid';
@@ -344,7 +370,9 @@ export async function PATCH(
 
   return NextResponse.json({
     ok: true,
-    ...(hasPaymentBank ? { paymentBank } : {}),
+    ...(hasPaymentAccountId || hasPaymentBank
+      ? { paymentAccountId: data.paymentAccountId, paymentBank: data.paymentBank }
+      : {}),
     ...(hasStatus ? { status: statusRaw } : {}),
     ...(hasEditFields ? { updated: true } : {}),
   });

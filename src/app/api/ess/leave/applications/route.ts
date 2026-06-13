@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireEssUser } from '@/lib/ess-api-auth';
 import { canRequestLeave, computeRemainingLeaveDays, countInclusiveDays } from '@/lib/ess/leave-rules';
-import { getEssPortalUserIdForEmployee, getHrUserIds, sendNotification } from '@/lib/notifications';
+import {
+  createWorkflowRun,
+  getEssPortalUserIdForEmployee,
+  getHrUserIds,
+  sendNotification,
+} from '@/lib/notifications';
 
 function toUtcDateStart(dateInput: string) {
   return new Date(`${dateInput}T00:00:00.000Z`);
@@ -131,7 +136,10 @@ export async function POST(request: NextRequest) {
       reason,
       status: 'pending',
     },
-    include: { leaveType: { select: { id: true, name: true } } },
+    include: {
+      leaveType: { select: { id: true, name: true } },
+      employee: { select: { managerEmployeeId: true, outsourcingClientId: true, client: { select: { entityCode: true } } } },
+    },
   });
 
   await prisma.auditEvent.create({
@@ -151,27 +159,31 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const managerEssId = leave.employeeId
-      ? await (async () => {
-          const employee = await prisma.employee.findUnique({
-            where: { id: leave.employeeId },
-            select: { managerEmployeeId: true },
-          });
-          if (!employee?.managerEmployeeId) return null;
-          return getEssPortalUserIdForEmployee(employee.managerEmployeeId);
-        })()
+    const managerEssId = leave.employee.managerEmployeeId
+      ? await getEssPortalUserIdForEmployee(leave.employee.managerEmployeeId)
       : null;
     const hrUserIds = await getHrUserIds();
+    const workflow = await createWorkflowRun({
+      module: 'leave',
+      event: 'leave_submitted',
+      entityType: 'LeaveApplication',
+      entityId: leave.id,
+      entityCode: leave.employee.client.entityCode ?? null,
+      assigneeEssPortalUserId: managerEssId,
+      dueAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      metadata: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId },
+    });
     await sendNotification({
       event: 'leave_submitted',
       recipientUserIds: hrUserIds,
       recipientEssPortalUserIds: managerEssId ? [managerEssId] : [],
       title: `Leave request from ${user.name || 'Employee'}`,
       body: `${user.name || 'Employee'} submitted ${leave.leaveType.name} leave for ${leave.startDate.toISOString().slice(0, 10)} to ${leave.endDate.toISOString().slice(0, 10)}.`,
-      href: '/ess/leave-approvals',
+      href: '/ess/team/leave',
       priority: 'action_required',
       channel: 'in_app',
-      metadata: { leaveApplicationId: leave.id },
+      workflowRunId: workflow.id,
+      metadata: { leaveApplicationId: leave.id, workflowRunId: workflow.id },
     });
   } catch (err) {
     console.error('[notifications] Failed to send leave_submitted:', err);

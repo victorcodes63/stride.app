@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Search,
   Bell,
@@ -15,10 +15,16 @@ import {
   LogOut,
   User,
   HelpCircle,
+  Menu,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
+import { DashboardBreadcrumbs } from './DashboardBreadcrumbs';
 import { EntitySwitcher } from '@/components/EntitySwitcher';
 import type { UserSummary } from '@/types/dashboard';
+import type { ModuleKey } from '@/lib/modules';
+import { resolveDashboardBreadcrumbs } from '@/lib/dashboard-breadcrumbs';
+import { ALL_MODULES_ENABLED } from '@/lib/dashboard-nav-catalog';
+import { DASHBOARD_SHELL_GUTTER } from '@/lib/dashboard-layout';
 
 type NotificationItem = {
   id: string;
@@ -52,8 +58,15 @@ const QUICK_ACTIONS_ADMIN = [
   { label: 'Add staff member', href: '/dashboard/users/staff', icon: UserCog },
 ] as const;
 
+const iconBtnClass =
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30';
+
 interface DashboardTopbarProps {
   currentUser: UserSummary | null;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  enabledModules?: Record<ModuleKey, boolean>;
+  contentGutterClass?: string;
 }
 
 function getInitials(name: string) {
@@ -66,8 +79,19 @@ function getInitials(name: string) {
   return parts.map((p) => p[0]?.toUpperCase() || '').join('') || 'SU';
 }
 
-export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
+function TopbarDivider() {
+  return <div className="hidden h-6 w-px shrink-0 bg-neutral-200 sm:block" aria-hidden />;
+}
+
+export default function DashboardTopbar({
+  currentUser,
+  sidebarOpen = true,
+  onToggleSidebar = () => {},
+  enabledModules = ALL_MODULES_ENABLED,
+  contentGutterClass = DASHBOARD_SHELL_GUTTER,
+}: DashboardTopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -78,6 +102,16 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const breadcrumbs = useMemo(() => {
+    if (sidebarOpen) return [];
+    return resolveDashboardBreadcrumbs(pathname, {
+      currentUserRole: currentUser?.role ?? null,
+      hasAccountsAccess: currentUser?.hasAccountsAccess ?? false,
+      canViewSystemAnalytics: currentUser?.canViewSystemAnalytics ?? false,
+      enabledModules,
+    });
+  }, [sidebarOpen, pathname, currentUser, enabledModules]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -142,220 +176,255 @@ export default function DashboardTopbar({ currentUser }: DashboardTopbarProps) {
       : QUICK_ACTIONS_BASE;
 
   return (
-    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 h-16 bg-white border-b border-neutral-200 flex items-center justify-between gap-4 px-6 md:px-8 xl:px-12">
-      {/* Search — opens command palette on focus or use Cmd+K / Ctrl+K */}
-      <div className="flex-1 max-w-xl min-w-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" />
+    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 border-b border-white/50 bg-white/75 shadow-sm shadow-neutral-900/[0.03] backdrop-blur-xl">
+      <div className={`flex h-14 items-center gap-2 sm:gap-3 ${contentGutterClass}`}>
+        {/* Left: menu + breadcrumbs — only when sidebar is collapsed */}
+        {!sidebarOpen ? (
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className={iconBtnClass}
+              aria-expanded={sidebarOpen}
+              aria-label="Open navigation menu"
+              title="Open navigation menu"
+            >
+              <Menu className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </button>
+            {breadcrumbs.length > 0 ? (
+              <DashboardBreadcrumbs
+                crumbs={breadcrumbs}
+                className="hidden min-w-0 max-w-[9rem] md:max-w-xs lg:max-w-sm xl:max-w-md md:flex"
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Search — fills available space between breadcrumbs and actions */}
+        <div className="relative min-w-0 flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+            strokeWidth={1.75}
+          />
           <input
             type="search"
-            placeholder="Search employees, departments, payroll... (⌘K)"
+            placeholder={sidebarOpen ? 'Search employees, payroll, departments…' : 'Search…'}
             onFocus={() => setPaletteOpen(true)}
             readOnly
-            className="w-full h-9 pl-10 pr-4 bg-white border border-neutral-200 rounded-md text-sm text-ink placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:ring-offset-2 focus:border-primary-500 transition-colors cursor-pointer"
+            className="h-9 w-full cursor-pointer rounded-lg border border-neutral-200/90 bg-neutral-50/80 pl-9 pr-14 text-sm text-ink placeholder:text-neutral-400 transition-colors hover:border-neutral-300 hover:bg-white focus:border-primary-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             aria-label="Search"
           />
-        </div>
-      </div>
-
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        initialQuery=""
-      />
-
-      {/* Right: Entity, Quick actions, Help, Notifications, User */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        <EntitySwitcher />
-        {/* Quick actions */}
-        <div className="relative" ref={quickActionsRef}>
-          <button
-            type="button"
-            onClick={() => setQuickActionsOpen((prev) => !prev)}
-            className="flex h-9 items-center gap-1.5 px-3 rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors text-sm font-medium"
-            aria-label="Quick actions"
-            aria-expanded={quickActionsOpen}
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Quick actions</span>
-            <ChevronDown className="w-4 h-4 text-neutral-400" />
-          </button>
-          {quickActionsOpen && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden py-1">
-              {quickActions.map(({ label, href, icon: Icon }) => (
-                <Link
-                  key={href + label}
-                  href={href}
-                  onClick={() => setQuickActionsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-                >
-                  <Icon className="w-4 h-4 text-neutral-500 shrink-0" />
-                  {label}
-                </Link>
-              ))}
-            </div>
-          )}
+          <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-neutral-400 sm:inline-flex">
+            ⌘K
+          </kbd>
         </div>
 
-        {/* Help (optional: link to contact or docs) */}
-        <Link
-          href="/contact"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-          aria-label="Help / Contact"
-          title="Help & contact"
-        >
-          <HelpCircle className="w-5 h-5" />
-        </Link>
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} initialQuery="" />
 
-        {/* Notifications */}
-        <div className="relative" ref={notificationsRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setNotificationsOpen((prev) => {
-                const next = !prev;
-                if (next) loadNotifications();
-                return next;
-              });
-            }}
-            className="relative flex h-9 w-9 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-            aria-label="Notifications"
-            aria-expanded={notificationsOpen}
+        {/* Right actions */}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+          <EntitySwitcher variant="topbar" />
+
+          <TopbarDivider />
+
+          <div className="relative" ref={quickActionsRef}>
+            <button
+              type="button"
+              onClick={() => setQuickActionsOpen((prev) => !prev)}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-neutral-200/90 bg-white px-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 sm:px-2.5"
+              aria-label="Quick actions"
+              aria-expanded={quickActionsOpen}
+            >
+              <Plus className="h-4 w-4 text-primary-600" strokeWidth={2} />
+              <span className="hidden md:inline">New</span>
+              <ChevronDown
+                className={`hidden h-3.5 w-3.5 text-neutral-400 sm:block ${quickActionsOpen ? 'rotate-180' : ''} transition-transform`}
+              />
+            </button>
+            {quickActionsOpen ? (
+              <div className="absolute right-0 top-full z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Quick actions
+                </p>
+                {quickActions.map(({ label, href, icon: Icon }) => (
+                  <Link
+                    key={href + label}
+                    href={href}
+                    onClick={() => setQuickActionsOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-primary-700"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-100">
+                      <Icon className="h-3.5 w-3.5 text-neutral-600" />
+                    </span>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <Link
+            href="/contact"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${iconBtnClass} hidden sm:flex`}
+            aria-label="Help / Contact"
+            title="Help & contact"
           >
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning text-[10px] font-semibold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-          {notificationsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-neutral-50">
-                <h3 className="text-sm font-semibold text-ink">Notifications</h3>
-                <button
-                  type="button"
-                  onClick={() => setNotificationsOpen(false)}
-                  className="p-1 rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-                  aria-label="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <p className="px-4 py-8 text-sm text-neutral-500 text-center">
-                    No notifications yet. Contract reminders and other alerts will appear here.
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-neutral-100">
-                    {notifications.map((n) => {
-                      const markReadAndGo = async () => {
-                        if (n.unread) {
-                          await fetch('/api/dashboard/notifications', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ids: [n.id] }),
-                          });
-                          setNotifications((prev) =>
-                            prev.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
-                          );
-                          setUnreadCount((c) => Math.max(0, c - 1));
-                        }
-                        setNotificationsOpen(false);
-                        if (n.href) router.push(n.href);
-                      };
-                      const inner = (
-                        <span className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink truncate">{n.title}</p>
-                          <p className="text-xs text-neutral-600 line-clamp-2">{n.body}</p>
-                          <p className="text-xs text-neutral-400 mt-0.5">{formatNotifTime(n.createdAt)}</p>
-                        </span>
-                      );
-                      return (
-                        <li key={n.id}>
-                          <button
-                            type="button"
-                            onClick={() => void markReadAndGo()}
-                            className={`w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors flex gap-3 ${n.unread ? 'bg-primary-50' : ''}`}
-                          >
-                            {inner}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-              {notifications.length > 0 && (
-                <div className="px-4 py-2 border-t border-neutral-200 bg-neutral-50">
+            <HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </Link>
+
+          <div className="relative" ref={notificationsRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setNotificationsOpen((prev) => {
+                  const next = !prev;
+                  if (next) loadNotifications();
+                  return next;
+                });
+              }}
+              className={iconBtnClass}
+              aria-label="Notifications"
+              aria-expanded={notificationsOpen}
+            >
+              <Bell className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              {unreadCount > 0 ? (
+                <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-0.5 text-[10px] font-semibold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              ) : null}
+            </button>
+            {notificationsOpen ? (
+              <div className="absolute right-0 top-full z-20 mt-1.5 w-80 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+                <div className="flex items-center justify-between border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-ink">Notifications</h3>
                   <button
                     type="button"
-                    onClick={async () => {
-                      await fetch('/api/dashboard/notifications', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ markAllRead: true }),
-                      });
-                      setNotifications((prev) => prev.map((x) => ({ ...x, unread: false })));
-                      setUnreadCount(0);
-                    }}
-                    className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+                    aria-label="Close"
                   >
-                    Mark all read
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* User menu */}
-        <div className="relative pl-2 border-l border-neutral-200" ref={userMenuRef}>
-          <button
-            type="button"
-            onClick={() => setUserMenuOpen((prev) => !prev)}
-            className="flex items-center gap-2 p-1.5 rounded-md text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-            aria-label="User menu"
-            aria-expanded={userMenuOpen}
-          >
-            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-primary-700">{initials}</span>
-            </div>
-            <div className="hidden md:block text-left min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{displayName}</p>
-              <p className="text-xs text-neutral-500 truncate">{displayEmail}</p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
-          </button>
-          {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-60 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden py-1">
-              <div className="px-4 py-3 border-b border-neutral-100">
-                <p className="text-sm font-medium text-ink">{displayName}</p>
-                <p className="text-xs text-neutral-500 truncate">{displayEmail}</p>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-neutral-500">
+                      No notifications yet. Contract reminders and other alerts will appear here.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-neutral-100">
+                      {notifications.map((n) => {
+                        const markReadAndGo = async () => {
+                          if (n.unread) {
+                            await fetch('/api/dashboard/notifications', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ids: [n.id] }),
+                            });
+                            setNotifications((prev) =>
+                              prev.map((x) => (x.id === n.id ? { ...x, unread: false } : x)),
+                            );
+                            setUnreadCount((c) => Math.max(0, c - 1));
+                          }
+                          setNotificationsOpen(false);
+                          if (n.href) router.push(n.href);
+                        };
+                        return (
+                          <li key={n.id}>
+                            <button
+                              type="button"
+                              onClick={() => void markReadAndGo()}
+                              className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50 ${n.unread ? 'bg-primary-50/60' : ''}`}
+                            >
+                              <span className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-ink">{n.title}</p>
+                                <p className="line-clamp-2 text-xs text-neutral-600">{n.body}</p>
+                                <p className="mt-0.5 text-xs text-neutral-400">{formatNotifTime(n.createdAt)}</p>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+                {notifications.length > 0 ? (
+                  <div className="border-t border-neutral-100 bg-neutral-50/80 px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await fetch('/api/dashboard/notifications', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ markAllRead: true }),
+                        });
+                        setNotifications((prev) => prev.map((x) => ({ ...x, unread: false })));
+                        setUnreadCount(0);
+                      }}
+                      className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <Link
-                href="/dashboard"
-                onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-              >
-                <User className="w-4 h-4 text-neutral-500" />
-                Dashboard home
-              </Link>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-neutral-700 hover:bg-danger/10 hover:text-danger transition-colors"
-              >
-                <LogOut className="w-4 h-4 text-neutral-500" />
-                Sign out
-              </button>
-            </div>
-          )}
+            ) : null}
+          </div>
+
+          <TopbarDivider />
+
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              className="flex h-9 max-w-[12rem] items-center gap-2 rounded-lg py-1 pl-1 pr-1.5 text-neutral-700 transition-colors hover:bg-neutral-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 lg:pr-2"
+              aria-label="User menu"
+              aria-expanded={userMenuOpen}
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 ring-2 ring-white">
+                <span className="text-[11px] font-semibold text-primary-800">{initials}</span>
+              </div>
+              <div className="hidden min-w-0 text-left lg:block">
+                <p className="truncate text-sm font-medium leading-tight text-ink">{displayName}</p>
+                <p className="truncate text-[11px] leading-tight text-neutral-500">{displayEmail}</p>
+              </div>
+              <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 text-neutral-400 lg:block" />
+            </button>
+            {userMenuOpen ? (
+              <div className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                <div className="border-b border-neutral-100 px-4 py-3">
+                  <p className="text-sm font-medium text-ink">{displayName}</p>
+                  <p className="truncate text-xs text-neutral-500">{displayEmail}</p>
+                </div>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-primary-700"
+                >
+                  <User className="h-4 w-4 text-neutral-500" />
+                  Dashboard home
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-danger/10 hover:text-danger"
+                >
+                  <LogOut className="h-4 w-4 text-neutral-500" />
+                  Sign out
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {!sidebarOpen && breadcrumbs.length > 0 ? (
+        <div className={`border-t border-neutral-100 py-2 md:hidden ${contentGutterClass}`}>
+          <DashboardBreadcrumbs crumbs={breadcrumbs} />
+        </div>
+      ) : null}
     </header>
   );
 }

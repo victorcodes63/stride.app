@@ -12,6 +12,7 @@ export type StaffUser = {
   name: string;
   role: 'admin' | 'staff' | 'viewer';
   staffUserType: StaffUserType;
+  mfaEnabled: boolean;
 };
 
 export async function requireStaffUser(request: NextRequest): Promise<StaffUser | null> {
@@ -32,6 +33,7 @@ export async function requireStaffUser(request: NextRequest): Promise<StaffUser 
     name: user.name,
     role: user.role as StaffUser['role'],
     staffUserType: user.staffUserType as StaffUserType,
+    mfaEnabled: Boolean((user as { mfaEnabled?: boolean }).mfaEnabled),
   };
 }
 

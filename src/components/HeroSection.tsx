@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
@@ -9,32 +9,32 @@ import SectionTitle from '@/components/SectionTitle';
 const HeroSection = () => {
   const isDesktop = useIsDesktop();
   // Text animation variants — no stagger/delay on mobile for instant content
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: isDesktop
         ? { staggerChildren: 0.2, delayChildren: 0.3 }
         : { duration: 0 },
-    }
+    },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: isDesktop ? 0.8 : 0, ease: "easeOut" }
-    }
+      transition: { duration: isDesktop ? 0.8 : 0, ease: 'easeOut' },
+    },
   };
 
-  const textVariants = {
+  const textVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: isDesktop ? 1 : 0, ease: "easeOut" }
-    }
+      transition: { duration: isDesktop ? 1 : 0, ease: 'easeOut' },
+    },
   };
 
   // Client logos data
@@ -152,7 +152,8 @@ const HeroSection = () => {
                     className={`${client.name === 'WSUP' ? 'h-[4.84rem] w-[12.1rem]' : client.name === 'KEBS' ? 'h-[4.84rem] w-auto' : client.name === 'Consolidated Bank' ? 'h-[4.84rem] w-auto' : client.name === 'Kenya Development Corporation' ? 'h-[4.84rem] w-auto' : client.name === 'TARDA' ? 'h-[4.235rem] w-auto' : client.name === 'Pacida' ? 'h-[2.42rem] w-auto' : client.name === 'CMA' ? 'h-[2.42rem] w-auto' : client.name === 'ICPAK' ? 'h-[2.42rem] w-auto' : 'h-[3.63rem] w-auto'} object-contain filter brightness-0 invert hover:brightness-100 hover:invert-0 transition-all duration-300 opacity-60 hover:opacity-100`}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling.style.display = 'block';
+                      const sibling = e.currentTarget.nextElementSibling;
+                      if (sibling instanceof HTMLElement) sibling.style.display = 'block';
                     }}
                   />
                   <span className="text-primary-600 font-medium text-xs hidden">{client.name}</span>
@@ -174,7 +175,8 @@ const HeroSection = () => {
                     className={`${client.name === 'WSUP' ? 'h-[4.84rem] w-[12.1rem]' : client.name === 'KEBS' ? 'h-[4.84rem] w-auto' : client.name === 'Consolidated Bank' ? 'h-[4.84rem] w-auto' : client.name === 'Kenya Development Corporation' ? 'h-[4.84rem] w-auto' : client.name === 'TARDA' ? 'h-[4.235rem] w-auto' : client.name === 'Pacida' ? 'h-[2.42rem] w-auto' : client.name === 'CMA' ? 'h-[2.42rem] w-auto' : client.name === 'ICPAK' ? 'h-[2.42rem] w-auto' : 'h-[3.63rem] w-auto'} object-contain filter brightness-0 invert hover:brightness-100 hover:invert-0 transition-all duration-300 opacity-60 hover:opacity-100`}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling.style.display = 'block';
+                      const sibling = e.currentTarget.nextElementSibling;
+                      if (sibling instanceof HTMLElement) sibling.style.display = 'block';
                     }}
                   />
                   <span className="text-primary-600 font-medium text-xs hidden">{client.name}</span>

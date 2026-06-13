@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { StatutoryItemStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { deriveReturnStatus } from '@/lib/statutory-returns';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
+import { enforceSodCheck, requireRecentSensitiveAuth, SodViolationError } from '@/lib/admin-security';
+import { logAuditEvent } from '@/lib/audit-events';
 
 const ALLOWED_STATUS = new Set(['pending', 'prepared', 'submitted', 'paid', 'overdue'] as const);
 
@@ -9,6 +14,9 @@ export async function PATCH(
   context: { params: Promise<{ itemId: string }> },
 ) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) return forbiddenResponse('Payroll/statutory access is restricted.');
     const { itemId } = await context.params;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const statusInput = typeof body.status === 'string' ? body.status : null;
@@ -20,12 +28,24 @@ export async function PATCH(
     const paymentReference = typeof body.paymentReference === 'string' ? body.paymentReference.trim() : undefined;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : undefined;
     const now = new Date();
+    const sensitiveSubmit = statusInput === 'submitted' || statusInput === 'paid';
+    if (sensitiveSubmit) {
+      const reauthError = requireRecentSensitiveAuth(request, user.id);
+      if (reauthError) return reauthError;
+      await enforceSodCheck({
+        actorUserId: user.id,
+        entityType: 'StatutoryReturnItem',
+        entityId: itemId,
+        forbiddenActions: ['statutory.item.prepared'],
+        actionLabel: `statutory item ${statusInput}`,
+      });
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const item = await tx.statutoryReturnItem.update({
         where: { id: itemId },
         data: {
-          status: statusInput,
+          status: statusInput as StatutoryItemStatus,
           ...(referenceNumber !== undefined ? { referenceNumber: referenceNumber || null } : {}),
           ...(paymentReference !== undefined ? { paymentReference: paymentReference || null } : {}),
           ...(notes !== undefined ? { notes: notes || null } : {}),
@@ -58,9 +78,20 @@ export async function PATCH(
       }
       return item;
     });
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: sensitiveSubmit ? 'statutory.item.submitted' : 'statutory.item.prepared',
+      entityType: 'StatutoryReturnItem',
+      entityId: itemId,
+      route: 'PATCH /api/payroll/statutory/items/[itemId]',
+      metadata: { status: statusInput },
+    });
 
     return NextResponse.json({ ok: true, statutoryReturnId: updated.statutoryReturnId });
   } catch (error) {
+    if (error instanceof SodViolationError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     console.error('[payroll statutory item PATCH]', error);
     return NextResponse.json({ error: 'Failed to update statutory item' }, { status: 500 });
   }

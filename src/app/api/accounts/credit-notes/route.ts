@@ -7,6 +7,10 @@ import { computeInvoiceVatFromLines } from '@/lib/accounts-invoice-totals';
 import { reportApiError } from '@/lib/monitoring';
 import { recomputeInvoiceStatusesForInvoiceIds } from '@/lib/accounts-invoice-allocation-status';
 import { sumCreditTotalForInvoice } from '@/lib/accounts-credit-note-totals';
+import {
+  paymentBankForAccountId,
+  resolvePaymentAccountId,
+} from '@/lib/payment-accounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +144,8 @@ export async function POST(request: NextRequest) {
     typeof b.paymentBank === 'string' && PAYMENT_BANK_VALUES.has(b.paymentBank)
       ? b.paymentBank
       : 'consultancy_fees';
+  const paymentAccountIdInput =
+    typeof b.paymentAccountId === 'string' ? b.paymentAccountId.trim() || null : null;
 
   const currencyOverride = str(b.currency);
   const notes = b.notes != null && typeof b.notes === 'string' ? b.notes.trim() || null : null;
@@ -197,6 +203,17 @@ export async function POST(request: NextRequest) {
         throw Object.assign(new Error('INVOICE_NOT_FOUND'), { code: 'INVOICE_NOT_FOUND' });
       }
 
+      const paymentAccountId = await resolvePaymentAccountId(tx, {
+        paymentAccountId: paymentAccountIdInput ?? inv.paymentAccountId,
+        paymentBank: paymentAccountIdInput ? undefined : paymentBank,
+      });
+      if (!paymentAccountId) {
+        throw Object.assign(new Error('PAYMENT_ACCOUNT_NOT_FOUND'), {
+          code: 'PAYMENT_ACCOUNT_NOT_FOUND',
+        });
+      }
+      const resolvedPaymentBank = await paymentBankForAccountId(tx, paymentAccountId);
+
       const { totalIncVat: invoiceTotal } = computeInvoiceVatFromLines(inv.lines, inv.vatRateBps);
       const existingCredit = await sumCreditTotalForInvoice(tx, inv.id);
       const vatRateBps = vatRateBpsFromBody ?? inv.vatRateBps;
@@ -227,7 +244,8 @@ export async function POST(request: NextRequest) {
           currency,
           vatRateBps,
           totalIncVat: new Prisma.Decimal(Math.round(newCreditTotal * 100) / 100),
-          paymentBank: paymentBank as 'payroll_only' | 'consultancy_fees',
+          paymentBank: resolvedPaymentBank,
+          paymentAccountId,
           notes,
           lines: { create: lineCreates },
         },
@@ -246,6 +264,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: createdId }, { status: 201 });
   } catch (error: unknown) {
     const err = error as { code?: string };
+    if (err.code === 'PAYMENT_ACCOUNT_NOT_FOUND') {
+      return NextResponse.json({ error: 'Payment account not found or inactive.' }, { status: 400 });
+    }
     if (err.code === 'INVOICE_NOT_FOUND') {
       return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 });
     }

@@ -31,12 +31,12 @@ const ARTICLES_FROM_LIVE_SITE = [
     image: PLACEHOLDER_IMAGE,
   },
   {
-    title: 'How HR Outsourcing Works: What Companies Can Expect from a Consultancy Partner',
-    excerpt: 'Managing people is one of the most critical parts of running a business. From hiring the right talent to ensuring compliance with labor laws, HR touches every part of the organization. Not every company has the resources for a full in-house team.',
+    title: 'Building an Effective HR Strategy: What Companies Need for Sustainable Growth',
+    excerpt: 'Managing people is one of the most critical parts of running a business. From hiring the right talent to ensuring compliance with labor laws, HR touches every part of the organization. A strong HR strategy helps companies scale effectively.',
     publishedAt: '2025-12-12',
     author: 'HRIS Demo',
-    category: 'HR Outsourcing',
-    url: 'https://www.example.com/how-hr-outsourcing-works-what-companies-can-expect-from-a-consultancy-partner/',
+    category: 'HR Strategy',
+    url: 'https://www.example.com/building-an-effective-hr-strategy-for-sustainable-growth/',
     image: PLACEHOLDER_IMAGE,
   },
   {

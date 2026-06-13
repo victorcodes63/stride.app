@@ -2,6 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { EssPageHeader } from '@/components/ess/EssPageHeader';
+import { EssAlert, EssEmptyState, EssListItem } from '@/components/ess/EssUi';
+import { EssStatusPill } from '@/components/ess/EssStatusPill';
 import { getJurisdictionPolicy } from '@/lib/east-africa-hr-policy';
 
 type Row = {
@@ -43,7 +46,7 @@ export default function EssDisciplinaryPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-primary-900">My disciplinary cases</h1>
+        <EssPageHeader title="Disciplinary" backHref="/ess/more" />
         <p className="mt-1 text-sm text-neutral-600">
           View the status of workplace disciplinary matters involving you. Submit grievances separately under{' '}
           <Link href="/ess/grievances" className="font-medium text-primary-700 underline">
@@ -53,56 +56,33 @@ export default function EssDisciplinaryPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+      <EssAlert tone="warning">
         <p className="font-semibold">Fair process & labour law</p>
-        <p className="mt-1 text-amber-900/90">
+        <p className="mt-1">
           Your employer should follow written procedures, natural justice, and the labour laws that apply to your contract.
           This portal helps you track steps and acknowledge formal notices — it does not replace legal advice.
         </p>
-      </div>
+      </EssAlert>
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-4">
+      <div className="space-y-2">
         {loading ? (
-          <p className="text-sm text-neutral-500">Loading...</p>
+          <p className="ess-card-flat px-4 py-8 text-center text-sm text-[var(--ess-muted)]">Loading...</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-neutral-600">You have no disciplinary cases on file.</p>
+          <EssEmptyState title="No disciplinary cases" message="You have no disciplinary cases on file." />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-neutral-500">
-                <th className="pb-2">Case</th>
-                <th className="pb-2">Type</th>
-                <th className="pb-2">Severity</th>
-                <th className="pb-2">Status</th>
-                <th className="pb-2">Law frame</th>
-                <th className="pb-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((item) => {
-                const pol = getJurisdictionPolicy(item.laborJurisdiction);
-                return (
-                  <tr key={item.id} className="border-t border-neutral-100">
-                    <td className="py-2">
-                      <Link className="font-medium text-primary-800 hover:underline" href={`/ess/disciplinary/cases/${item.id}`}>
-                        {item.caseNumber}
-                      </Link>
-                      <div className="text-xs text-neutral-500">{item.subject}</div>
-                    </td>
-                    <td>{label(item.type)}</td>
-                    <td>{label(item.severity)}</td>
-                    <td>{label(item.status)}</td>
-                    <td className="text-xs">{pol.label}</td>
-                    <td className="text-right">
-                      <Link className="text-primary-700 hover:underline" href={`/ess/disciplinary/cases/${item.id}`}>
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          rows.map((item) => {
+            const pol = getJurisdictionPolicy(item.laborJurisdiction);
+            return (
+              <EssListItem
+                key={item.id}
+                href={`/ess/disciplinary/cases/${item.id}`}
+                title={`${item.caseNumber} · ${item.subject}`}
+                subtitle={`${label(item.type)} · ${label(item.severity)} · ${pol.label}`}
+                meta={new Date(item.createdAt).toLocaleDateString()}
+                trailing={<EssStatusPill status={item.status} />}
+              />
+            );
+          })
         )}
       </div>
     </div>

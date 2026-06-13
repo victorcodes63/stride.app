@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { UpdateJobInput } from '@/lib/jobs-store';
+import { UpdateJobInput, toJobStringArray } from '@/lib/jobs-store';
 import { JobListing } from '@/types/ats';
 import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 import { parseDateTimeAsNairobi } from '@/lib/timezone';
@@ -269,9 +269,9 @@ export async function PATCH(
   if (type !== undefined) payload.type = type;
   if (category !== undefined) payload.category = category;
   if (description !== undefined) payload.description = description;
-  if (requirements !== undefined) payload.requirements = requirements;
-  if (responsibilities !== undefined) payload.responsibilities = responsibilities;
-  if (benefits !== undefined) payload.benefits = benefits;
+  if (requirements !== undefined) payload.requirements = toJobStringArray(requirements);
+  if (responsibilities !== undefined) payload.responsibilities = toJobStringArray(responsibilities);
+  if (benefits !== undefined) payload.benefits = toJobStringArray(benefits);
   if (concealCompany !== undefined) payload.concealCompany = concealCompany;
   if (salaryPublic !== undefined) payload.salaryPublic = salaryPublic;
   if (salary !== undefined) payload.salary = salary;
@@ -314,7 +314,10 @@ export async function PATCH(
         ...(payload.requiredCertifications !== undefined && { requiredCertifications: payload.requiredCertifications }),
         ...(payload.isActive !== undefined && { isActive: payload.isActive }),
       };
-      if (existing?.slug == null) {
+      if (!existing) {
+        return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
+      }
+      if (existing.slug == null) {
         const baseSlug = jobSlugBase(
           payload.title ?? existing.title,
           payload.location ?? existing.location,

@@ -1,7 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
-import { brand, DEFAULT_BRAND_LOGO_SRC } from '@/lib/brand';
+import { useContext } from 'react';
+import { brand } from '@/lib/brand';
+import { DEFAULT_BRAND_LOGO_SRC, normalizeLogoSrc } from '@/lib/brand-constants';
 import { BrandContext } from '@/components/BrandProvider';
 
 /**
@@ -10,9 +11,5 @@ import { BrandContext } from '@/components/BrandProvider';
  */
 export function useResolvedBrandLogoSrc(): string {
   const ctx = useContext(BrandContext);
-  const [src, setSrc] = useState(() => ctx?.logoSrc ?? DEFAULT_BRAND_LOGO_SRC);
-  useEffect(() => {
-    setSrc(ctx?.logoSrc ?? brand.logoSrc);
-  }, [ctx?.logoSrc]);
-  return src;
+  return normalizeLogoSrc(ctx?.logoSrc ?? brand.logoSrc ?? DEFAULT_BRAND_LOGO_SRC);
 }

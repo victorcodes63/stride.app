@@ -11,13 +11,17 @@ function trimEnv(key: string): string | undefined {
   return t.length > 0 ? t : undefined;
 }
 
-const DEFAULT_APP = 'HRIS Demo';
-const DEFAULT_ORG = 'Stabex International';
+const DEFAULT_APP = 'HRIS';
+const DEFAULT_ORG = 'Your Organisation';
 const DEFAULT_TAGLINE =
-  'Human resources, payroll, recruitment, and workforce operations in one place.';
+  'Workforce, payroll, recruitment, and leave — in one system.';
 
-/** Public path; must match the first paint in `BrandLogo` to avoid React hydration mismatches when env differs between server and client bundles. */
-export const DEFAULT_BRAND_LOGO_SRC = '/brand/stabex-logo.png';
+import { DEFAULT_BRAND_LOGO_SRC, normalizeLogoSrc } from '@/lib/brand-constants';
+export { DEFAULT_BRAND_LOGO_SRC } from '@/lib/brand-constants';
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SECONDARY_COLOR,
+} from '@/lib/brand-theme';
 
 export const brand = {
   appName: trimEnv('NEXT_PUBLIC_APP_NAME') ?? DEFAULT_APP,
@@ -27,11 +31,11 @@ export const brand = {
   contactPhone: trimEnv('NEXT_PUBLIC_CONTACT_PHONE') ?? '',
   contactAddress: trimEnv('NEXT_PUBLIC_CONTACT_ADDRESS') ?? '',
   /** Public path for nav / metadata (SVG or raster). */
-  logoSrc: trimEnv('NEXT_PUBLIC_BRAND_LOGO') ?? DEFAULT_BRAND_LOGO_SRC,
+  logoSrc: normalizeLogoSrc(trimEnv('NEXT_PUBLIC_BRAND_LOGO') ?? DEFAULT_BRAND_LOGO_SRC),
   /** PNG for PDFs and email CID embedding (same file as UI if using raster logo). */
-  logoPngPath: trimEnv('NEXT_PUBLIC_BRAND_LOGO_PNG') ?? DEFAULT_BRAND_LOGO_SRC,
+  logoPngPath: normalizeLogoSrc(trimEnv('NEXT_PUBLIC_BRAND_LOGO_PNG') ?? DEFAULT_BRAND_LOGO_SRC),
   /** Short line for payslip / letter headers when logo file is missing. */
-  wordmark: trimEnv('NEXT_PUBLIC_BRAND_WORDMARK') ?? 'HRIS DEMO',
+  wordmark: trimEnv('NEXT_PUBLIC_BRAND_WORDMARK') ?? 'HRIS',
 } as const;
 
 export const mailFromName =
@@ -75,6 +79,27 @@ export type PublicBrand = {
   logoSrc: string;
   logoPngPath: string;
   wordmark: string;
+  faviconSrc: string;
+  primaryColor: string;
+  secondaryColor: string;
+  privacyPolicyUrl: string;
+  termsUrl: string;
+  supportUrl: string;
+  emailFromName: string;
+  careersEmployerName: string;
+  careersTagline: string;
+  careersHeroImageUrl: string;
+  essPortalTitle: string;
+  staffPortalTitle: string;
+  payslipLegalName: string;
+  documentFooterText: string;
+  publicFooterText: string;
+  defaultLandingPath: string;
+  dashboardBannerEnabled: boolean;
+  dashboardBannerText: string;
+  dashboardBannerTone: 'info' | 'warning' | 'success';
+  dashboardTableZebraStriping: boolean;
+  hidePoweredBy: boolean;
 };
 
 export function getPublicBrand(): PublicBrand {
@@ -88,6 +113,27 @@ export function getPublicBrand(): PublicBrand {
     logoSrc: brand.logoSrc,
     logoPngPath: brand.logoPngPath,
     wordmark: brand.wordmark,
+    faviconSrc: brand.logoSrc,
+    primaryColor: DEFAULT_PRIMARY_COLOR,
+    secondaryColor: DEFAULT_SECONDARY_COLOR,
+    privacyPolicyUrl: '/privacy',
+    termsUrl: '/terms',
+    supportUrl: '',
+    emailFromName: mailFromName,
+    careersEmployerName: brand.orgName,
+    careersTagline: brand.tagline,
+    careersHeroImageUrl: '',
+    essPortalTitle: 'Employee Self Service',
+    staffPortalTitle: '',
+    payslipLegalName: brand.orgName,
+    documentFooterText: '',
+    publicFooterText: '',
+    defaultLandingPath: '/dashboard',
+    dashboardBannerEnabled: false,
+    dashboardBannerText: '',
+    dashboardBannerTone: 'info',
+    dashboardTableZebraStriping: true,
+    hidePoweredBy: false,
   };
 }
 

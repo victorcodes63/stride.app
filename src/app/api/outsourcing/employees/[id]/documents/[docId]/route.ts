@@ -7,6 +7,7 @@ import {
   unauthorizedResponse,
 } from '@/lib/demo-route-access';
 import { logAuditEvent } from '@/lib/audit-events';
+import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client';
 
 export async function DELETE(
   request: NextRequest,
@@ -22,6 +23,14 @@ export async function DELETE(
   }
 
   const { id, docId } = await params;
+  const workspaceId = await resolvePrimaryWorkspaceClientId(prisma, null, request);
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: { id: true, outsourcingClientId: true },
+  });
+  if (!employee || employee.outsourcingClientId !== workspaceId) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  }
   const document = await prisma.employeeDocument.findUnique({
     where: { id: docId },
     select: { id: true, employeeId: true, title: true, category: true, fileName: true },

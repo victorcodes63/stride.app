@@ -13,6 +13,10 @@ import { ensureEssUserForEmployee } from '@/lib/ess-provision';
 import { logAuditEvent } from '@/lib/audit-events';
 import { getHrUserIds, sendNotification } from '@/lib/notifications';
 import { startWorkflowForEmployee } from '@/lib/onboarding-workflows';
+import {
+  assertEmployeeProfileCompleteness,
+  normalizeEmployeeSearchPreset,
+} from '@/lib/hr-core-employee';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,12 +30,37 @@ export async function GET(request: NextRequest) {
     const clientId = await resolvePrimaryWorkspaceClientId(prisma, requestedClientId, request);
     const departmentId = searchParams.get('departmentId') || undefined;
     const jobTitle = searchParams.get('jobTitle') || undefined;
+    const managerEmployeeId = searchParams.get('managerEmployeeId') || undefined;
+    const costCenterCode = searchParams.get('costCenterCode') || undefined;
+    const searchPreset = normalizeEmployeeSearchPreset(searchParams.get('preset'));
 
     const employees = await prisma.employee.findMany({
       where: {
         ...(clientId ? { outsourcingClientId: clientId } : {}),
         ...(departmentId ? { departmentId } : {}),
         ...(jobTitle?.trim() ? { jobTitle: { equals: jobTitle.trim(), mode: 'insensitive' } } : {}),
+        ...(managerEmployeeId?.trim() ? { managerEmployeeId: managerEmployeeId.trim() } : {}),
+        ...(costCenterCode?.trim()
+          ? { costCenterCode: { equals: costCenterCode.trim(), mode: 'insensitive' } }
+          : {}),
+        ...(searchPreset === 'without_manager' ? { managerEmployeeId: null } : {}),
+        ...(searchPreset === 'without_cost_centre' ? { costCenterCode: null } : {}),
+        ...(searchPreset === 'on_probation' ? { employmentStatus: 'probation' } : {}),
+        ...(searchPreset === 'suspended' ? { employmentStatus: 'suspended' } : {}),
+        ...(searchPreset === 'incomplete_profile'
+          ? {
+              OR: [
+                { idNumber: null },
+                { kraPin: null },
+                { nssfNumber: null },
+                { nhifNumber: null },
+                { dateOfJoining: null },
+                { jobTitle: null },
+                { departmentId: null },
+                { costCenterCode: null },
+              ],
+            }
+          : {}),
       },
       include: {
         client: { select: { id: true, name: true } },
@@ -56,6 +85,8 @@ export async function GET(request: NextRequest) {
       bankName: e.bankName ?? null,
       bankBranch: e.bankBranch ?? null,
       bankAccountNumber: e.bankAccountNumber ?? null,
+      costCenterCode: e.costCenterCode ?? null,
+      costCenterName: e.costCenterName ?? null,
       baseSalary: canViewSalaryFields(user) && e.baseSalary != null ? Number(e.baseSalary) : null,
       employmentStatus: e.employmentStatus,
       employmentStatusEffectiveFrom: e.employmentStatusEffectiveFrom?.toISOString().slice(0, 10) ?? null,
@@ -73,6 +104,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(list);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('outside active entity scope')) {
+      return NextResponse.json({ error: msg }, { status: 403 });
+    }
     console.error('[outsourcing/employees]', e);
     return NextResponse.json(
       {
@@ -157,6 +191,8 @@ export async function POST(request: NextRequest) {
       | 'terminated'
       | null) ?? null;
     const managerEmployeeId = strField(body, 'managerEmployeeId');
+    const costCenterCode = strField(body, 'costCenterCode');
+    const costCenterName = strField(body, 'costCenterName');
     const attendancePolicyId = strField(body, 'attendancePolicyId');
     const leavePolicyId = strField(body, 'leavePolicyId');
     let dateOfJoining: Date | undefined;
@@ -174,6 +210,18 @@ export async function POST(request: NextRequest) {
         );
       }
     }
+    assertEmployeeProfileCompleteness({
+      firstName,
+      lastName,
+      idNumber: idNumberNorm,
+      kraPin: strField(body, 'kraPin'),
+      nssfNumber: strField(body, 'nssfNumber'),
+      nhifNumber: strField(body, 'nhifNumber'),
+      dateOfJoining: dateOfJoining ?? null,
+      jobTitle: strField(body, 'jobTitle'),
+      departmentId,
+      costCenterCode,
+    });
     const employee = await prisma.employee.create({
       data: {
         outsourcingClientId: clientId,
@@ -192,6 +240,8 @@ export async function POST(request: NextRequest) {
         bankName: strField(body, 'bankName') ?? undefined,
         bankBranch: strField(body, 'bankBranch') ?? undefined,
         bankAccountNumber: strField(body, 'bankAccountNumber') ?? undefined,
+        costCenterCode: costCenterCode ?? undefined,
+        costCenterName: costCenterName ?? undefined,
         managerEmployeeId: managerEmployeeId ?? undefined,
         employmentStatus: employmentStatus ?? undefined,
         baseSalary:
@@ -266,11 +316,16 @@ export async function POST(request: NextRequest) {
       employmentStatus: employee.employmentStatus,
       managerEmployeeId: employee.managerEmployeeId,
       managerName: null,
+      costCenterCode: employee.costCenterCode ?? null,
+      costCenterName: employee.costCenterName ?? null,
       departmentId: employee.departmentId,
       departmentName: employee.department?.name ?? null,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('outside active entity scope')) {
+      return NextResponse.json({ error: msg }, { status: 403 });
+    }
     const err = e as { code?: string; meta?: { target?: string[] } };
     if (err.code === 'P2002' && err.meta?.target?.includes('idNumber')) {
       return NextResponse.json(
@@ -283,6 +338,9 @@ export async function POST(request: NextRequest) {
         { error: 'An employee with this email already exists.' },
         { status: 409 }
       );
+    }
+    if (msg.includes('Employee profile is incomplete.')) {
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
     console.error('[outsourcing/employees POST]', e);
     return NextResponse.json(

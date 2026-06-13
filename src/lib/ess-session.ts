@@ -1,7 +1,8 @@
 export interface ParsedEssSession {
-  provider: 'local' | 'unknown';
+  provider: 'local' | 'ms' | 'google' | 'unknown';
   userId?: string;
   role?: string;
+  email?: string;
 }
 
 export function getEssSessionMaxAgeSeconds() {
@@ -13,11 +14,16 @@ export function getEssSessionMaxAgeSeconds() {
 export function parseEssSession(value: string): ParsedEssSession {
   if (!value) return { provider: 'unknown' };
   const parts = value.split(':');
-  if (parts[0] === 'local' && parts.length >= 3) {
+  const head = parts[0];
+  if (head === 'local' && parts.length >= 3) {
+    return { provider: 'local', userId: parts[1], role: parts[2] };
+  }
+  if ((head === 'ms' || head === 'google') && parts.length >= 4) {
     return {
-      provider: 'local',
+      provider: head,
       userId: parts[1],
       role: parts[2],
+      email: parts.slice(3).join(':'),
     };
   }
   return { provider: 'unknown' };

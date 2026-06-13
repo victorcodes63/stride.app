@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { EssPageHeader } from '@/components/ess/EssPageHeader';
+import { EssAlert, EssCard, essInputClass, essPrimaryButtonClass } from '@/components/ess/EssUi';
 
 export default function EssAccountSecurityPage() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -11,6 +13,10 @@ export default function EssAccountSecurityPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!navigator.onLine) {
+      setError('You are offline. Reconnect before updating your password.');
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess('');
@@ -37,42 +43,42 @@ export default function EssAccountSecurityPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-primary-900">Account security</h1>
-      <section className="max-w-xl bg-white border border-neutral-200 rounded-xl p-4">
-        <p className="text-sm text-neutral-600 mb-4">Use this page to reset your ESS password.</p>
-        {error ? <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-md px-3 py-2 mb-3">{error}</p> : null}
-        {success ? <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 mb-3">{success}</p> : null}
+      <EssPageHeader title="Account security" subtitle="Keep your ESS password current." backHref="/ess/more" />
+      <EssCard className="max-w-xl">
+        <p className="mb-4 text-sm text-[var(--ess-muted)]">Use this page to reset your ESS password.</p>
+        {error ? <div className="mb-3"><EssAlert tone="danger">{error}</EssAlert></div> : null}
+        {success ? <div className="mb-3"><EssAlert tone="success">{success}</EssAlert></div> : null}
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Current password</label>
+            <label className="block text-sm font-bold text-[var(--ess-text)] mb-1">Current password</label>
             <input
               type="password"
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+              className={essInputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">New password</label>
+            <label className="block text-sm font-bold text-[var(--ess-text)] mb-1">New password</label>
             <input
               type="password"
               minLength={6}
               required
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+              className={essInputClass}
             />
           </div>
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-60"
+            className={essPrimaryButtonClass}
           >
             {saving ? 'Updating...' : 'Update password'}
           </button>
         </form>
-      </section>
+      </EssCard>
     </div>
   );
 }

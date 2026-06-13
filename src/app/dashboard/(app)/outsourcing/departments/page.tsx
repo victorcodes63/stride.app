@@ -1,13 +1,60 @@
 'use client';
 
 import { useEffect, useMemo, useState, Suspense } from 'react';
-import { FolderOpen, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import Link from 'next/link';
+import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useEntity } from '@/components/EntitySwitcher';
+import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader';
 
 interface Department {
   id: string;
   name: string;
   employeeCount: number;
+}
+
+const DEPT_AVATAR_PALETTE = [
+  'bg-primary-100 text-primary-800 ring-primary-200/70',
+  'bg-emerald-100 text-emerald-800 ring-emerald-200/70',
+  'bg-violet-100 text-violet-800 ring-violet-200/70',
+  'bg-amber-100 text-amber-900 ring-amber-200/70',
+  'bg-sky-100 text-sky-800 ring-sky-200/70',
+  'bg-rose-100 text-rose-800 ring-rose-200/70',
+];
+
+function deptInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase() || '?';
+}
+
+function deptAvatarClass(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return DEPT_AVATAR_PALETTE[Math.abs(hash) % DEPT_AVATAR_PALETTE.length];
+}
+
+function StatCard({
+  label,
+  value,
+  note,
+  accent,
+  warn,
+}: {
+  label: string;
+  value: string | number;
+  note: string;
+  accent: string;
+  warn?: boolean;
+}) {
+  return (
+    <article className={`relative overflow-hidden dashboard-stat-card shadow-sm ${accent}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-500">{label}</p>
+      <p className={`mt-2 text-[28px] font-semibold leading-none tabular-nums ${warn ? 'text-amber-700' : 'text-ink'}`}>
+        {value}
+      </p>
+      <p className="mt-2 text-sm text-neutral-500">{note}</p>
+    </article>
+  );
 }
 
 function DepartmentsPageInner() {
@@ -55,15 +102,19 @@ function DepartmentsPageInner() {
 
   const filteredDepartments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return departments;
-    return departments.filter((d) => d.name.toLowerCase().includes(q));
+    const list = q ? departments.filter((d) => d.name.toLowerCase().includes(q)) : departments;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
   }, [departments, searchQuery]);
 
   const totals = useMemo(() => {
     const deptCount = departments.length;
     const staffCount = departments.reduce((sum, d) => sum + (d.employeeCount ?? 0), 0);
-    return { deptCount, staffCount };
+    const emptyDepts = departments.filter((d) => (d.employeeCount ?? 0) === 0).length;
+    const avgPerDept = deptCount > 0 ? Math.round((staffCount / deptCount) * 10) / 10 : 0;
+    return { deptCount, staffCount, emptyDepts, avgPerDept };
   }, [departments]);
+
+  const hasSearch = !!searchQuery.trim();
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,133 +176,180 @@ function DepartmentsPageInner() {
   };
 
   if (loading) {
-    return <div className="h-40 w-full animate-pulse rounded-2xl bg-neutral-100" />;
+    return (
+      <div className="page-shell">
+        <div className="dashboard-surface h-48 animate-pulse shadow-sm" />
+      </div>
+    );
   }
 
   return (
-    <div className="w-full min-w-0">
-      <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-neutral-900 sm:text-2xl">
-          <FolderOpen className="h-7 w-7 text-primary-600" />
-          Departments
-        </h1>
-        <p className="mt-2 text-sm text-neutral-600 sm:text-base">
-          Organise departments for stations, LPG, logistics, and head office—keep assignments accurate for payroll and reporting.
-        </p>
-      </div>
+    <div className="page-shell w-full min-w-0">
+      <DashboardPageHeader
+        title="Departments"
+        description={
+          <>
+            Maintain your department structure for employee assignment, payroll allocation, and reporting. Assign staff
+            from the{' '}
+            <Link href="/dashboard/employees" className="font-medium text-primary-700 hover:text-primary-800">
+              Employees
+            </Link>{' '}
+            directory.
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-5">
-        <div className="rounded-xl border border-neutral-200 bg-white p-4">
-          <p className="text-xs font-medium text-neutral-500 mb-1">Departments</p>
-          <p className="text-2xl font-semibold text-neutral-900 tabular-nums">{totals.deptCount}</p>
-        </div>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4">
-          <p className="text-xs font-medium text-neutral-500 mb-1">Staff assigned</p>
-          <p className="text-2xl font-semibold text-neutral-900 tabular-nums">{totals.staffCount}</p>
-        </div>
-      </div>
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Departments"
+          value={totals.deptCount}
+          note={hasSearch ? `${filteredDepartments.length} match search` : 'In your structure'}
+          accent="border-l-[4px] border-l-primary-500"
+        />
+        <StatCard
+          label="Staff assigned"
+          value={totals.staffCount}
+          note={totals.staffCount === 0 ? 'No employees linked yet' : 'Across all departments'}
+          accent="border-l-[4px] border-l-emerald-600"
+        />
+        <StatCard
+          label="Empty departments"
+          value={totals.emptyDepts}
+          note={totals.emptyDepts > 0 ? 'No employees assigned yet' : 'All departments have staff'}
+          accent="border-l-[4px] border-l-amber-500"
+          warn={totals.emptyDepts > 0}
+        />
+        <StatCard
+          label="Avg per department"
+          value={totals.avgPerDept}
+          note="Headcount distribution"
+          accent="border-l-[4px] border-l-violet-500"
+        />
+      </section>
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm space-y-4">
-        {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div> : null}
-
-        <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Department name (e.g. LPG Operations, Retail Stations, HSE)"
-            className="flex-1 rounded-xl border border-neutral-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500"
-          />
-          <button
-            type="submit"
-            disabled={adding || !newName.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            {adding ? 'Adding...' : 'Add department'}
-          </button>
-        </form>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search departments..."
-            className="w-full max-w-md rounded-xl border border-neutral-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500"
-          />
-          {searchQuery.trim() ? (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-            >
-              Clear
-            </button>
+      <div className="overflow-hidden dashboard-surface shadow-sm">
+        <div className="dashboard-toolbar space-y-4 px-4 py-4 md:px-5">
+          {error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
           ) : null}
+
+          <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="New department name"
+              className="h-10 flex-1 rounded-lg border border-neutral-200/80 bg-white/90 px-4 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            />
+            <button
+              type="submit"
+              disabled={adding || !newName.trim()}
+              className="btn-primary inline-flex h-10 shrink-0 items-center justify-center gap-2 px-5 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              {adding ? 'Adding…' : 'Add department'}
+            </button>
+          </form>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search departments…"
+                className="h-10 w-full rounded-lg border border-neutral-200/80 bg-white/90 pl-9 pr-3 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+            <p className="text-sm text-neutral-500">
+              {hasSearch ? (
+                <>
+                  Showing <span className="font-medium tabular-nums text-ink">{filteredDepartments.length}</span> of{' '}
+                  <span className="tabular-nums">{departments.length}</span>
+                </>
+              ) : (
+                <>
+                  <span className="font-medium tabular-nums text-ink">{departments.length}</span> department
+                  {departments.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </p>
+            {hasSearch ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="btn-secondary inline-flex h-10 items-center gap-1.5 px-3"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {departments.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-neutral-200 py-8 text-center text-sm text-neutral-500">
+          <p className="border-t border-neutral-100 px-4 py-12 text-center text-sm text-neutral-500 md:px-5">
             No departments yet. Add your first department above.
           </p>
         ) : filteredDepartments.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-neutral-200 py-8 text-center text-sm text-neutral-500">
+          <p className="border-t border-neutral-100 px-4 py-12 text-center text-sm text-neutral-500 md:px-5">
             No departments match &quot;{searchQuery.trim()}&quot;.
           </p>
         ) : (
-          <ul className="space-y-2">
-            {filteredDepartments.map((dept, index) => (
-              <li
-                key={dept.id}
-                className={`flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-3 ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'
-                }`}
-              >
+          <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+            {filteredDepartments.map((dept) => (
+              <li key={dept.id} className="group px-4 py-3 transition-colors hover:bg-neutral-50/60 md:px-5">
                 {editingId === dept.id ? (
                   <div className="flex flex-1 flex-wrap items-center gap-2">
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="min-w-[12rem] flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                      className="min-w-[12rem] flex-1 rounded-lg border border-neutral-200/80 bg-white/90 px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                       autoFocus
                     />
                     <button
                       type="button"
                       onClick={() => handleSaveEdit(dept.id)}
-                      className="rounded-lg bg-primary-900 px-3 py-2 text-sm font-medium text-white"
+                      className="btn-primary px-3 py-2 text-sm"
                     >
                       Save
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-                    >
+                    <button type="button" onClick={() => setEditingId(null)} className="btn-secondary px-3 py-2 text-sm">
                       Cancel
                     </button>
                   </div>
                 ) : (
-                  <>
-                    <div className="min-w-0 flex items-center gap-3">
-                      <FolderOpen className="h-5 w-5 shrink-0 text-neutral-400" />
-                      <div>
-                        <p className="font-semibold text-neutral-900">{dept.name}</p>
-                        <p className="flex items-center gap-1 text-xs text-neutral-500">
-                          <Users className="h-3.5 w-3.5" />
-                          {dept.employeeCount} employee{dept.employeeCount !== 1 ? 's' : ''}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold ring-1 ring-inset ${deptAvatarClass(dept.name)}`}
+                      >
+                        {deptInitials(dept.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-ink">{dept.name}</p>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-neutral-500">
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          {dept.employeeCount === 0 ? (
+                            'No employees assigned'
+                          ) : (
+                            <>
+                              {dept.employeeCount} employee{dept.employeeCount !== 1 ? 's' : ''}
+                            </>
+                          )}
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() => {
                           setEditingId(dept.id);
                           setEditName(dept.name);
                         }}
-                        className="rounded-lg p-2 text-neutral-600 hover:border-neutral-200 hover:bg-white"
-                        aria-label="Edit department"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-white hover:text-ink"
+                        aria-label={`Edit ${dept.name}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -259,13 +357,13 @@ function DepartmentsPageInner() {
                         type="button"
                         onClick={() => handleDelete(dept.id, dept.name)}
                         disabled={deletingId === dept.id}
-                        className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                        aria-label="Delete department"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                        aria-label={`Delete ${dept.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                  </>
+                  </div>
                 )}
               </li>
             ))}
@@ -278,9 +376,8 @@ function DepartmentsPageInner() {
 
 export default function DepartmentsPage() {
   return (
-    <Suspense fallback={<div className="h-48 animate-pulse rounded-2xl bg-neutral-100" />}>
+    <Suspense fallback={<div className="page-shell dashboard-surface h-48 animate-pulse shadow-sm" />}>
       <DepartmentsPageInner />
     </Suspense>
   );
 }
-

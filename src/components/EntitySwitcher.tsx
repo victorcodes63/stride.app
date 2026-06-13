@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useLayoutEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useLayoutEffect, useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Building2 } from 'lucide-react';
+import { ChevronDown, Building2, Loader2 } from 'lucide-react';
 import { HRIS_ENTITY_COOKIE } from '@/lib/entity-constants';
 
 export type Entity = {
@@ -14,34 +14,36 @@ export type Entity = {
   color: string;
 };
 
-export const ENTITIES: Entity[] = [
-  {
-    id: 'ke',
-    name: 'Stabex Kenya Ltd',
-    country: 'Kenya',
-    currency: 'KES',
-    flag: '🇰🇪',
-    color: '#006600',
-  },
-  {
-    id: 'ug',
-    name: 'Stabex Uganda Ltd',
-    country: 'Uganda',
-    currency: 'UGX',
-    flag: '🇺🇬',
-    color: '#000000',
-  },
-];
+const STORAGE_KEY = 'hris_active_entity';
 
-const STORAGE_KEY = 'stabex_entity';
+type EntityConfigResponse = {
+  entities?: Entity[];
+  defaultEntityId?: string;
+  showSwitcher?: boolean;
+};
 
 type EntityContextType = {
   activeEntity: Entity;
+  entities: Entity[];
+  showSwitcher: boolean;
+  loading: boolean;
   setActiveEntity: (e: Entity) => void;
 };
 
+const FALLBACK_ENTITY: Entity = {
+  id: 'ke',
+  name: 'Workspace',
+  country: 'Kenya',
+  currency: 'KES',
+  flag: '🇰🇪',
+  color: '#006600',
+};
+
 const EntityContext = createContext<EntityContextType>({
-  activeEntity: ENTITIES[0],
+  activeEntity: FALLBACK_ENTITY,
+  entities: [FALLBACK_ENTITY],
+  showSwitcher: false,
+  loading: true,
   setActiveEntity: () => {},
 });
 
@@ -53,25 +55,9 @@ function readCookieEntityId(): string | null {
     if (eq === -1) continue;
     const k = trimmed.slice(0, eq).trim();
     if (k !== HRIS_ENTITY_COOKIE) continue;
-    const v = decodeURIComponent(trimmed.slice(eq + 1).trim()).toLowerCase();
-    if (v === 'ke' || v === 'ug') return v;
+    return decodeURIComponent(trimmed.slice(eq + 1).trim()).toLowerCase();
   }
   return null;
-}
-
-/** Client-only: restore entity from localStorage, then cookie (must not run during SSR — hydration). */
-function readPreferredEntity(): Entity {
-  const fromStorage = localStorage.getItem(STORAGE_KEY);
-  if (fromStorage === 'ke' || fromStorage === 'ug') {
-    const found = ENTITIES.find((e) => e.id === fromStorage);
-    if (found) return found;
-  }
-  const cid = readCookieEntityId();
-  if (cid) {
-    const found = ENTITIES.find((e) => e.id === cid);
-    if (found) return found;
-  }
-  return ENTITIES[0];
 }
 
 function syncEntityCookie(entityId: string) {
@@ -80,28 +66,71 @@ function syncEntityCookie(entityId: string) {
   document.cookie = `${HRIS_ENTITY_COOKIE}=${encodeURIComponent(entityId)};path=/;max-age=${maxAge};SameSite=Lax`;
 }
 
+function pickPreferredEntity(entities: Entity[], defaultEntityId: string): Entity {
+  if (entities.length === 0) return FALLBACK_ENTITY;
+
+  const fromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+  if (fromStorage) {
+    const found = entities.find((e) => e.id === fromStorage);
+    if (found) return found;
+  }
+
+  const cid = readCookieEntityId();
+  if (cid) {
+    const found = entities.find((e) => e.id === cid);
+    if (found) return found;
+  }
+
+  return entities.find((e) => e.id === defaultEntityId) ?? entities[0]!;
+}
+
 export function EntityProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  // Always match SSR/first paint (Kenya default). localStorage/cookie are applied in useLayoutEffect to avoid hydration mismatch (server cannot read localStorage).
-  const [activeEntity, setActiveEntityState] = useState<Entity>(ENTITIES[0]);
+  const [entities, setEntities] = useState<Entity[]>([FALLBACK_ENTITY]);
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeEntity, setActiveEntityState] = useState<Entity>(FALLBACK_ENTITY);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/config/entities')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: EntityConfigResponse | null) => {
+        if (cancelled || !data) return;
+        const list = Array.isArray(data.entities) && data.entities.length > 0 ? data.entities : [FALLBACK_ENTITY];
+        const defaultId = data.defaultEntityId ?? list[0]!.id;
+        setEntities(list);
+        setShowSwitcher(Boolean(data.showSwitcher));
+        const preferred = pickPreferredEntity(list, defaultId);
+        syncEntityCookie(preferred.id);
+        setActiveEntityState(preferred);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useLayoutEffect(() => {
-    const preferred = readPreferredEntity();
+    if (loading || entities.length === 0) return;
+    const preferred = pickPreferredEntity(entities, entities[0]!.id);
     syncEntityCookie(preferred.id);
-    setActiveEntityState(preferred);
-  }, []);
+    setActiveEntityState((prev) => (prev.id === preferred.id ? prev : preferred));
+  }, [loading, entities]);
 
   const setActiveEntity = (entity: Entity) => {
     if (entity.id === activeEntity.id) return;
     localStorage.setItem(STORAGE_KEY, entity.id);
     syncEntityCookie(entity.id);
     setActiveEntityState(entity);
-    // Server Components and route handlers read entity from cookie — refresh so data matches selection without manual reload.
     router.refresh();
   };
 
   return (
-    <EntityContext.Provider value={{ activeEntity, setActiveEntity }}>
+    <EntityContext.Provider value={{ activeEntity, entities, showSwitcher, loading, setActiveEntity }}>
       {children}
     </EntityContext.Provider>
   );
@@ -111,48 +140,82 @@ export function useEntity() {
   return useContext(EntityContext);
 }
 
-export function EntitySwitcher() {
-  const { activeEntity, setActiveEntity } = useEntity();
+export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 'topbar' }) {
+  const { activeEntity, entities, showSwitcher, loading, setActiveEntity } = useEntity();
   const [open, setOpen] = useState(false);
+
+  if (loading) {
+    if (variant === 'topbar') return null;
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-400">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        <span className="sr-only">Loading entities</span>
+      </div>
+    );
+  }
+
+  if (!showSwitcher || entities.length <= 1) {
+    return null;
+  }
+
+  const isTopbar = variant === 'topbar';
+  const triggerClass = isTopbar
+    ? 'flex h-9 max-w-[11rem] items-center gap-1.5 rounded-lg border border-neutral-200/90 bg-neutral-50/50 px-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 sm:max-w-[13rem] lg:max-w-[15rem] lg:px-2.5'
+    : 'flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-medium text-neutral-700 shadow-sm';
 
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-medium text-neutral-700 shadow-sm"
+        className={triggerClass}
         aria-expanded={open}
         aria-haspopup="listbox"
+        title={`${activeEntity.name} (${activeEntity.currency})`}
       >
-        <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0" aria-hidden />
-        <span className="text-base leading-none">{activeEntity.flag}</span>
-        <span className="hidden sm:inline truncate max-w-[140px] lg:max-w-[200px]">{activeEntity.name}</span>
-        <span className="inline sm:hidden">{activeEntity.country}</span>
-        <span className="ml-0.5 text-xs bg-primary-50 text-primary-800 px-1.5 py-0.5 rounded font-mono shrink-0">
+        <Building2
+          className={`shrink-0 text-neutral-400 ${isTopbar ? 'hidden h-3.5 w-3.5 sm:block' : 'w-3.5 h-3.5'}`}
+          aria-hidden
+        />
+        <span className="text-base leading-none shrink-0">{activeEntity.flag}</span>
+        {isTopbar ? (
+          <>
+            <span className="hidden min-w-0 truncate sm:inline">{activeEntity.name}</span>
+            <span className="inline truncate sm:hidden">{activeEntity.country}</span>
+          </>
+        ) : (
+          <>
+            <span className="hidden sm:inline truncate max-w-[140px] lg:max-w-[200px]">{activeEntity.name}</span>
+            <span className="inline sm:hidden">{activeEntity.country}</span>
+          </>
+        )}
+        <span
+          className={`shrink-0 rounded font-mono text-[10px] font-semibold text-primary-800 ${
+            isTopbar ? 'bg-primary-100/80 px-1 py-0.5' : 'ml-0.5 text-xs bg-primary-50 px-1.5 py-0.5'
+          }`}
+        >
           {activeEntity.currency}
         </span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-neutral-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''} ${
+            isTopbar ? 'h-3.5 w-3.5' : 'w-3.5 h-3.5'
+          }`}
           aria-hidden
         />
       </button>
 
       {open && (
         <>
+          <div className="fixed inset-0 z-10 bg-black/5" aria-hidden onClick={() => setOpen(false)} />
           <div
-            className="fixed inset-0 z-10 bg-black/5"
-            aria-hidden
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="absolute right-0 top-full mt-1.5 z-20 w-64 bg-white rounded-lg border border-neutral-200 shadow-medium overflow-hidden"
+            className="absolute right-0 top-full mt-1.5 z-20 w-64 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
             role="listbox"
             aria-label="Switch entity"
           >
             <div className="px-3 py-2 border-b border-neutral-100">
-              <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">Switch entity</p>
+              <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">Switch company context</p>
             </div>
-            {ENTITIES.map((entity) => (
+            {entities.map((entity) => (
               <button
                 key={entity.id}
                 type="button"
@@ -184,9 +247,6 @@ export function EntitySwitcher() {
                 )}
               </button>
             ))}
-            <div className="px-3 py-2 border-t border-neutral-100 bg-neutral-50">
-              <p className="text-xs text-neutral-500">Multi-country payroll available in full setup</p>
-            </div>
           </div>
         </>
       )}

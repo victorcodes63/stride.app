@@ -73,15 +73,15 @@ async function main() {
 
   await upsertTemplate('Staff offboarding', WorkflowType.OFFBOARDING, true, [
     { title: 'Conduct exit interview', assignedRole: 'hr', dueDaysOffset: 3, category: 'Process', isRequired: false },
-    { title: 'Revoke system access', assignedRole: 'it', dueDaysOffset: 1, category: 'Access', isRequired: true },
-    { title: 'Revoke biometric access', assignedRole: 'it', dueDaysOffset: 1, category: 'Access', isRequired: true },
-    { title: 'Collect staff ID badge', assignedRole: 'hr', dueDaysOffset: 1, category: 'Equipment', isRequired: true },
-    { title: 'Collect keys, equipment, uniform', assignedRole: 'department_head', dueDaysOffset: 2, category: 'Equipment', isRequired: true },
-    { title: 'Settle outstanding loan/advance balances', assignedRole: 'hr', dueDaysOffset: 5, category: 'Finance', isRequired: true },
-    { title: 'Compute final pay (prorated salary + leave days owed)', assignedRole: 'hr', dueDaysOffset: 5, category: 'Finance', isRequired: true },
+    { title: 'Revoke system access', assignedRole: 'it', dueDaysOffset: 1, category: 'Access', isRequired: true, description: 'Disable dashboard/ESS credentials and shared systems to prevent orphaned access.' },
+    { title: 'Revoke biometric access', assignedRole: 'it', dueDaysOffset: 1, category: 'Access', isRequired: true, description: 'Disable device access profile and document revocation evidence.' },
+    { title: 'Collect staff ID badge', assignedRole: 'hr', dueDaysOffset: 1, category: 'Equipment', isRequired: true, description: 'Capture returned badge serial/reference in task notes.' },
+    { title: 'Collect keys, equipment, uniform', assignedRole: 'department_head', dueDaysOffset: 2, category: 'Equipment', isRequired: true, description: 'Verify all assigned assets are recovered or incident is logged.' },
+    { title: 'Settle outstanding loan/advance balances', assignedRole: 'hr', dueDaysOffset: 5, category: 'Finance', isRequired: true, description: 'Record deductions/offsets required for final settlement.' },
+    { title: 'Compute final pay (prorated salary + leave days owed)', assignedRole: 'hr', dueDaysOffset: 5, category: 'Finance', isRequired: true, description: 'Hook for payroll final settlement computation and approval.' },
     { title: 'Generate certificate of service', assignedRole: 'hr', dueDaysOffset: 5, category: 'Documents', isRequired: true },
-    { title: 'Return signed clearance form', assignedRole: 'employee', dueDaysOffset: 7, category: 'Documents', isRequired: true },
-    { title: 'Archive employee records', assignedRole: 'hr', dueDaysOffset: 7, category: 'Process', isRequired: true },
+    { title: 'Return signed clearance form', assignedRole: 'employee', dueDaysOffset: 7, category: 'Documents', isRequired: true, description: 'Clearance must be signed before records can be archived.' },
+    { title: 'Archive employee records and evidence', assignedRole: 'hr', dueDaysOffset: 7, category: 'Process', isRequired: true, description: 'Store exit evidence (clearance, recovery, revocation, settlement) for audit trail.' },
   ]);
 
   console.log('Onboarding/offboarding templates seeded.');

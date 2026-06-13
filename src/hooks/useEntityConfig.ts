@@ -2,15 +2,11 @@
 
 import { useCallback, useMemo } from 'react';
 import { useEntity } from '@/components/EntitySwitcher';
-import { formatDisplayMoney, getEntityConfig, type EntityConfig, type EntityId } from '@/lib/entityConfig';
-
-function coerceEntityId(id: string): EntityId {
-  return id === 'ug' ? 'ug' : 'ke';
-}
+import { formatDisplayMoney, getEntityConfigForSlug, type EntityConfig } from '@/lib/entityConfig';
 
 export default function useEntityConfig(): EntityConfig {
   const { activeEntity } = useEntity();
-  return useMemo(() => getEntityConfig(coerceEntityId(activeEntity.id)), [activeEntity.id]);
+  return useMemo(() => getEntityConfigForSlug(activeEntity.id), [activeEntity.id]);
 }
 
 export function useCurrencyFormatter() {

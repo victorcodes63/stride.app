@@ -3,31 +3,32 @@
 import { useId, useState } from 'react';
 import Link from 'next/link';
 import { Info } from 'lucide-react';
-
-const DEMO_PASSWORD = 'Demo@2026!';
-
-const STAFF_DEMO_ROWS = [
-  { role: 'Admin', email: 'demo@stabexintl.com' },
-  { role: 'HR', email: 'diana.namutebi@stabexintl.com' },
-  { role: 'Finance', email: 'james.mwangi@stabexintl.com' },
-] as const;
-
-const ESS_DEMO_ROW = { role: 'ESS (employee portal)', email: 'moses.okello@stabexintl.com' } as const;
+import type { DemoCredentialRow } from '@/lib/demo-credentials';
 
 type DemoLoginCredentialsHintProps = {
   /** Staff dashboard login vs employee self-service login */
   variant: 'staff' | 'ess';
+  visible: boolean;
+  demoPassword: string;
+  staffDemoRows: DemoCredentialRow[];
+  essDemoRow: DemoCredentialRow;
 };
 
 /**
- * Demo-only: reveals seeded Stabex accounts after `npm run seed:demo`.
- * Hide in production with `NEXT_PUBLIC_SHOW_DEMO_LOGIN_HINT=false`.
+ * Shown only on demo/sales instances (`DEMO_MODE=true` + `NEXT_PUBLIC_DEMO_MODE=true`).
+ * Production client deployments should leave these unset or set to false.
  */
-export function DemoLoginCredentialsHint({ variant }: DemoLoginCredentialsHintProps) {
+export function DemoLoginCredentialsHint({
+  variant,
+  visible,
+  demoPassword,
+  staffDemoRows,
+  essDemoRow,
+}: DemoLoginCredentialsHintProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
-  if (process.env.NEXT_PUBLIC_SHOW_DEMO_LOGIN_HINT === 'false') {
+  if (!visible) {
     return null;
   }
 
@@ -52,7 +53,7 @@ export function DemoLoginCredentialsHint({ variant }: DemoLoginCredentialsHintPr
         >
           <p className="mb-2 text-xs font-medium text-amber-900">
             Seeded demo — password for every account below:{' '}
-            <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-[11px] text-neutral-800">{DEMO_PASSWORD}</code>
+            <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-[11px] text-neutral-800">{demoPassword}</code>
           </p>
           <div className="overflow-x-auto rounded border border-amber-100/80 bg-white/60">
             <table className="w-full min-w-[280px] text-left text-xs text-neutral-800">
@@ -65,21 +66,21 @@ export function DemoLoginCredentialsHint({ variant }: DemoLoginCredentialsHintPr
               <tbody>
                 {variant === 'staff' ? (
                   <>
-                    {STAFF_DEMO_ROWS.map((row) => (
+                    {staffDemoRows.map((row) => (
                       <tr key={row.email} className="border-b border-neutral-100 last:border-0">
                         <td className="px-2 py-1.5 font-medium text-neutral-700">{row.role}</td>
                         <td className="px-2 py-1.5 font-mono text-[11px] text-neutral-900">{row.email}</td>
                       </tr>
                     ))}
                     <tr className="border-b border-neutral-100 last:border-0">
-                      <td className="px-2 py-1.5 font-medium text-neutral-700">{ESS_DEMO_ROW.role}</td>
-                      <td className="px-2 py-1.5 font-mono text-[11px] text-neutral-900">{ESS_DEMO_ROW.email}</td>
+                      <td className="px-2 py-1.5 font-medium text-neutral-700">{essDemoRow.role}</td>
+                      <td className="px-2 py-1.5 font-mono text-[11px] text-neutral-900">{essDemoRow.email}</td>
                     </tr>
                   </>
                 ) : (
                   <tr>
                     <td className="px-2 py-1.5 font-medium text-neutral-700">ESS</td>
-                    <td className="px-2 py-1.5 font-mono text-[11px] text-neutral-900">{ESS_DEMO_ROW.email}</td>
+                    <td className="px-2 py-1.5 font-mono text-[11px] text-neutral-900">{essDemoRow.email}</td>
                   </tr>
                 )}
               </tbody>
@@ -87,7 +88,7 @@ export function DemoLoginCredentialsHint({ variant }: DemoLoginCredentialsHintPr
           </div>
           {variant === 'staff' ? (
             <p className="mt-2 text-[11px] leading-relaxed text-neutral-600">
-              Employee self-service (Moses):{' '}
+              Employee self-service:{' '}
               <Link href="/ess/login" className="font-medium text-primary-700 underline-offset-2 hover:underline">
                 /ess/login
               </Link>{' '}

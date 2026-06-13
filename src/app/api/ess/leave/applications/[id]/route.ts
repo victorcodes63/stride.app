@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireEssUser } from '@/lib/ess-api-auth';
-import { getEssPortalUserIdForEmployee, sendNotification } from '@/lib/notifications';
+import { getEssPortalUserIdForEmployee, sendNotification, transitionWorkflowRun } from '@/lib/notifications';
 
 export async function PATCH(
   request: NextRequest,
@@ -66,6 +66,17 @@ export async function PATCH(
   });
 
   try {
+    const workflowRun = await prisma.workflowRun.findFirst({
+      where: { entityType: 'LeaveApplication', entityId: updated.id },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (workflowRun) {
+      await transitionWorkflowRun(workflowRun.id, status === 'approved' ? 'approved' : 'rejected', {
+        reviewerEssUserId: user.id,
+        reviewerRole: user.role,
+      });
+    }
     const employeeEssId = await getEssPortalUserIdForEmployee(updated.employeeId);
     if (employeeEssId) {
       await sendNotification({
@@ -79,12 +90,14 @@ export async function PATCH(
         href: '/ess/leave',
         priority: 'info',
         channel: 'both',
+        workflowRunId: workflowRun?.id,
         metadata: {
           leaveType: updated.leaveType.name,
           startDate: updated.startDate.toISOString().slice(0, 10),
           endDate: updated.endDate.toISOString().slice(0, 10),
           approverName: user.name,
           reason: note,
+          workflowRunId: workflowRun?.id,
         },
       });
     }

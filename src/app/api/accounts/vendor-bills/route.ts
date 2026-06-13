@@ -5,6 +5,8 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { getAccountsAccess } from '@/lib/accounts-access';
 import { computeInvoiceVatFromSubtotal } from '@/lib/accounts-invoice-totals';
 import { reportApiError } from '@/lib/monitoring';
+import { requireRecentSensitiveAuth } from '@/lib/admin-security';
+import { logAuditEvent } from '@/lib/audit-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +118,8 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   }
+  const reauthError = requireRecentSensitiveAuth(request, user.id);
+  if (reauthError) return reauthError;
 
   let body: unknown;
   try {
@@ -229,6 +233,14 @@ export async function POST(request: NextRequest) {
       });
     });
 
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: 'accounts.vendor_bill.created',
+      entityType: 'AccountsVendorBill',
+      entityId: bill.id,
+      route: 'POST /api/accounts/vendor-bills',
+      metadata: { vendorId },
+    });
     return NextResponse.json({ id: bill.id }, { status: 201 });
   } catch (error: unknown) {
     const err = error as { code?: string };

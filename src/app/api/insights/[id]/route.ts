@@ -129,7 +129,7 @@ export async function PATCH(
       select: { slug: true, title: true },
     });
     if (existing?.slug == null) {
-      const baseSlug = insightSlugBase(updates.title ?? existing.title, id.slice(0, 8));
+      const baseSlug = insightSlugBase(updates.title ?? existing?.title ?? 'insight', id.slice(0, 8));
       const slug = await ensureUniqueSlug(baseSlug, async (s) => {
         const other = await prisma.insight.findFirst({
           where: { slug: s, id: { not: id } },

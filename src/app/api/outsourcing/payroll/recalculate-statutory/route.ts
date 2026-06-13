@@ -26,14 +26,21 @@ export async function POST(request: NextRequest) {
     const clientId = await resolvePrimaryWorkspaceClientId(prisma, requestedClientId, request);
     const departmentId = typeof body.departmentId === 'string' ? body.departmentId : undefined;
 
-    if (Number.isNaN(month) || month < 1 || month > 12 || Number.isNaN(year)) {
+    if (
+      month === undefined ||
+      year === undefined ||
+      Number.isNaN(month) ||
+      month < 1 ||
+      month > 12 ||
+      Number.isNaN(year)
+    ) {
       return NextResponse.json({ error: 'Valid month and year required' }, { status: 400 });
     }
 
     const payrolls = await prisma.payroll.findMany({
       where: {
-        month: month!,
-        year: year!,
+        month,
+        year,
         employee: {
           outsourcingClientId: clientId,
           ...(departmentId ? { departmentId } : {}),

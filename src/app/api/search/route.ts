@@ -5,7 +5,7 @@ import {
   getInMemoryCandidates,
   getInMemoryApplications,
 } from '@/lib/applications-store';
-import { parseEntityIdFromRequest, jobLocationMatchesEntity } from '@/lib/entity-request';
+import { resolveEntityIdOrDefault, jobLocationMatchesEntity } from '@/lib/entity-request';
 
 const LIMIT = 6;
 
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
 
   try {
     if (process.env.DATABASE_URL) {
-      const entityId = parseEntityIdFromRequest(request);
-      const jobGeo = entityId ? jobLocationMatchesEntity(entityId) : null;
+      const entityId = await resolveEntityIdOrDefault(request);
+      const jobGeo = jobLocationMatchesEntity(entityId);
       const [jobs, candidates, applications] = await Promise.all([
         prisma.job.findMany({
           where: {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
                   { title: { contains: q, mode: 'insensitive' } },
                   { company: { contains: q, mode: 'insensitive' } },
                   ...(q.match(/^[a-z0-9-]+$/i)
-                    ? [{ referenceId: { contains: q, mode: 'insensitive' } }]
+                    ? [{ referenceId: { contains: q, mode: 'insensitive' as const } }]
                     : []),
                 ],
               },

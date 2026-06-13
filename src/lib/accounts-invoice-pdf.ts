@@ -7,7 +7,7 @@
 
 import { PDFDocument, PDFPage, StandardFonts, rgb } from 'pdf-lib';
 import type { PDFFont } from 'pdf-lib';
-import { getInvoiceBankDetails, type InvoicePaymentBankKind } from '@/lib/invoice-bank-accounts';
+import type { PaymentAccountDetails } from '@/lib/payment-accounts';
 
 export type AccountsInvoicePdfLine = {
   lineNo: number;
@@ -36,7 +36,7 @@ export type AccountsInvoicePdfInput = {
   vatAmount: number;
   totalIncVat: number;
   lines: AccountsInvoicePdfLine[];
-  paymentBank: InvoicePaymentBankKind;
+  paymentDetails: PaymentAccountDetails;
 };
 
 const PRIMARY = rgb(4 / 255, 61 / 255, 74 / 255);
@@ -114,7 +114,7 @@ export async function generateAccountsInvoicePdf(data: AccountsInvoicePdfInput):
 
   const margin = 54;
   const contentW = width - margin * 2;
-  const bank = getInvoiceBankDetails(data.paymentBank);
+  const bank = data.paymentDetails;
   const docKind = data.kind ?? 'invoice';
   const isCredit = docKind === 'credit_note';
 

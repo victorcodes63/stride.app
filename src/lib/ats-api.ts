@@ -1,5 +1,6 @@
 // ATS API integration layer
 import { useMemo } from 'react';
+import { DEFAULT_BRAND_LOGO_SRC } from '@/lib/brand-constants';
 import { JobListing, JobApplication, Candidate, Employer, JobSearchFilters, ATSConfig, JobAnalytics } from '@/types/ats';
 import { ENV_CONFIG, logATSStatus } from './env';
 
@@ -261,6 +262,79 @@ class ATSApiClient {
     }
   }
 
+  async requestRequisitionApproval(jobId: string, approverUserId: string, notes?: string) {
+    const response = await fetch(`/api/jobs/${jobId}/requisition-approvals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approverUserId, notes }),
+    });
+    if (!response.ok) throw new Error('Failed to request requisition approval.');
+    return response.json();
+  }
+
+  async submitInterviewScorecard(
+    interviewId: string,
+    payload: {
+      technicalScore: number;
+      communicationScore: number;
+      cultureScore: number;
+      decision: 'strong_yes' | 'yes' | 'hold' | 'no';
+      strengths?: string;
+      concerns?: string;
+      recommendationNotes?: string;
+    }
+  ) {
+    const response = await fetch(`/api/interviews/${interviewId}/scorecards`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('Failed to submit scorecard.');
+    return response.json();
+  }
+
+  async requestOfferApproval(
+    applicationId: string,
+    payload: {
+      approverUserId: string;
+      proposedGrossSalary?: number;
+      currency?: string;
+      startDate?: string;
+      notes?: string;
+    }
+  ) {
+    const response = await fetch(`/api/applications/${applicationId}/offer-approvals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('Failed to request offer approval.');
+    return response.json();
+  }
+
+  async convertHiredCandidateToEmployee(applicationId: string, profile: {
+    idNumber: string;
+    kraPin: string;
+    nssfNumber: string;
+    nhifNumber: string;
+    departmentId: string;
+    costCenterCode: string;
+    clientId: string;
+    costCenterName?: string;
+    managerEmployeeId?: string;
+    bankName?: string;
+    bankBranch?: string;
+    bankAccountNumber?: string;
+  }) {
+    const response = await fetch(`/api/applications/${applicationId}/hire`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile }),
+    });
+    if (!response.ok) throw new Error('Failed to convert candidate to employee.');
+    return response.json();
+  }
+
   // Utility methods – same-origin: use our API; external ATS: use their upload or mock
   async uploadResume(file: File): Promise<string | null> {
     try {
@@ -365,16 +439,16 @@ export const defaultATSConfig: ATSConfig = {
   },
   branding: {
     primaryColor: '#1D2460',
-    secondaryColor: '#D2232A',
-    logo: '/brand/stabex-logo.png',
+    secondaryColor: '#0088FF',
+    logo: process.env.NEXT_PUBLIC_BRAND_LOGO || DEFAULT_BRAND_LOGO_SRC,
   },
 };
 
 // Create default ATS client instance
 export const atsClient = new ATSApiClient(defaultATSConfig);
 
-// Hook for using ATS API – stable references so effect deps are safe
-export const useATS = () => {
+/** @deprecated Import from `@/lib/use-ats` — kept for older bundles. */
+export function useATS() {
   return useMemo(
     () => ({
       getJobListings: atsClient.getJobListings.bind(atsClient),
@@ -386,9 +460,13 @@ export const useATS = () => {
       updateCandidate: atsClient.updateCandidate.bind(atsClient),
       getEmployerById: atsClient.getEmployerById.bind(atsClient),
       getJobAnalytics: atsClient.getJobAnalytics.bind(atsClient),
+      requestRequisitionApproval: atsClient.requestRequisitionApproval.bind(atsClient),
+      submitInterviewScorecard: atsClient.submitInterviewScorecard.bind(atsClient),
+      requestOfferApproval: atsClient.requestOfferApproval.bind(atsClient),
+      convertHiredCandidateToEmployee: atsClient.convertHiredCandidateToEmployee.bind(atsClient),
       uploadResume: atsClient.uploadResume.bind(atsClient),
       uploadDocument: atsClient.uploadDocument.bind(atsClient),
     }),
-    []
+    [],
   );
-};
+}

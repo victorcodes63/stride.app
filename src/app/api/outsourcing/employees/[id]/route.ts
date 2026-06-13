@@ -10,6 +10,7 @@ import { diffSensitiveFields } from '@/lib/audit-helpers';
 import { getHrUserIds, sendNotification } from '@/lib/notifications';
 import { startWorkflowForEmployee } from '@/lib/onboarding-workflows';
 import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client';
+import { assertEmployeeProfileCompleteness } from '@/lib/hr-core-employee';
 
 function str(b: Record<string, unknown>, key: string): string | null {
   const v = b[key];
@@ -39,6 +40,8 @@ function mapEmployeeToJson(
   bankName: string | null;
   bankBranch: string | null;
   bankAccountNumber: string | null;
+  costCenterCode: string | null;
+  costCenterName: string | null;
   managerEmployeeId: string | null;
   employmentStatus: 'active' | 'probation' | 'on_leave' | 'suspended' | 'terminated';
   employmentStatusEffectiveFrom: Date | null;
@@ -70,6 +73,8 @@ function mapEmployeeToJson(
     bankName: e.bankName ?? null,
     bankBranch: e.bankBranch ?? null,
     bankAccountNumber: e.bankAccountNumber ?? null,
+    costCenterCode: e.costCenterCode ?? null,
+    costCenterName: e.costCenterName ?? null,
     managerEmployeeId: e.managerEmployeeId ?? null,
     managerName: null,
     employmentStatus: e.employmentStatus,
@@ -166,6 +171,8 @@ export async function PATCH(
       : undefined;
   const employmentStatus =
     b.employmentStatus !== undefined ? str(b, 'employmentStatus') : undefined;
+  const costCenterCode = b.costCenterCode !== undefined ? str(b, 'costCenterCode') : undefined;
+  const costCenterName = b.costCenterName !== undefined ? str(b, 'costCenterName') : undefined;
   const employmentStatusEffectiveFrom = b.employmentStatusEffectiveFrom !== undefined ? date(b, 'employmentStatusEffectiveFrom') : undefined;
   const employmentStatusEffectiveTo = b.employmentStatusEffectiveTo !== undefined ? date(b, 'employmentStatusEffectiveTo') : undefined;
   const employmentEndedAt = b.employmentEndedAt !== undefined ? date(b, 'employmentEndedAt') : undefined;
@@ -201,6 +208,8 @@ export async function PATCH(
   if (bankAccountNumber !== undefined) data.bankAccountNumber = bankAccountNumber;
   if (departmentId !== undefined) data.departmentId = departmentId;
   if (managerEmployeeId !== undefined) data.managerEmployeeId = managerEmployeeId;
+  if (costCenterCode !== undefined) data.costCenterCode = costCenterCode;
+  if (costCenterName !== undefined) data.costCenterName = costCenterName;
   if (employmentStatus !== undefined) data.employmentStatus = employmentStatus;
   if (employmentStatusEffectiveFrom !== undefined) data.employmentStatusEffectiveFrom = employmentStatusEffectiveFrom;
   if (employmentStatusEffectiveTo !== undefined) data.employmentStatusEffectiveTo = employmentStatusEffectiveTo;
@@ -229,6 +238,13 @@ export async function PATCH(
         id: true,
         firstName: true,
         lastName: true,
+        kraPin: true,
+        nssfNumber: true,
+        nhifNumber: true,
+        dateOfJoining: true,
+        jobTitle: true,
+        departmentId: true,
+        costCenterCode: true,
         outsourcingClientId: true,
         employmentStatus: true,
         baseSalary: true,
@@ -268,6 +284,19 @@ export async function PATCH(
         );
       }
     }
+
+    assertEmployeeProfileCompleteness({
+      firstName: (data.firstName as string | undefined) ?? existing.firstName,
+      lastName: (data.lastName as string | undefined) ?? existing.lastName,
+      idNumber: (data.idNumber as string | null | undefined) ?? existing.idNumber,
+      kraPin: (data.kraPin as string | null | undefined) ?? existing.kraPin,
+      nssfNumber: (data.nssfNumber as string | null | undefined) ?? existing.nssfNumber,
+      nhifNumber: (data.nhifNumber as string | null | undefined) ?? existing.nhifNumber,
+      dateOfJoining: (data.dateOfJoining as Date | null | undefined) ?? existing.dateOfJoining,
+      jobTitle: (data.jobTitle as string | null | undefined) ?? existing.jobTitle,
+      departmentId: (data.departmentId as string | null | undefined) ?? existing.departmentId,
+      costCenterCode: (data.costCenterCode as string | null | undefined) ?? existing.costCenterCode,
+    });
 
     const employee = await prisma.employee.update({
       where: { id },
@@ -350,6 +379,10 @@ export async function PATCH(
     }
     return NextResponse.json(mapEmployeeToJson(employee, canViewSalaryFields(user)));
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('Employee profile is incomplete.')) {
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
     const err = e as { code?: string; meta?: { target?: string[] } };
     if (err.code === 'P2025') return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     if (err.code === 'P2002' && err.meta?.target?.includes('idNumber')) {

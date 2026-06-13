@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sendApplicationReceivedEmail } from '@/lib/email';
 import { reportApiError } from '@/lib/monitoring';
@@ -442,7 +443,7 @@ export async function POST(request: NextRequest) {
           coverLetter: coverLetter ?? null,
           resumePath: resumePath ?? candidate.resumePath,
           salaryExpectations: salaryExpectations ?? null,
-          formData: formData ?? undefined,
+          formData: formData !== undefined ? (formData as Prisma.InputJsonValue) : undefined,
         },
         include: { candidate: true, job: { include: { client: true } } },
       });

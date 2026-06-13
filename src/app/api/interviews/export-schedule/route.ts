@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { APP_TIMEZONE, dateTimeNairobi } from '@/lib/timezone';
 import { generateInterviewSchedulePdf } from '@/lib/interview-schedule-pdf';
 import { brand } from '@/lib/brand';
 
 const LOGO_PATH = brand.logoSrc.startsWith('/') ? brand.logoSrc : `/${brand.logoSrc}`;
+
+const interviewScheduleInclude = {
+  application: {
+    include: { candidate: true, job: true },
+  },
+} satisfies Prisma.InterviewInclude;
+
+type InterviewScheduleRow = Prisma.InterviewGetPayload<{
+  include: typeof interviewScheduleInclude;
+}>;
 
 /**
  * GET /api/interviews/export-schedule?date=YYYY-MM-DD&jobId=xxx
@@ -24,7 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
 
-    let interviews: Awaited<ReturnType<typeof prisma.interview.findMany>>;
+    let interviews: InterviewScheduleRow[];
 
     if (idsParam.trim()) {
       const ids = idsParam.split(',').map((id) => id.trim()).filter(Boolean);
@@ -33,11 +44,7 @@ export async function GET(request: NextRequest) {
       }
       interviews = await prisma.interview.findMany({
         where: { id: { in: ids } },
-        include: {
-          application: {
-            include: { candidate: true, job: true },
-          },
-        },
+        include: interviewScheduleInclude,
         orderBy: { scheduledAt: 'asc' },
       });
       // Preserve order of ids if needed (findMany returns in arbitrary order; we ordered by scheduledAt)
@@ -58,11 +65,7 @@ export async function GET(request: NextRequest) {
       if (jobId?.trim()) where.application = { jobId: jobId.trim() };
       interviews = await prisma.interview.findMany({
         where,
-        include: {
-          application: {
-            include: { candidate: true, job: true },
-          },
-        },
+        include: interviewScheduleInclude,
         orderBy: { scheduledAt: 'asc' },
       });
     }
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest) {
     let effectiveDateStr = dateStr;
 
     if (idsParam.trim() && interviews.length > 0) {
-      const first = interviews[0].application as { jobId: string };
+      const first = interviews[0].application;
       effectiveJobId = first.jobId;
       effectiveDateStr = interviews[0].scheduledAt.toLocaleDateString('en-CA', {
         timeZone: APP_TIMEZONE,
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest) {
     };
     let positionTitle = '—';
     if (interviews.length > 0) {
-      const job = (interviews[0].application as { job: { title: string; company: string } }).job;
+      const job = interviews[0].application.job;
       positionTitle = formatPositionLine(job.title, job.company);
     } else if (breaks.length > 0 && effectiveJobId) {
       const job = await prisma.job.findUnique({
@@ -164,10 +167,10 @@ export async function GET(request: NextRequest) {
       const durationMs = (i.durationMinutes ?? 45) * 60 * 1000;
       const end = new Date(start.getTime() + durationMs);
       const timeRange = `${start.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE })} – ${end.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE })}`;
-      const candidate = i.application as { candidate: { firstName: string; lastName: string; email: string; phone: string | null } };
-      const fullName = `${candidate.candidate.firstName} ${candidate.candidate.lastName}`;
-      const email = candidate.candidate.email ?? '—';
-      const phone = candidate.candidate.phone?.trim() ?? '—';
+      const candidate = i.application.candidate;
+      const fullName = `${candidate.firstName} ${candidate.lastName}`;
+      const email = candidate.email ?? '—';
+      const phone = candidate.phone?.trim() ?? '—';
       const meetingLink = hasAnyVirtualMeeting
         ? i.type === 'video' && isMeetingUrl(i.locationOrLink)
           ? i.locationOrLink!.trim()
@@ -192,7 +195,7 @@ export async function GET(request: NextRequest) {
       const pdfFilename = idsParam.trim()
         ? `interview-schedule-selected-${interviews.length}.pdf`
         : `interview-schedule-${dateStr}.pdf`;
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(new Uint8Array(pdfBuffer), {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',

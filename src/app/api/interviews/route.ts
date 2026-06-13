@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { InterviewWithDetails, CreateInterviewBody, InterviewType, InterviewDurationMinutes, ConfirmationStatus } from '@/types/dashboard';
+import type {
+  InterviewWithDetails,
+  CreateInterviewBody,
+  InterviewType,
+  InterviewDurationMinutes,
+  InterviewStatus,
+  ConfirmationStatus,
+} from '@/types/dashboard';
 
 const VALID_DURATIONS: InterviewDurationMinutes[] = [30, 45, 60];
 
@@ -91,7 +98,7 @@ export async function GET(request: NextRequest) {
       type: i.type as InterviewType,
       locationOrLink: i.locationOrLink,
       notes: i.notes,
-      status: i.status,
+      status: i.status as InterviewStatus,
       inviteSentAt: i.inviteSentAt?.toISOString() ?? null,
       officialLetterPath: i.officialLetterPath,
       confirmationStatus: (i.confirmationStatus ?? 'pending') as ConfirmationStatus,
@@ -109,6 +116,8 @@ export async function GET(request: NextRequest) {
           email: i.application.candidate.email,
           phone: i.application.candidate.phone,
           location: i.application.candidate.location,
+          nationality: i.application.candidate.nationality ?? null,
+          homeCounty: i.application.candidate.homeCounty ?? null,
           experience: i.application.candidate.experience,
           education: i.application.candidate.education,
           resumePath: i.application.candidate.resumePath,
@@ -222,7 +231,7 @@ export async function POST(request: NextRequest) {
       type: interview.type as InterviewType,
       locationOrLink: interview.locationOrLink,
       notes: interview.notes,
-      status: interview.status,
+      status: interview.status as InterviewStatus,
       inviteSentAt: interview.inviteSentAt?.toISOString() ?? null,
       officialLetterPath: interview.officialLetterPath,
       confirmationStatus: (interview.confirmationStatus ?? 'pending') as ConfirmationStatus,
@@ -240,6 +249,8 @@ export async function POST(request: NextRequest) {
           email: interview.application.candidate.email,
           phone: interview.application.candidate.phone,
           location: interview.application.candidate.location,
+          nationality: interview.application.candidate.nationality ?? null,
+          homeCounty: interview.application.candidate.homeCounty ?? null,
           experience: interview.application.candidate.experience,
           education: interview.application.candidate.education,
           resumePath: interview.application.candidate.resumePath,

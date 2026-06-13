@@ -1,3 +1,5 @@
+import { slugToCountryCode } from '@/lib/operating-entities';
+
 export type EntityId = 'ug' | 'ke';
 
 export type StatutoryItemConfig = {
@@ -179,6 +181,11 @@ export function getEntityConfig(entityId: EntityId): EntityConfig {
   return entityId === 'ug' ? UG : KE;
 }
 
+/** Resolve statutory config from any entity slug (maps via country code). */
+export function getEntityConfigForSlug(slug: string): EntityConfig {
+  return slugToCountryCode(slug) === 'UG' ? UG : KE;
+}
+
 /** Display money using locale/decimals for the ISO currency (maps KES/UGX to entity configs). */
 export function formatDisplayMoney(amount: number, currencyCode: string): string {
   if (currencyCode !== 'UGX' && currencyCode !== 'KES') {
@@ -200,6 +207,6 @@ export function formatDisplayMoney(amount: number, currencyCode: string): string
  */
 export function stationBelongsToEntity(station: string, entityId: EntityId): boolean {
   if (/Nairobi|Mombasa|Nakuru/i.test(station)) return entityId === 'ke';
-  if (/Nansana|Kampala|Jinja|Entebbe/i.test(station)) return entityId === 'ug';
+  if (/Kampala|Jinja|Entebbe|Nansana/i.test(station)) return entityId === 'ug';
   return entityId === 'ug';
 }

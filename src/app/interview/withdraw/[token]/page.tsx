@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import BrandLogo from '@/components/BrandLogo';
+import { InterviewRespondShell } from '@/components/public/InterviewRespondShell';
 
 type InterviewInfo = {
   valid: boolean;
@@ -61,122 +61,70 @@ export default function InterviewWithdrawPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#043d4a] mx-auto mb-4" />
-          <p className="text-neutral-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !info) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-neutral-200 p-8 text-center">
-          <h1 className="text-xl font-bold text-[#043d4a] mb-2">Invalid link</h1>
-          <p className="text-neutral-600 mb-6">{error}</p>
-          <Link
-            href="/"
-            className="inline-flex px-6 py-3 bg-[#043d4a] text-white rounded-lg font-semibold hover:bg-[#032a32]"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (done) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-neutral-200 p-8 text-center">
-          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-[#043d4a] mb-2">Thank you</h1>
-          <p className="text-neutral-600 mb-6">{done.message}</p>
-          <Link
-            href="/"
-            className="inline-flex px-6 py-3 bg-[#043d4a] text-white rounded-lg font-semibold hover:bg-[#032a32]"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const alreadyResponded = info?.status && info.status !== 'pending';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 py-12">
-      <div className="max-w-lg w-full bg-white rounded-xl shadow-lg border border-neutral-200 overflow-hidden">
-        <div className="bg-neutral-100 px-6 py-4 flex items-center gap-3 border-b border-neutral-200">
-          <Link href="/" className="block shrink-0">
-            <BrandLogo variant="compact" />
+    <InterviewRespondShell
+      loading={loading}
+      error={error}
+      done={done}
+      title="Withdraw from this role"
+      description={info ? `${info.jobTitle} at ${info.companyName}` : undefined}
+      footer={
+        <>
+          Changed your mind?{' '}
+          <Link href={`/interview/confirm/${token}`} className="font-medium text-pub-primary hover:underline">
+            Confirm attendance
           </Link>
-        </div>
-        <div className="p-6 sm:p-8">
-          <h1 className="text-xl font-bold text-[#043d4a] mb-1">Withdraw from this role</h1>
-          <p className="text-neutral-600 mb-6">
-            {info?.jobTitle} at {info?.companyName}
-          </p>
-          <div className="bg-neutral-50 rounded-lg p-4 mb-6 text-sm text-neutral-700">
+          {' or '}
+          <Link href={`/interview/reschedule/${token}`} className="font-medium text-pub-primary hover:underline">
+            request reschedule
+          </Link>
+        </>
+      }
+    >
+      {info ? (
+        <>
+          <div className="rounded-lg border border-pub-border bg-pub-surface-muted p-4 text-sm text-pub-ink-muted">
             <p>
-              <strong>Date:</strong> {info?.dateStr}
+              <strong className="text-pub-ink">Date:</strong> {info.dateStr}
             </p>
-            <p>
-              <strong>Time:</strong> {info?.timeStr}
+            <p className="mt-1">
+              <strong className="text-pub-ink">Time:</strong> {info.timeStr}
             </p>
           </div>
 
           {alreadyResponded ? (
-            <p className="text-amber-700 bg-amber-50 px-4 py-3 rounded-lg">
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               You have already responded to this invite.
             </p>
           ) : (
-            <form onSubmit={handleSubmit}>
-              {error && (
-                <p className="text-red-600 bg-red-50 px-4 py-3 rounded-lg mb-4">{error}</p>
-              )}
-              <label htmlFor="notes" className="block text-sm font-medium text-[#043d4a] mb-2">
-                Reason for withdrawing <span className="text-neutral-400">(optional but appreciated)</span>
-              </label>
-              <textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-                placeholder="e.g. I have accepted another offer / My circumstances have changed / I am no longer available..."
-                className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#043d4a] focus:border-transparent text-base mb-4"
-              />
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="notes" className="mb-1.5 block text-sm font-medium text-pub-ink">
+                  Reason for withdrawing{' '}
+                  <span className="font-normal text-pub-ink-subtle">(optional)</span>
+                </label>
+                <textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={4}
+                  placeholder="e.g. I have accepted another offer or my circumstances have changed."
+                  className="pub-login-input min-h-[6rem] resize-y py-2.5"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full rounded bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
               >
-                {submitting ? 'Submitting...' : 'Withdraw my application'}
+                {submitting ? 'Submitting…' : 'Withdraw my application'}
               </button>
             </form>
           )}
-
-          <p className="mt-6 text-sm text-neutral-500 text-center">
-            Changed your mind?{' '}
-            <Link href={`/interview/confirm/${token}`} className="text-[#043d4a] font-medium hover:underline">
-              Confirm attendance
-            </Link>
-            {' or '}
-            <Link href={`/interview/reschedule/${token}`} className="text-[#043d4a] font-medium hover:underline">
-              request reschedule
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+        </>
+      ) : null}
+    </InterviewRespondShell>
   );
 }

@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { brand } from '@/lib/brand';
 
 const DEFAULT_ID = 'default' as const;
 
@@ -7,7 +8,7 @@ export function recruitmentEmployerNameFromEnv(): string {
   return (
     process.env.NEXT_PUBLIC_RECRUITMENT_EMPLOYER_NAME?.trim() ||
     process.env.RECRUITMENT_EMPLOYER_NAME?.trim() ||
-    'Stabex International'
+    brand.orgName
   );
 }
 

@@ -1,2 +1,2 @@
-export { default } from '../../../../outsourcing/employees/[id]/edit/page';
+export { default } from '../../../outsourcing/employees/[id]/edit/page';
 

@@ -4,6 +4,8 @@ import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client'
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { buildBankExportCsv, formatBankExportPaymentReference } from '@/lib/payroll-bank-export';
+import { requireRecentSensitiveAuth } from '@/lib/admin-security';
+import { logAuditEvent } from '@/lib/audit-events';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +14,8 @@ export async function GET(request: NextRequest) {
     if (!canAccessPayroll(user)) {
       return forbiddenResponse('Payroll access is restricted to finance and admins.');
     }
+    const reauthError = requireRecentSensitiveAuth(request, user.id);
+    if (reauthError) return reauthError;
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
     }
@@ -79,6 +83,14 @@ export async function GET(request: NextRequest) {
     const { csv, missingBankDetailsCount } = buildBankExportCsv({ month, year }, rows);
     const periodSlug = formatBankExportPaymentReference(month, year).replace(/^SAL-/, '');
     const filename = `payroll-${periodSlug}-bank-export.csv`;
+    await logAuditEvent({
+      actor: { userId: user.id, email: user.email, name: user.name },
+      action: 'payroll.bank_export.generated',
+      entityType: 'PayrollBatch',
+      entityId: `${clientId}:${year}-${String(month).padStart(2, '0')}`,
+      route: 'GET /api/outsourcing/payroll/bank-export',
+      metadata: { month, year, clientId, count: payrolls.length, missingBankDetailsCount },
+    });
 
     return new NextResponse(csv, {
       status: 200,

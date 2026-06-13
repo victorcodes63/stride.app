@@ -1,27 +1,23 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  IconMapPin,
-  IconClock,
-  IconSearch,
-  IconFilter,
-  IconChevronRight,
-  IconLayoutList,
-  IconLayoutGrid,
-  IconAdjustmentsHorizontal,
-  IconX,
-  IconAlertCircle,
-  IconRefresh,
-  IconCalendar,
-  IconCash,
-  IconTag,
-} from '@tabler/icons-react';
+  MagnifyingGlass,
+  MapPin,
+  Clock,
+  Funnel,
+  CaretRight,
+  ListBullets,
+  SquaresFour,
+  SlidersHorizontal,
+  X,
+  WarningCircle,
+  ArrowClockwise,
+  CalendarBlank,
+} from '@phosphor-icons/react';
 import { JobListing, JobSearchFilters } from '@/types/ats';
-import { useATS } from '@/lib/ats-api';
-import { getCategoryIcon } from '@/lib/job-category-icons';
+import { useATS } from '@/lib/use-ats';
 import { usePublicBrand } from '@/components/BrandProvider';
 
 interface DynamicJobListingsProps {
@@ -47,29 +43,8 @@ const TIME_OPTIONS = [
   { label: 'Last 30 days', value: '30d' },
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  executive: 'bg-slate-100 text-slate-700',
-  'sales & marketing': 'bg-blue-100 text-blue-700',
-  'education & training': 'bg-indigo-100 text-indigo-700',
-  technology: 'bg-violet-100 text-violet-700',
-  operations: 'bg-emerald-100 text-emerald-700',
-  'finance & accounting': 'bg-amber-100 text-amber-700',
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  'Full Time': 'bg-green-50 text-green-700 border-green-200',
-  'Part Time': 'bg-blue-50 text-blue-700 border-blue-200',
-  Contract: 'bg-orange-50 text-orange-700 border-orange-200',
-  Remote: 'bg-purple-50 text-purple-700 border-purple-200',
-};
-
-function getCategoryColor(category: string) {
-  return CATEGORY_COLORS[category.toLowerCase()] ?? 'bg-primary-100 text-primary-700';
-}
-
-function getTypeColor(type: string) {
-  return TYPE_COLORS[type] ?? 'bg-neutral-100 text-neutral-700 border-neutral-200';
-}
+const INPUT_CLASS =
+  'h-10 w-full rounded-md border border-pub-border bg-white text-sm text-pub-ink placeholder:text-pub-ink-subtle focus:border-pub-primary focus:outline-none focus:ring-2 focus:ring-pub-primary/12';
 
 function formatDate(dateString: string) {
   const date = new Date(dateString);
@@ -77,7 +52,7 @@ function formatDate(dateString: string) {
   const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`; // 2-6 days
+  if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 30) {
     const weeks = Math.floor(diffDays / 7);
     return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
@@ -85,22 +60,51 @@ function formatDate(dateString: string) {
   return date.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function formatDeadline(dateString: string) {
+  return new Date(dateString).toLocaleString('en-KE', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Africa/Nairobi',
+  });
+}
+
 function isNew(dateString: string) {
   return Math.floor((Date.now() - new Date(dateString).getTime()) / 86400000) <= 3;
 }
 
-const SkeletonCard = () => (
-  <div className="animate-pulse bg-white rounded-2xl border border-primary-100 p-5">
-    <div className="flex gap-4">
-      <div className="w-12 h-12 bg-primary-100 rounded-xl shrink-0" />
-      <div className="flex-1 space-y-3">
-        <div className="h-5 bg-primary-100 rounded w-2/3" />
-        <div className="h-4 bg-primary-50 rounded w-1/2" />
-        <div className="flex gap-2">
-          <div className="h-6 w-20 bg-primary-50 rounded-full" />
-          <div className="h-6 w-16 bg-primary-50 rounded-full" />
-        </div>
-      </div>
+function isClosingSoon(dateString: string) {
+  const days = Math.floor((new Date(dateString).getTime() - Date.now()) / 86400000);
+  return days >= 0 && days <= 7;
+}
+
+function formatSalary(job: JobListing) {
+  if (!job.salary) return null;
+  const { currency, min, max } = job.salary;
+  return `${currency} ${min.toLocaleString()}–${max.toLocaleString()}`;
+}
+
+function JobBadge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'new' }) {
+  if (variant === 'new') {
+    return (
+      <span className="inline-flex shrink-0 items-center rounded-full border border-pub-primary/20 bg-pub-primary-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-pub-primary">
+        {children}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-pub-border bg-pub-surface-muted px-2.5 py-0.5 text-xs font-medium text-pub-ink-muted">
+      {children}
+    </span>
+  );
+}
+
+const SkeletonRow = () => (
+  <div className="flex animate-pulse items-center gap-4 border-b border-pub-border px-4 py-4 last:border-b-0 sm:px-5">
+    <div className="min-w-0 flex-1 space-y-2">
+      <div className="h-4 w-2/3 rounded bg-pub-border" />
+      <div className="h-3 w-1/2 rounded bg-pub-surface-muted" />
     </div>
   </div>
 );
@@ -149,9 +153,8 @@ export default function DynamicJobListings({
     fetchJobs();
   }, [fetchJobs]);
 
-  // Mobile UX: keep a single view (list) and hide the toggle.
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)'); // below md
+    const mq = window.matchMedia('(max-width: 767px)');
     const sync = () => {
       if (mq.matches) setView('list');
     };
@@ -179,8 +182,12 @@ export default function DynamicJobListings({
           setCategoryOptions(merged as string[]);
         }
       })
-      .catch(() => { if (!cancelled) setCategoryOptions(DEFAULT_CATEGORY_OPTIONS); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setCategoryOptions(DEFAULT_CATEGORY_OPTIONS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSearch = () => {
@@ -196,9 +203,18 @@ export default function DynamicJobListings({
   };
 
   const clearFilter = (key: 'keyword' | 'location' | 'category' | 'type' | 'time') => {
-    if (key === 'keyword') { setSearchKeyword(''); setAppliedFilters((p) => ({ ...p, keyword: '' })); }
-    if (key === 'location') { setSelectedLocation(''); setAppliedFilters((p) => ({ ...p, location: '' })); }
-    if (key === 'category') { setSelectedCategory(''); setAppliedFilters((p) => ({ ...p, category: '' })); }
+    if (key === 'keyword') {
+      setSearchKeyword('');
+      setAppliedFilters((p) => ({ ...p, keyword: '' }));
+    }
+    if (key === 'location') {
+      setSelectedLocation('');
+      setAppliedFilters((p) => ({ ...p, location: '' }));
+    }
+    if (key === 'category') {
+      setSelectedCategory('');
+      setAppliedFilters((p) => ({ ...p, category: '' }));
+    }
     if (key === 'type') setSelectedType('');
     if (key === 'time') setSelectedTime('');
   };
@@ -208,48 +224,53 @@ export default function DynamicJobListings({
     appliedFilters.location && { key: 'location' as const, label: appliedFilters.location },
     appliedFilters.category && { key: 'category' as const, label: appliedFilters.category },
     selectedType && { key: 'type' as const, label: selectedType },
-    selectedTime && { key: 'time' as const, label: TIME_OPTIONS.find((t) => t.value === selectedTime)?.label || selectedTime },
+    selectedTime && {
+      key: 'time' as const,
+      label: TIME_OPTIONS.find((t) => t.value === selectedTime)?.label || selectedTime,
+    },
   ].filter(Boolean) as { key: 'keyword' | 'location' | 'category' | 'type' | 'time'; label: string }[];
 
   return (
     <div className="w-full">
       {showSearch && (
-        <div className="mb-6">
-          {/* Main search bar */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-3">
-            <div className="flex-1 relative">
-              <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-4.5 h-4.5 pointer-events-none" stroke={1.7} />
+        <div className="rounded-xl border border-pub-border bg-white p-3 shadow-sm sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <MagnifyingGlass
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pub-ink-subtle"
+                size={16}
+                weight="bold"
+              />
               <input
                 type="text"
                 placeholder="Job title, specialty, or keyword"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-primary-100 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base text-neutral-800 placeholder-neutral-400 transition"
+                className={`${INPUT_CLASS} pl-10 pr-3`}
               />
             </div>
-            <div className="flex gap-2 sm:gap-2">
+            <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={handleSearch}
-                className="flex-1 px-6 py-3.5 bg-primary-900 text-white rounded-xl font-semibold text-base hover:bg-primary-800 active:scale-95 transition-all shadow-sm"
+                className="pub-btn-primary pub-btn-primary--sm inline-flex h-10 flex-1 items-center justify-center px-5 sm:flex-none"
               >
                 Search
               </button>
               <button
                 type="button"
                 onClick={() => setFiltersOpen((v) => !v)}
-                className={`flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-xl border text-base font-medium transition-all shadow-sm ${
+                className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors sm:flex-none ${
                   filtersOpen || activeChips.length > 0
-                    ? 'bg-primary-100 border-primary-300 text-primary-700'
-                    : 'bg-white border-primary-100 text-neutral-600 hover:bg-primary-50'
+                    ? 'border-pub-primary/30 bg-pub-primary-subtle text-pub-primary'
+                    : 'border-pub-border bg-white text-pub-ink-muted hover:bg-pub-surface-muted'
                 }`}
               >
-                <IconAdjustmentsHorizontal className="w-4 h-4" stroke={1.7} />
-                <span className="hidden sm:inline">Filters</span>
-                <span className="sm:hidden">Filter</span>
+                <SlidersHorizontal size={16} weight="bold" />
+                <span>Filters</span>
                 {activeChips.length > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary-900 text-white text-xs flex items-center justify-center font-bold">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pub-primary text-[10px] font-bold text-white">
                     {activeChips.length}
                   </span>
                 )}
@@ -257,306 +278,319 @@ export default function DynamicJobListings({
             </div>
           </div>
 
-          {/* Expanded filters */}
-          <AnimatePresence>
-            {filtersOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-primary-100 mb-3"
-              >
-                <div className="relative">
-                  <IconMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" stroke={1.7} />
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full pl-9 pr-3 py-3 border border-primary-100 rounded-lg bg-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none text-neutral-700"
-                  >
-                    <option value="">All locations</option>
-                    <option value="Nairobi">Nairobi</option>
-                    <option value="Parklands">Parklands</option>
-                    <option value="Hybrid">Hybrid</option>
-                  </select>
-                </div>
-                <div className="relative">
-                  <IconTag className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" stroke={1.7} />
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full pl-9 pr-3 py-3 border border-primary-100 rounded-lg bg-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none text-neutral-700"
-                  >
-                    <option value="">All categories</option>
-                    {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <IconFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" stroke={1.7} />
-                  <select
-                    value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full pl-9 pr-3 py-3 border border-primary-100 rounded-lg bg-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none text-neutral-700"
-                  >
-                    <option value="">All types</option>
-                    {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <IconCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" stroke={1.7} />
-                  <select
-                    value={selectedTime}
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    className="w-full pl-9 pr-3 py-3 border border-primary-100 rounded-lg bg-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none text-neutral-700"
-                  >
-                    {TIME_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {filtersOpen && (
+            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-pub-border pt-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="relative">
+                <MapPin
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pub-ink-subtle"
+                  size={16}
+                  weight="bold"
+                />
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className={`${INPUT_CLASS} appearance-none pl-9 pr-3`}
+                >
+                  <option value="">All locations</option>
+                  <option value="Nairobi">Nairobi</option>
+                  <option value="Parklands">Parklands</option>
+                  <option value="Hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div className="relative">
+                <Funnel
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pub-ink-subtle"
+                  size={16}
+                  weight="bold"
+                />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className={`${INPUT_CLASS} appearance-none pl-9 pr-3`}
+                >
+                  <option value="">All categories</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <ListBullets
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pub-ink-subtle"
+                  size={16}
+                  weight="bold"
+                />
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className={`${INPUT_CLASS} appearance-none pl-9 pr-3`}
+                >
+                  <option value="">All types</option>
+                  {TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <CalendarBlank
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-pub-ink-subtle"
+                  size={16}
+                  weight="bold"
+                />
+                <select
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className={`${INPUT_CLASS} appearance-none pl-9 pr-3`}
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
-          {/* Active filter chips */}
           {activeChips.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-pub-border pt-3">
               {activeChips.map((chip) => (
                 <button
                   key={chip.key}
                   type="button"
                   onClick={() => clearFilter(chip.key)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-100 text-primary-800 text-sm font-medium hover:bg-primary-200 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-full border border-pub-primary/15 bg-pub-primary-subtle px-2.5 py-1 text-xs font-medium text-pub-primary hover:bg-pub-primary-muted"
                 >
                   {chip.label}
-                  <IconX className="w-3 h-3" stroke={1.7} />
+                  <X size={12} weight="bold" />
                 </button>
               ))}
               <button
                 type="button"
                 onClick={() => {
-                  setSearchKeyword(''); setSelectedLocation(''); setSelectedCategory('');
-                  setSelectedType(''); setSelectedTime('');
+                  setSearchKeyword('');
+                  setSelectedLocation('');
+                  setSelectedCategory('');
+                  setSelectedType('');
+                  setSelectedTime('');
                   setAppliedFilters({});
                 }}
-                className="text-sm text-neutral-500 hover:text-neutral-700 underline underline-offset-2"
+                className="text-xs text-pub-ink-subtle underline-offset-2 hover:text-pub-ink-muted hover:underline"
               >
                 Clear all
               </button>
             </div>
           )}
 
-          {/* Results count + view toggle */}
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-base text-neutral-500">
-              {loading ? 'Loading…' : (
-                <span>
-                  <span className="font-semibold text-neutral-800">{jobs.length}</span> job{jobs.length !== 1 ? 's' : ''} found
-                </span>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-pub-border pt-3">
+            <p className="text-sm text-pub-ink-subtle">
+              {loading ? (
+                'Loading…'
+              ) : (
+                <>
+                  <span className="font-semibold text-pub-ink">{jobs.length}</span> job
+                  {jobs.length !== 1 ? 's' : ''} found
+                </>
               )}
             </p>
-            <div className="hidden md:flex items-center gap-1 p-1 bg-neutral-100 rounded-lg">
+            <div className="hidden items-center gap-0.5 rounded-md border border-pub-border bg-pub-surface-muted p-0.5 md:flex">
               <button
                 type="button"
                 onClick={() => setView('list')}
-                className={`p-1.5 rounded-md transition-colors ${view === 'list' ? 'bg-white text-primary-900 shadow-sm' : 'text-neutral-400 hover:text-neutral-600'}`}
+                className={`rounded p-1.5 transition-colors ${view === 'list' ? 'bg-white text-pub-ink shadow-sm' : 'text-pub-ink-subtle hover:text-pub-ink-muted'}`}
                 aria-label="List view"
               >
-                <IconLayoutList className="w-4 h-4" stroke={1.7} />
+                <ListBullets size={16} weight={view === 'list' ? 'fill' : 'regular'} />
               </button>
               <button
                 type="button"
                 onClick={() => setView('grid')}
-                className={`p-1.5 rounded-md transition-colors ${view === 'grid' ? 'bg-white text-primary-900 shadow-sm' : 'text-neutral-400 hover:text-neutral-600'}`}
+                className={`rounded p-1.5 transition-colors ${view === 'grid' ? 'bg-white text-pub-ink shadow-sm' : 'text-pub-ink-subtle hover:text-pub-ink-muted'}`}
                 aria-label="Grid view"
               >
-                <IconLayoutGrid className="w-4 h-4" stroke={1.7} />
+                <SquaresFour size={16} weight={view === 'grid' ? 'fill' : 'regular'} />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Loading skeletons */}
       {loading && (
-        <div className={view === 'grid' ? 'grid sm:grid-cols-2 gap-4' : 'space-y-3'}>
-          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+        <div
+          className={`mt-4 overflow-hidden rounded-xl border border-pub-border bg-white shadow-sm ${view === 'grid' ? 'grid gap-0 sm:grid-cols-2' : ''}`}
+        >
+          {[...Array(4)].map((_, i) =>
+            view === 'grid' ? (
+              <div key={i} className="animate-pulse border-b border-pub-border p-5 sm:border-b-0 sm:border-r">
+                <div className="mb-3 h-4 w-2/3 rounded bg-pub-border" />
+                <div className="h-3 w-1/2 rounded bg-pub-surface-muted" />
+              </div>
+            ) : (
+              <SkeletonRow key={i} />
+            ),
+          )}
         </div>
       )}
 
-      {/* Error state */}
-          {!loading && fetchError && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4">
-            <IconAlertCircle className="w-7 h-7 text-red-400" stroke={1.7} />
+      {!loading && fetchError && (
+        <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-pub-border bg-white py-16 text-center shadow-sm">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+            <WarningCircle className="text-red-400" size={24} weight="duotone" />
           </div>
-          <h3 className="text-base font-semibold text-neutral-800 mb-1">Couldn't load jobs</h3>
-          <p className="text-sm text-neutral-500 mb-4">Please check your connection and try again.</p>
+          <h3 className="mb-1 text-sm font-semibold text-pub-ink">Couldn&apos;t load jobs</h3>
+          <p className="mb-4 text-sm text-pub-ink-subtle">Please check your connection and try again.</p>
           <button
             type="button"
             onClick={fetchJobs}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 text-white text-sm font-medium rounded-lg hover:bg-primary-800 transition-colors"
+            className="pub-btn-primary pub-btn-primary--sm inline-flex items-center gap-2"
           >
-            <IconRefresh className="w-4 h-4" stroke={1.7} />
+            <ArrowClockwise size={16} weight="bold" />
             Try again
           </button>
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && !fetchError && jobs.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
-            <IconSearch className="w-7 h-7 text-neutral-300" stroke={1.7} />
+        <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-pub-border bg-white py-16 text-center shadow-sm">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-pub-surface-muted">
+            <MagnifyingGlass className="text-pub-ink-subtle" size={24} weight="duotone" />
           </div>
-          <h3 className="text-base font-semibold text-neutral-800 mb-1">No jobs found</h3>
-          <p className="text-sm text-neutral-500">Try adjusting your search or filters, or check back soon.</p>
+          <h3 className="mb-1 text-sm font-semibold text-pub-ink">No jobs found</h3>
+          <p className="text-sm text-pub-ink-subtle">Try adjusting your search or filters, or check back soon.</p>
         </div>
       )}
 
-      {/* Job listings */}
-      {!loading && !fetchError && jobs.length > 0 && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={view}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className={view === 'grid' ? 'grid sm:grid-cols-2 gap-4' : 'space-y-3'}
-          >
-            {jobs.map((job, index) => {
-              const Icon = getCategoryIcon(job.category);
-              const categoryColor = getCategoryColor(job.category);
-              const typeColor = getTypeColor(job.type);
-              const jobIsNew = isNew(job.postedDate);
+      {!loading && !fetchError && jobs.length > 0 && view === 'list' && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-pub-border bg-white shadow-sm">
+          {jobs.map((job) => {
+            const jobIsNew = isNew(job.postedDate);
+            const salary = formatSalary(job);
+            const closingSoon = job.applicationDeadline ? isClosingSoon(job.applicationDeadline) : false;
 
-              if (view === 'grid') {
-                return (
-                  <motion.div
-                    key={job.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.04 }}
-                  >
-                    <Link
-                      href={`/careers/apply/${job.slug ?? job.id}`}
-                      className="group block bg-white rounded-2xl border border-primary-100 hover:border-primary-300 hover:shadow-md transition-all duration-200 p-5 h-full"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0 group-hover:bg-primary-100 transition-colors">
-                          <Icon className="w-5 h-5 text-primary-500 group-hover:text-primary-700 transition-colors" />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {jobIsNew && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary-50 text-secondary-600 border border-secondary-200">
-                              New
-                            </span>
-                          )}
-                          <IconChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all" stroke={1.7} />
-                        </div>
-                      </div>
+            return (
+              <Link
+                key={job.id}
+                href={`/careers/apply/${job.slug ?? job.id}`}
+                className="group flex items-center gap-3 border-b border-pub-border px-4 py-4 no-underline transition-colors last:border-b-0 hover:bg-pub-surface-muted sm:gap-4 sm:px-5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold leading-snug text-pub-ink transition-colors group-hover:text-pub-primary">
+                      {job.title}
+                    </h3>
+                    {jobIsNew && <JobBadge variant="new">New</JobBadge>}
+                  </div>
 
-                      <h3 className="text-base font-bold text-primary-900 leading-snug mb-1.5 group-hover:text-primary-700 transition-colors line-clamp-2">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <JobBadge>{job.category}</JobBadge>
+                    <JobBadge>{job.type}</JobBadge>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-pub-ink-subtle sm:text-sm">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin size={14} className="shrink-0" weight="bold" />
+                      {job.location}
+                    </span>
+                    {salary && <span className="font-medium text-pub-ink-muted">{salary}</span>}
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-pub-ink-subtle sm:hidden">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock size={14} className="shrink-0" weight="bold" />
+                      {formatDate(job.postedDate)}
+                    </span>
+                    {job.applicationDeadline && (
+                      <span className={closingSoon ? 'font-medium text-pub-primary' : ''}>
+                        Closes {formatDeadline(job.applicationDeadline)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="hidden shrink-0 flex-col items-end gap-1 text-right text-xs leading-relaxed text-pub-ink-subtle sm:flex">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Clock size={14} className="shrink-0" weight="bold" />
+                    {formatDate(job.postedDate)}
+                  </span>
+                  {job.applicationDeadline && (
+                    <span className={`whitespace-nowrap ${closingSoon ? 'font-medium text-pub-primary' : ''}`}>
+                      Closes {formatDeadline(job.applicationDeadline)}
+                    </span>
+                  )}
+                </div>
+
+                <CaretRight
+                  size={16}
+                  className="shrink-0 text-pub-ink-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-pub-primary"
+                  weight="bold"
+                />
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && !fetchError && jobs.length > 0 && view === 'grid' && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {jobs.map((job) => {
+            const jobIsNew = isNew(job.postedDate);
+            const salary = formatSalary(job);
+            const closingSoon = job.applicationDeadline ? isClosingSoon(job.applicationDeadline) : false;
+
+            return (
+              <Link
+                key={job.id}
+                href={`/careers/apply/${job.slug ?? job.id}`}
+                className="pub-card group flex h-full flex-col p-5 no-underline"
+              >
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-pub-ink transition-colors group-hover:text-pub-primary">
                         {job.title}
                       </h3>
-                      <p className="text-sm text-neutral-500 mb-3">{orgName}</p>
-
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${categoryColor}`}>
-                          {job.category}
-                        </span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${typeColor}`}>
-                          {job.type}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm text-neutral-400 border-t border-primary-50 pt-3">
-                        <span className="flex items-center gap-1.5">
-                          <IconMapPin className="w-4 h-4" stroke={1.7} />
-                          {job.location}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <IconClock className="w-4 h-4" stroke={1.7} />
-                          {formatDate(job.postedDate)}
-                        </span>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              }
-
-              // List view
-              return (
-                <motion.div
-                  key={job.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.04 }}
-                >
-                    <Link
-                      href={`/careers/apply/${job.slug ?? job.id}`}
-                      className="group flex items-start gap-3 sm:gap-4 bg-white rounded-2xl border border-primary-100 hover:border-primary-300 hover:shadow-md transition-all duration-200 p-5 sm:p-6"
-                    >
-                    {/* Icon (hide on mobile) */}
-                    <div className="hidden sm:flex w-12 h-12 rounded-xl bg-primary-50 items-center justify-center shrink-0 group-hover:bg-primary-100 transition-colors">
-                      <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 group-hover:text-primary-700 transition-colors" />
+                      {jobIsNew && <JobBadge variant="new">New</JobBadge>}
                     </div>
+                    <p className="mt-1 truncate text-xs text-pub-ink-subtle">{orgName}</p>
+                  </div>
+                  <CaretRight
+                    size={16}
+                    className="shrink-0 text-pub-ink-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-pub-primary"
+                    weight="bold"
+                  />
+                </div>
 
-                    {/* Main content */}
-                    <div className="flex-1 min-w-0 w-full">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h3 className="text-base sm:text-lg font-bold text-primary-900 group-hover:text-primary-700 transition-colors leading-snug">
-                          {job.title}
-                        </h3>
-                        {jobIsNew && (
-                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-secondary-50 text-secondary-600 border border-secondary-200 shrink-0">
-                            New
-                          </span>
-                        )}
-                      </div>
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  <JobBadge>{job.category}</JobBadge>
+                  <JobBadge>{job.type}</JobBadge>
+                </div>
 
-                      <p className="text-sm text-neutral-500 mb-2.5 truncate">{orgName}</p>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${categoryColor}`}>
-                          {job.category}
-                        </span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${typeColor}`}>
-                          {job.type}
-                        </span>
-                        <span className="flex items-center gap-1 text-sm text-neutral-400">
-                          <IconMapPin className="w-3.5 h-3.5" stroke={1.7} />
-                          {job.location}
-                        </span>
-                        {job.salary && (
-                          <span className="flex items-center gap-1 text-sm text-green-600 font-medium">
-                            <IconCash className="w-3.5 h-3.5" stroke={1.7} />
-                            {job.salary.currency} {job.salary.min.toLocaleString()}–{job.salary.max.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Mobile meta row */}
-                      <div className="mt-3 flex items-center justify-between text-sm text-neutral-400 border-t border-primary-50 pt-3">
-                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                          <IconClock className="w-3.5 h-3.5" stroke={1.7} />
-                          {formatDate(job.postedDate)}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          {job.applicationDeadline && (
-                            <span className="text-sm text-amber-600 font-medium whitespace-nowrap">
-                              Closes {new Date(job.applicationDeadline).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Nairobi' })}
-                            </span>
-                          )}
-                          <IconChevronRight className="w-5 h-5 text-neutral-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all" stroke={1.7} />
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </AnimatePresence>
+                <div className="mt-auto space-y-1.5 border-t border-pub-border pt-3 text-xs text-pub-ink-subtle">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={14} className="shrink-0" weight="bold" />
+                    {job.location}
+                  </span>
+                  {salary && <span className="block font-medium text-pub-ink-muted">{salary}</span>}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock size={14} className="shrink-0" weight="bold" />
+                      {formatDate(job.postedDate)}
+                    </span>
+                    {job.applicationDeadline && (
+                      <span className={closingSoon ? 'font-medium text-pub-primary' : ''}>
+                        Closes {formatDeadline(job.applicationDeadline)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
     </div>
   );

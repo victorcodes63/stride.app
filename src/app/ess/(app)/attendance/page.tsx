@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { EssPageHeader } from '@/components/ess/EssPageHeader';
+import { EssEmptyState, essInputClass } from '@/components/ess/EssUi';
 
 type AttendanceSummary = {
   month: string | null;
@@ -57,6 +60,46 @@ function formatTime(value: string | null): string {
 function formatStatus(status: AttendanceRow['status']): string {
   if (status === 'pending_review') return 'Pending review';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function AttendanceCard({ row }: { row: AttendanceRow }) {
+  return (
+    <article className="ess-card-flat p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--ess-muted)]">{formatDate(row.date)}</p>
+          <h2 className="mt-1 text-base font-black text-[var(--ess-text)]">{row.shiftName}</h2>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-black ${STATUS_STYLES[row.status]}`}>
+          {formatStatus(row.status)}
+        </span>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-2xl bg-[var(--ess-surface-soft)] px-3 py-2">
+          <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--ess-muted)]">Clock in</dt>
+          <dd className="mt-1 font-black text-[var(--ess-text)]">{formatTime(row.clockIn)}</dd>
+        </div>
+        <div className="rounded-2xl bg-[var(--ess-surface-soft)] px-3 py-2">
+          <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--ess-muted)]">Clock out</dt>
+          <dd className="mt-1 font-black text-[var(--ess-text)]">{formatTime(row.clockOut)}</dd>
+        </div>
+        <div className="rounded-2xl bg-[var(--ess-surface-soft)] px-3 py-2">
+          <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--ess-muted)]">Hours</dt>
+          <dd className="mt-1 font-black text-[var(--ess-text)]">{row.totalHours.toFixed(1)}</dd>
+        </div>
+        <div className="rounded-2xl bg-[var(--ess-surface-soft)] px-3 py-2">
+          <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--ess-muted)]">Overtime</dt>
+          <dd className="mt-1 font-black text-[var(--ess-text)]">{row.overtimeHours.toFixed(1)}</dd>
+        </div>
+      </dl>
+      {row.note ? <p className="mt-3 text-sm text-[var(--ess-muted)]">{row.note}</p> : null}
+    </article>
+  );
 }
 
 export default function EssAttendancePage() {
@@ -117,13 +160,22 @@ export default function EssAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-900">Attendance</h1>
-          <p className="text-sm text-neutral-600 mt-1">Read-only shift and clock history for your account.</p>
-        </div>
-        <label className="text-sm text-neutral-700 flex items-center gap-2">
-          Month
+      <EssPageHeader
+        title="Attendance"
+        subtitle="Monthly summary and history"
+        backHref="/ess/work"
+        action={
+          <Link
+            href="/ess/attendance/clock"
+            className="inline-flex min-h-11 items-center rounded-full bg-[var(--ess-primary)] px-4 text-sm font-black text-white"
+          >
+            Clock
+          </Link>
+        }
+      />
+      <div className="-mt-2">
+        <label className="block text-sm font-bold text-[var(--ess-text)]">
+          <span>Month</span>
           <input
             type="month"
             value={month}
@@ -131,7 +183,7 @@ export default function EssAttendancePage() {
               setMonth(e.target.value || toMonthInputValue(new Date()));
               setPage(1);
             }}
-            className="px-3 py-2.5 border border-neutral-300 rounded-lg text-sm min-h-11"
+            className={`${essInputClass} mt-1`}
           />
         </label>
       </div>
@@ -140,7 +192,7 @@ export default function EssAttendancePage() {
         <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-md px-3 py-2">{error}</p>
       ) : null}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-neutral-200 rounded-xl p-4">
           <p className="text-xs text-neutral-600">Days worked / scheduled</p>
           <p className="text-xl font-semibold text-primary-900 mt-1">
@@ -165,50 +217,13 @@ export default function EssAttendancePage() {
         </div>
       </section>
 
-      <section className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th className="text-left px-3 py-2">Date</th>
-                <th className="text-left px-3 py-2">Shift</th>
-                <th className="text-left px-3 py-2">Clock in</th>
-                <th className="text-left px-3 py-2">Clock out</th>
-                <th className="text-left px-3 py-2">Hours</th>
-                <th className="text-left px-3 py-2">Overtime</th>
-                <th className="text-left px-3 py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.date} className="border-b border-neutral-100">
-                  <td className="px-3 py-2">{new Date(row.date).toLocaleDateString()}</td>
-                  <td className="px-3 py-2">{row.shiftName}</td>
-                  <td className="px-3 py-2">{formatTime(row.clockIn)}</td>
-                  <td className="px-3 py-2">{formatTime(row.clockOut)}</td>
-                  <td className="px-3 py-2">{row.totalHours.toFixed(1)}</td>
-                  <td className="px-3 py-2">{row.overtimeHours.toFixed(1)}</td>
-                  <td className="px-3 py-2">
-                    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${STATUS_STYLES[row.status]}`}>
-                      {formatStatus(row.status)}
-                    </span>
-                    {row.note ? <p className="text-xs text-neutral-500 mt-1">{row.note}</p> : null}
-                  </td>
-                </tr>
-              ))}
-              {!loading && !rows.length ? (
-                <tr>
-                  <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
-                    No attendance records found for this month.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <p className="px-3 py-2 text-xs text-neutral-500 border-t border-neutral-100 sm:hidden">
-          Scroll sideways to view full table.
-        </p>
+      <section className="space-y-3">
+        {rows.map((row) => (
+          <AttendanceCard key={row.date} row={row} />
+        ))}
+        {!loading && !rows.length ? (
+          <EssEmptyState title="No attendance records" message="No attendance records found for this month." />
+        ) : null}
       </section>
 
       <div className="flex items-center justify-between">

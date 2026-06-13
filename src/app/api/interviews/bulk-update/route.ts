@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { InterviewType, InterviewDurationMinutes } from '@/types/dashboard';
+import type { InterviewType, InterviewDurationMinutes, InterviewStatus } from '@/types/dashboard';
+import type { Prisma } from '@prisma/client';
 
 const VALID_TYPES: InterviewType[] = ['phone', 'video', 'onsite'];
 const VALID_DURATIONS: InterviewDurationMinutes[] = [30, 45, 60];
@@ -32,14 +33,7 @@ export async function POST(request: NextRequest) {
   if (ids.length === 0) {
     return NextResponse.json({ error: 'interviewIds array is required and must not be empty.' }, { status: 400 });
   }
-  const updates: {
-    scheduledAt?: Date;
-    durationMinutes?: number;
-    type?: string;
-    locationOrLink?: string | null;
-    notes?: string | null;
-    status?: string;
-  } = {};
+  const updates: Prisma.InterviewUpdateManyMutationInput = {};
   if (b.scheduledAt !== undefined) {
     const d = new Date(b.scheduledAt);
     if (!Number.isNaN(d.getTime())) updates.scheduledAt = d;
@@ -57,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
   if (b.notes !== undefined) updates.notes = b.notes ?? null;
   if (b.status !== undefined && ['scheduled', 'completed', 'cancelled'].includes(b.status)) {
-    updates.status = b.status;
+    updates.status = b.status as InterviewStatus;
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update.' }, { status: 400 });

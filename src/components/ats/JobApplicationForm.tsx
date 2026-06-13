@@ -20,7 +20,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { JobListing } from '@/types/ats';
-import { useATS } from '@/lib/ats-api';
+import { useATS } from '@/lib/use-ats';
 import { yearsBetweenEmploymentDates } from '@/lib/employment-sort';
 import type {
   ApplicationFormData,

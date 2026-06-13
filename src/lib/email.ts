@@ -36,6 +36,13 @@ const LOGO_URL = getPublicLogoUrl();
 const LOGO_CID = 'hris-demo-logo';
 const LOGO_FILE_PATH = getLogoFileAbsolutePath();
 
+function getLogoAttachmentFilename(): string {
+  const rel = brand.logoPngPath.replace(/^\//, '');
+  const base = rel.split('/').pop() ?? 'brand-logo';
+  if (/\.(png|jpe?g|gif|webp|svg)$/i.test(base)) return base;
+  return `${base}.png`;
+}
+
 export type EmailSendResult =
   | { sent: true; messageId?: string }
   | {
@@ -60,6 +67,8 @@ export type EmailSendResult =
         hasUser: boolean;
         hasPass: boolean;
         hasFromEmail: boolean;
+        smtpResponse?: unknown;
+        smtpResponseCode?: unknown;
       };
     };
 
@@ -72,7 +81,7 @@ function getSmtpLogoAsset(): {
       src: `cid:${LOGO_CID}`,
       attachments: [
         {
-          filename: 'stabex-logo.png',
+          filename: getLogoAttachmentFilename(),
           path: LOGO_FILE_PATH,
           cid: LOGO_CID,
         },
@@ -93,7 +102,7 @@ function getGraphLogoAsset(): {
       attachments: [
         {
           '@odata.type': '#microsoft.graph.fileAttachment',
-          name: 'stabex-logo.png',
+          name: getLogoAttachmentFilename(),
           contentType: 'image/png',
           contentId: LOGO_CID,
           isInline: true,
@@ -722,7 +731,7 @@ export async function sendInterviewInviteEmail(params: {
 
 const SUBJECT_LABELS: Record<string, string> = {
   recruitment: 'Recruitment & Executive Search',
-  outsourcing: 'HR Outsourcing',
+  outsourcing: 'HR Management',
   training: 'Training & Development',
   advisory: 'HR Advisory & Policy',
   payroll: 'Payroll Management',
@@ -1036,7 +1045,10 @@ export async function sendPayslipEmail(params: {
       error: message,
       diagnostics: {
         provider: 'smtp',
-        ...config,
+        ...getSmtpDiagnostics(),
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
         smtpResponse: errObj.response,
         smtpResponseCode: errObj.responseCode,
       },

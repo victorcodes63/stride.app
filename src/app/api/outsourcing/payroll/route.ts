@@ -131,6 +131,10 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(list);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('outside active entity scope')) {
+      return NextResponse.json({ error: msg }, { status: 403 });
+    }
     console.error('[payroll GET]', e);
     return NextResponse.json({ error: 'Failed to load payroll' }, { status: 500 });
   }

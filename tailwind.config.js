@@ -8,31 +8,31 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        /** Accent red — CTAs, charts, links (STABEX red ~#D2232A) */
+        /** Accent blue — CTAs, charts, links (platform mark ~#0088FF) */
         primary: {
-          50: '#FCE8E9',
-          100: '#F7C6C8',
-          200: '#EF9599',
-          300: '#E7646B',
-          400: '#DC3340',
-          500: '#D2232A',
-          600: '#B81D24',
-          700: '#9A181E',
-          800: '#7C1418',
-          900: '#5E1012',
+          50: 'var(--color-primary-50, #F0F8FF)',
+          100: 'var(--color-primary-100, #E0F1FF)',
+          200: 'var(--color-primary-200, #B8DEFF)',
+          300: 'var(--color-primary-300, #85C6FF)',
+          400: 'var(--color-primary-400, #47A9FF)',
+          500: 'var(--color-primary-500, #0088FF)',
+          600: 'var(--color-primary-600, #007DEB)',
+          700: 'var(--color-primary-700, #0070D1)',
+          800: 'var(--color-primary-800, #005CAD)',
+          900: 'var(--color-primary-900, #004785)',
         },
-        /** Navy — structural brand, nav active, headings ink (STABEX blue ~#1D2460) */
+        /** Navy — structural brand, nav active, headings ink */
         secondary: {
-          50: '#E8EAF4',
-          100: '#C5CBE5',
-          200: '#9BA6D0',
-          300: '#7180BB',
-          400: '#475AA6',
-          500: '#1D2460',
-          600: '#181F52',
-          700: '#141A44',
-          800: '#101536',
-          900: '#0C1028',
+          50: 'var(--color-secondary-50, #E8EAF4)',
+          100: 'var(--color-secondary-100, #C5CBE5)',
+          200: 'var(--color-secondary-200, #9BA6D0)',
+          300: 'var(--color-secondary-300, #7180BB)',
+          400: 'var(--color-secondary-400, #475AA6)',
+          500: 'var(--color-secondary-500, #1D2460)',
+          600: 'var(--color-secondary-600, #181F52)',
+          700: 'var(--color-secondary-700, #141A44)',
+          800: 'var(--color-secondary-800, #101536)',
+          900: 'var(--color-secondary-900, #0C1028)',
         },
         neutral: {
           50: '#F8FAFC',
@@ -50,10 +50,26 @@ module.exports = {
         warning: '#B45309',
         danger: '#B91C1C',
         ink: '#1D2460',
+        /** Public marketing surface — derived from platform logo palette */
+        pub: {
+          primary: '#0088FF',
+          'primary-hover': '#0078E0',
+          'primary-subtle': '#EBF5FF',
+          'primary-muted': '#B8DEFF',
+          ink: '#0A2540',
+          'ink-muted': '#425466',
+          'ink-subtle': '#6B7F99',
+          surface: '#FFFFFF',
+          'surface-muted': '#F6F9FC',
+          border: '#E3E8EE',
+          'border-strong': '#C1C9D2',
+        },
       },
       fontFamily: {
-        sans: ['var(--font-manrope)', 'system-ui', 'sans-serif'],
-        heading: ['var(--font-manrope)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        pub: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

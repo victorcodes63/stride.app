@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdminActor } from '@/lib/admin-security';
 import { logAuditEvent } from '@/lib/audit-events';
@@ -72,8 +73,8 @@ export async function PATCH(request: NextRequest) {
     }
     await prisma.systemSetting.upsert({
       where: { key: SETTINGS_KEY },
-      update: { value: settings, updatedByUserId: actor?.userId ?? null },
-      create: { key: SETTINGS_KEY, value: settings, updatedByUserId: actor?.userId ?? null },
+      update: { value: settings as unknown as Prisma.InputJsonValue, updatedByUserId: actor?.userId ?? null },
+      create: { key: SETTINGS_KEY, value: settings as unknown as Prisma.InputJsonValue, updatedByUserId: actor?.userId ?? null },
     });
 
     await logAuditEvent({

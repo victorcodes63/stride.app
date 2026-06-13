@@ -2,121 +2,94 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import BrandLogo from '@/components/BrandLogo';
-import { motion } from 'framer-motion';
-import { Mail, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AuthSplitShell, LoginCard } from '@/components/auth/AuthSplitShell';
+import { usePublicBrand } from '@/components/BrandProvider';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+ const { orgName } = usePublicBrand();
+ const [email, setEmail] = useState('');
+ const [submitted, setSubmitted] = useState(false);
+ const [error, setError] = useState('');
+ const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      // TODO: wire to API – e.g. POST /api/auth/forgot-password { email }
-      await new Promise((r) => setTimeout(r, 800));
-      setSubmitted(true);
-    } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const handleSubmit = async (e: React.FormEvent) => {
+ e.preventDefault();
+ setError('');
+ setLoading(true);
+ try {
+ await new Promise((r) => setTimeout(r, 800));
+ setSubmitted(true);
+ } catch {
+ setError('Something went wrong. Please try again.');
+ } finally {
+ setLoading(false);
+ }
+ };
 
-  return (
-    <div className="min-h-screen flex">
-      {/* Left half – hero image */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 blur-sm"
-          style={{ backgroundImage: 'url(/images/hero/Reception_comp.webp)' }}
-        />
-        <div className="absolute inset-0 bg-white/50" />
-      </div>
+ return (
+ <AuthSplitShell
+ eyebrow="Staff dashboard"
+ title="Reset your password"
+ subtitle={`Enter your work email and we'll send reset instructions for your ${orgName} account.`}
+ >
+ <LoginCard>
+ <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-[#0a2540]">
+ Forgot your password?
+ </h2>
+ <p className="mt-1.5 text-[0.8125rem] text-[#425466]">
+ Enter your work email and we&apos;ll send you a link to reset your password.
+ </p>
 
-      <div className="w-full lg:w-1/2 flex flex-col justify-center bg-white px-6 sm:px-12 py-12 lg:py-16">
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md mx-auto"
-        >
-          <div className="flex justify-center mb-10">
-            <Link href="/" className="inline-block">
-              <BrandLogo variant="header" priority />
-            </Link>
-          </div>
+ {submitted ? (
+ <div className="mt-5 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[0.8125rem] leading-snug text-emerald-800">
+ <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+ <span>If an account exists for that email, we&apos;ve sent reset instructions. Check your inbox.</span>
+ </div>
+ ) : (
+ <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+ {error ? (
+ <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[0.8125rem] leading-snug text-red-700">
+ <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-red-400" />
+ <span>{error}</span>
+ </div>
+ ) : null}
 
-          <h1 className="text-2xl sm:text-3xl font-heading font-bold text-primary-900 mb-2 text-center">
-            Forgot password?
-          </h1>
-          <p className="text-neutral-600 mb-8 text-center">
-            Enter your work email and we&apos;ll send you a link to reset your password.
-          </p>
+ <div>
+ <label htmlFor="email" className="mb-1.5 block text-[0.8125rem] font-medium text-[#0a2540]">
+ Email
+ </label>
+ <input
+ id="email"
+ type="email"
+ autoComplete="email"
+ value={email}
+ onChange={(e) => setEmail(e.target.value)}
+ required
+ className="h-10 w-full rounded-md border border-[#d5dae1] bg-white px-3 text-sm text-[#0a2540] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all placeholder:text-[#9ca8b7] hover:border-[#b4bcc6] focus:border-[#635bff] focus:outline-none focus:ring-2 focus:ring-[#635bff]/12"
+ placeholder="you@company.com"
+ />
+ </div>
 
-          {submitted ? (
-            <div className="rounded-lg bg-green-50 border border-green-200 p-4 mb-6">
-              <div className="flex items-center gap-2 text-green-800 text-sm">
-                <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                <span>If an account exists for that email, we&apos;ve sent reset instructions. Check your inbox.</span>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {error}
-                </div>
-              )}
+ <button
+ type="submit"
+ disabled={loading}
+ className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#635bff] text-sm font-semibold text-white transition-all hover:bg-[#4b45c6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-50"
+ style={{
+ boxShadow: '0 0 0 1px rgba(99,91,255,0.5), 0 2px 5px rgba(99,91,255,0.2)',
+ }}
+ >
+ {loading ? 'Sending…' : 'Send reset link'}
+ </button>
+ </form>
+ )}
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-                    placeholder="you@example.com"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-900 text-white rounded-lg font-semibold hover:bg-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    Send reset link
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          <p className="text-center text-sm mt-6">
-            <Link href="/dashboard/login" className="text-primary-600 hover:text-primary-800 font-medium">
-              ← Back to sign in
-            </Link>
-          </p>
-        </motion.div>
-      </div>
-    </div>
-  );
+ <p className="mt-5 text-center text-[0.8125rem] text-[#425466]">
+ <Link href="/dashboard/login" className="font-medium text-[#635bff] hover:text-[#4b45c6]">
+ ← Back to sign in
+ </Link>
+ </p>
+ </LoginCard>
+ </AuthSplitShell>
+ );
 }

@@ -4,7 +4,6 @@ import { useEffect, useId } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold } from '@tiptap/extension-bold';
 import { toHtmlString } from '@/lib/job-list-html';
 
 export interface RichTextListEditorProps {
@@ -29,32 +28,33 @@ export function RichTextListEditor({
   const editorKey = id ?? fallbackId;
   const html = toHtmlString(value);
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editorKey,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3] },
-        codeBlock: false,
-        blockquote: false,
-        horizontalRule: false,
-      }),
-      Placeholder.configure({ placeholder }),
-      Bold,
-    ],
-    content: html || EMPTY_HTML,
-    editorProps: {
-      attributes: {
-        class:
-          'prose prose-sm max-w-none min-h-[140px] px-4 py-3 focus:outline-none [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_p]:my-1 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold',
-        'aria-label': ariaLabel,
-        id: id || undefined,
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      extensions: [
+        StarterKit.configure({
+          heading: { levels: [2, 3] },
+          codeBlock: false,
+          blockquote: false,
+          horizontalRule: false,
+        }),
+        Placeholder.configure({ placeholder }),
+      ],
+      content: html || EMPTY_HTML,
+      editorProps: {
+        attributes: {
+          class:
+            'prose prose-sm max-w-none min-h-[140px] px-4 py-3 focus:outline-none [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_p]:my-1 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold',
+          ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
+          ...(id ? { id } : {}),
+        },
+      },
+      onUpdate: ({ editor }) => {
+        onChange(editor.getHTML());
       },
     },
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
-  });
+    [editorKey],
+  );
 
   useEffect(() => {
     if (!editor) return;

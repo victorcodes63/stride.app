@@ -1,3 +1,6 @@
+import { DEFAULT_BRAND_LOGO_SRC } from '@/lib/brand-constants';
+import { brand } from '@/lib/brand';
+
 // ATS Configuration
 export const ATS_CONFIG = {
   // API Configuration
@@ -19,9 +22,9 @@ export const ATS_CONFIG = {
   // Branding (defaults; override via NEXT_PUBLIC_* — see src/lib/brand.ts)
   BRANDING: {
     PRIMARY_COLOR: '#1D2460',
-    SECONDARY_COLOR: '#D2232A',
-    LOGO: process.env.NEXT_PUBLIC_BRAND_LOGO || '/brand/stabex-logo.png',
-    COMPANY_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'HRIS Demo',
+    SECONDARY_COLOR: '#0088FF',
+    LOGO: process.env.NEXT_PUBLIC_BRAND_LOGO || DEFAULT_BRAND_LOGO_SRC,
+    COMPANY_NAME: brand.appName,
     DOMAIN: 'example.com',
   },
   

@@ -1,21 +1,18 @@
-import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
-import "./globals.css";
-import CookieConsent from "@/components/CookieConsent";
-import { ToastViewport } from "@/components/ui/toast";
-import { BrandProvider } from "@/components/BrandProvider";
-import { brand, getPublicBrand, getSiteUrl } from "@/lib/brand";
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-  display: "swap",
-});
+import type { Metadata } from 'next';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import './globals.css';
+import '@/styles/public-theme.css';
+import { ToastViewport } from '@/components/ui/toast';
+import { BrandProvider } from '@/components/BrandProvider';
+import { brand, getSiteUrl } from '@/lib/brand';
+import { getResolvedPublicBrand } from '@/lib/get-resolved-public-brand';
+import { brandThemeStyle } from '@/lib/brand-theme-style';
 
 const siteUrl = getSiteUrl();
 const defaultDescription = `${brand.orgName} — ${brand.tagline}`;
 const keywords =
-  "HRIS, HR software, payroll, recruitment, ATS, leave management, workforce, human resources";
+  'HRIS, HR software, payroll, recruitment, ATS, leave management, workforce, human resources';
 
 export const metadata: Metadata = {
   title: {
@@ -88,15 +85,18 @@ export const metadata: Metadata = {
   },
 };
 
-const jsonLd = (baseUrl: string) => ({
+const jsonLd = (baseUrl: string, orgName: string, appName: string, logoSrc: string) => ({
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@type': 'Organization',
       '@id': `${baseUrl}/#organization`,
-      name: brand.orgName,
+      name: orgName,
       url: baseUrl,
-      logo: { '@type': 'ImageObject', url: `${baseUrl}${brand.logoSrc.startsWith('/') ? brand.logoSrc : `/${brand.logoSrc}`}` },
+      logo: {
+        '@type': 'ImageObject',
+        url: `${baseUrl}${logoSrc.startsWith('/') ? logoSrc : `/${logoSrc}`}`,
+      },
       ...(brand.contactPhone
         ? {
             contactPoint: {
@@ -112,7 +112,7 @@ const jsonLd = (baseUrl: string) => ({
       '@type': 'WebSite',
       '@id': `${baseUrl}/#website`,
       url: baseUrl,
-      name: brand.appName,
+      name: appName,
       description: defaultDescription,
       publisher: { '@id': `${baseUrl}/#organization` },
       inLanguage: 'en',
@@ -125,21 +125,36 @@ const jsonLd = (baseUrl: string) => ({
   ],
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const publicBrand = await getResolvedPublicBrand();
+  const themeStyle = brandThemeStyle(publicBrand);
+  const favicon = publicBrand.faviconSrc || publicBrand.logoSrc;
+
   return (
-    <html lang="en" className={manrope.variable}>
-      <body className="font-sans antialiased">
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      style={themeStyle}
+      data-table-zebra={publicBrand.dashboardTableZebraStriping ? 'true' : 'false'}
+    >
+      <head>
+        <link rel="icon" href={favicon.startsWith('/') ? favicon : `/${favicon}`} />
+      </head>
+      <body className={`${GeistSans.className} antialiased`}>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteUrl)) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              jsonLd(siteUrl, publicBrand.orgName, publicBrand.appName, publicBrand.logoSrc),
+            ),
+          }}
         />
-        <BrandProvider value={getPublicBrand()}>{children}</BrandProvider>
+        <BrandProvider value={publicBrand}>{children}</BrandProvider>
         <ToastViewport />
-        <CookieConsent />
       </body>
     </html>
   );

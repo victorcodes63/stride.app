@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { EssPageHeader } from '@/components/ess/EssPageHeader';
+import { EssAlert, EssCard, EssEmptyState, EssListItem, essInputClass, essPrimaryButtonClass } from '@/components/ess/EssUi';
+import { EssStatusPill } from '@/components/ess/EssStatusPill';
 
 type Grievance = {
   id: string;
@@ -30,6 +33,10 @@ export default function EssGrievancesPage() {
 
   async function submit() {
     setError(null);
+    if (!navigator.onLine) {
+      setError('You are offline. Reconnect before submitting a grievance.');
+      return;
+    }
     const res = await fetch('/api/ess/grievances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,10 +54,10 @@ export default function EssGrievancesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-primary-900">My grievances</h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <EssPageHeader title="Grievances" subtitle="Raise workplace concerns for formal HR review." backHref="/ess/more" />
+        <p className="text-sm leading-6 text-[var(--ess-muted)]">
           Use this form for workplace concerns (safety, harassment, workload, management, and similar). Your case is logged and reviewed under the employer’s grievance procedure and applicable labour law. This is not the same as a{' '}
           <a className="font-medium text-primary-700 underline" href="/ess/disciplinary">
             disciplinary case
@@ -58,34 +65,32 @@ export default function EssGrievancesPage() {
           against you.
         </p>
       </div>
-      <div className="rounded-xl border border-neutral-200 bg-white p-4">
-        <p className="text-sm font-semibold">Submit grievance</p>
+      <EssCard>
+        <p className="text-sm font-black text-[var(--ess-text)]">Submit grievance</p>
         <div className="mt-2 space-y-2">
-          <select className="w-full rounded border border-neutral-300 px-3 py-2 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select className={essInputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
             {['WORKPLACE_SAFETY','HARASSMENT','DISCRIMINATION','WORKLOAD','MANAGEMENT','COMPENSATION','POLICY','OTHER'].map((c) => <option key={c} value={c}>{c.replaceAll('_', ' ')}</option>)}
           </select>
-          <input className="w-full rounded border border-neutral-300 px-3 py-2 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
-          <textarea className="w-full rounded border border-neutral-300 px-3 py-2 text-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the grievance" />
-          {error ? <p className="text-xs text-red-600">{error}</p> : null}
-          <button onClick={submit} className="rounded bg-primary-900 px-4 py-2 text-sm text-white">Submit</button>
+          <input className={essInputClass} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
+          <textarea className={`${essInputClass} min-h-28`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the grievance" />
+          {error ? <EssAlert tone="danger">{error}</EssAlert> : null}
+          <button onClick={submit} className={essPrimaryButtonClass}>Submit</button>
         </div>
-      </div>
-      <div className="rounded-xl border border-neutral-200 bg-white p-4">
-        <table className="w-full text-sm">
-          <thead><tr className="text-left text-neutral-500"><th>Number</th><th>Subject</th><th>Category</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-neutral-100">
-                <td className="py-2">{item.grievanceNumber}</td>
-                <td>{item.subject}</td>
-                <td>{item.category.replaceAll('_', ' ')}</td>
-                <td>{item.status.replaceAll('_', ' ')}</td>
-                <td>{new Date(item.submittedAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      </EssCard>
+      <section className="space-y-2">
+        {items.map((item) => (
+          <EssListItem
+            key={item.id}
+            title={item.subject}
+            subtitle={`${item.grievanceNumber} · ${item.category.replaceAll('_', ' ')}`}
+            meta={new Date(item.submittedAt).toLocaleDateString()}
+            trailing={<EssStatusPill status={item.status} />}
+          />
+        ))}
+        {!items.length ? (
+          <EssEmptyState title="No grievances submitted" message="Cases you raise will appear here with their review status." />
+        ) : null}
+      </section>
     </div>
   );
 }

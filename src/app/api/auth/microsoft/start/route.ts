@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { assertOAuthProviderEnabled } from '@/lib/oauth/assert-oauth-enabled';
 
 const OAUTH_STATE_COOKIE = 'staff_oauth_state';
 const OAUTH_STATE_MAX_AGE = 60 * 10; // 10 minutes
@@ -30,6 +31,9 @@ function getRedirectUri() {
 }
 
 export async function GET(request: NextRequest) {
+  const disabled = await assertOAuthProviderEnabled(request, 'staff', 'microsoft');
+  if (disabled) return disabled;
+
   const clientId = process.env.MS_CLIENT_ID?.trim();
   const tenantId = process.env.MS_TENANT_ID?.trim() || 'common';
   if (!clientId) {

@@ -9,6 +9,10 @@ import {
   deriveReturnStatus,
   to2,
 } from '@/lib/statutory-returns';
+import { requireStaffUser } from '@/lib/staff-api-auth';
+import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
+import { enforceSodCheck, requireRecentSensitiveAuth, SodViolationError } from '@/lib/admin-security';
+import { logAuditEvent } from '@/lib/audit-events';
 
 function toDecimal(v: number) {
   return new Decimal(to2(v));
@@ -25,6 +29,9 @@ function parseMonthYear(searchParams: URLSearchParams) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) return forbiddenResponse('Payroll/statutory access is restricted.');
     const { searchParams } = new URL(request.url);
     const monthYear = parseMonthYear(searchParams);
     if (!monthYear) {
@@ -135,6 +142,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireStaffUser(request);
+    if (!user) return unauthorizedResponse();
+    if (!canAccessPayroll(user)) return forbiddenResponse('Payroll/statutory access is restricted.');
+    const reauthError = requireRecentSensitiveAuth(request, user.id);
+    if (reauthError) return reauthError;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const month = parseInt(String(body.month ?? ''), 10);
     const year = parseInt(String(body.year ?? ''), 10);
@@ -238,6 +250,23 @@ export async function POST(request: NextRequest) {
         include: { items: { orderBy: { obligationType: 'asc' } } },
       });
     });
+    if (saved?.id) {
+      await enforceSodCheck({
+        actorUserId: user.id,
+        entityType: 'StatutoryReturn',
+        entityId: saved.id,
+        forbiddenActions: ['statutory.return.prepared'],
+        actionLabel: 'statutory return submission',
+      });
+      await logAuditEvent({
+        actor: { userId: user.id, email: user.email, name: user.name },
+        action: 'statutory.return.prepared',
+        entityType: 'StatutoryReturn',
+        entityId: saved.id,
+        route: 'POST /api/payroll/statutory',
+        metadata: { month, year, clientId },
+      });
+    }
 
     return NextResponse.json({
       id: saved?.id,
@@ -245,6 +274,9 @@ export async function POST(request: NextRequest) {
       message: 'Statutory return snapshot saved successfully.',
     });
   } catch (error) {
+    if (error instanceof SodViolationError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     console.error('[payroll statutory POST]', error);
     return NextResponse.json({ error: 'Failed to save statutory return' }, { status: 500 });
   }

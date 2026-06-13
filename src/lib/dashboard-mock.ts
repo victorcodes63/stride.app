@@ -4,6 +4,17 @@ import type { ApplicationWithDetails, ApplicationStatus } from '@/types/dashboar
 
 const statuses: ApplicationStatus[] = ['pending', 'reviewed', 'shortlisted', 'rejected', 'hired'];
 
+const mockCandidateFields = { nationality: null, homeCounty: null } as const;
+const mockJobFields = {
+  clientId: null,
+  clientName: null,
+  minYearsExperience: null,
+  educationLevel: null,
+  educationQualification: null,
+  requiredCertifications: null,
+} as const;
+const mockApplicationFields = { salaryExpectations: null, formData: null } as const;
+
 function randomStatus(): ApplicationStatus {
   return statuses[Math.floor(Math.random() * statuses.length)];
 }
@@ -26,6 +37,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
     notes: null,
     createdAt: daysAgo(1),
     updatedAt: daysAgo(1),
+    ...mockApplicationFields,
     candidate: {
       id: 'cand-1',
       firstName: 'Jane',
@@ -37,6 +49,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       education: 'Bachelor of Commerce, University of Nairobi',
       resumePath: '/resumes/jane-doe.pdf',
       createdAt: daysAgo(1),
+      ...mockCandidateFields,
     },
     job: {
       id: '1',
@@ -47,6 +60,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       category: 'Executive',
       postedDate: daysAgo(14),
       isActive: true,
+      ...mockJobFields,
     },
   },
   {
@@ -60,6 +74,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
     notes: 'Strong fit for Coast sales. Schedule interview.',
     createdAt: daysAgo(3),
     updatedAt: daysAgo(2),
+    ...mockApplicationFields,
     candidate: {
       id: 'cand-2',
       firstName: 'John',
@@ -71,6 +86,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       education: 'Bachelor of Business, Moi University',
       resumePath: '/resumes/john-kamau.pdf',
       createdAt: daysAgo(3),
+      ...mockCandidateFields,
     },
     job: {
       id: '2',
@@ -81,6 +97,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       category: 'Sales & Marketing',
       postedDate: daysAgo(21),
       isActive: true,
+      ...mockJobFields,
     },
   },
   {
@@ -94,6 +111,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
     notes: null,
     createdAt: daysAgo(5),
     updatedAt: daysAgo(5),
+    ...mockApplicationFields,
     candidate: {
       id: 'cand-3',
       firstName: 'Grace',
@@ -105,6 +123,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       education: 'PhD Computer Science, JKUAT',
       resumePath: '/resumes/grace-wanjiku.pdf',
       createdAt: daysAgo(5),
+      ...mockCandidateFields,
     },
     job: {
       id: '3',
@@ -115,6 +134,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       category: 'Education & Training',
       postedDate: daysAgo(30),
       isActive: true,
+      ...mockJobFields,
     },
   },
   {
@@ -128,6 +148,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
     notes: 'Lack of required certifications.',
     createdAt: daysAgo(7),
     updatedAt: daysAgo(6),
+    ...mockApplicationFields,
     candidate: {
       id: 'cand-4',
       firstName: 'Peter',
@@ -139,6 +160,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       education: 'Bachelor of IT',
       resumePath: '/resumes/peter-otieno.pdf',
       createdAt: daysAgo(7),
+      ...mockCandidateFields,
     },
     job: {
       id: '4',
@@ -149,6 +171,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       category: 'Technology',
       postedDate: daysAgo(14),
       isActive: true,
+      ...mockJobFields,
     },
   },
   {
@@ -162,6 +185,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
     notes: 'Offer accepted. Start date next month.',
     createdAt: daysAgo(10),
     updatedAt: daysAgo(8),
+    ...mockApplicationFields,
     candidate: {
       id: 'cand-5',
       firstName: 'Sarah',
@@ -173,6 +197,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       education: 'MBA, Strathmore University',
       resumePath: '/resumes/sarah-mwangi.pdf',
       createdAt: daysAgo(10),
+      ...mockCandidateFields,
     },
     job: {
       id: '1',
@@ -183,6 +208,7 @@ export const MOCK_APPLICATIONS: ApplicationWithDetails[] = [
       category: 'Executive',
       postedDate: daysAgo(14),
       isActive: true,
+      ...mockJobFields,
     },
   },
 ];

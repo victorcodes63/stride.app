@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { dateTimeNairobi } from '@/lib/timezone';
 import { computeBulkInterviewStartTimesWithCustom } from '@/lib/bulk-interview-schedule';
-import type { InterviewWithDetails, InterviewType, InterviewDurationMinutes } from '@/types/dashboard';
+import type {
+  InterviewWithDetails,
+  InterviewType,
+  InterviewDurationMinutes,
+  InterviewStatus,
+  ConfirmationStatus,
+} from '@/types/dashboard';
+
+const interviewCreateInclude = {
+  application: {
+    include: { candidate: true, job: { include: { client: true } } },
+  },
+} satisfies Prisma.InterviewInclude;
+
+type InterviewCreatedWithDetails = Prisma.InterviewGetPayload<{
+  include: typeof interviewCreateInclude;
+}>;
 
 const MAX_PER_SCHEDULE = 10;
 const VALID_TYPES: InterviewType[] = ['phone', 'video', 'onsite'];
@@ -190,15 +207,13 @@ export async function POST(request: NextRequest) {
           locationOrLink,
           notes,
         },
-        include: {
-          application: {
-            include: { candidate: true, job: { include: { client: true } } },
-          },
-        },
+        include: interviewCreateInclude,
       });
     });
     const results = await prisma.$transaction([...breakOps, ...interviewOps]);
-    const created: InterviewWithDetails[] = results.slice(breakCreates.length).map((interview) => ({
+    const created: InterviewWithDetails[] = (
+      results.slice(breakCreates.length) as InterviewCreatedWithDetails[]
+    ).map((interview) => ({
       id: interview.id,
       applicationId: interview.applicationId,
       scheduledAt: interview.scheduledAt.toISOString(),
@@ -206,10 +221,10 @@ export async function POST(request: NextRequest) {
       type: interview.type as InterviewType,
       locationOrLink: interview.locationOrLink,
       notes: interview.notes,
-      status: interview.status,
+      status: interview.status as InterviewStatus,
       inviteSentAt: interview.inviteSentAt?.toISOString() ?? null,
       officialLetterPath: interview.officialLetterPath,
-      confirmationStatus: interview.confirmationStatus ?? 'pending',
+      confirmationStatus: (interview.confirmationStatus ?? 'pending') as ConfirmationStatus,
       confirmationNotes: interview.confirmationNotes,
       confirmationAt: interview.confirmationAt?.toISOString() ?? null,
       createdAt: interview.createdAt.toISOString(),
@@ -224,6 +239,8 @@ export async function POST(request: NextRequest) {
           email: interview.application.candidate.email,
           phone: interview.application.candidate.phone,
           location: interview.application.candidate.location,
+          nationality: interview.application.candidate.nationality ?? null,
+          homeCounty: interview.application.candidate.homeCounty ?? null,
           experience: interview.application.candidate.experience,
           education: interview.application.candidate.education,
           resumePath: interview.application.candidate.resumePath,

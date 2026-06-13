@@ -1,25 +1,35 @@
 import type { PrismaClient } from '@prisma/client';
 import type { NextRequest } from 'next/server';
-import { parseEntityIdFromRequest } from '@/lib/entity-request';
-
-const DEFAULT_PRIMARY_WORKSPACE_NAME = 'Stabex International';
-const DEFAULT_EMPLOYEE_PREFIX = 'STB';
+import { getWorkspaceDefaults } from '@/lib/deployment-config';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
+import { getActiveEntities, loadOperatingEntitiesSettings } from '@/lib/operating-entities';
 
 /**
  * Single-tenant helper: resolve the primary outsourcing workspace client.
- * If none exists yet, create a default one automatically.
+ * If none exists yet, create one from deployment env (PROVISION_ORG_NAME, etc.).
  */
 export async function getOrCreatePrimaryWorkspaceClient(prisma: PrismaClient) {
+  const settings = await loadOperatingEntitiesSettings();
+  const defaultEntity = settings.defaultEntityId;
   const existing = await prisma.outsourcingClient.findFirst({
+    where: { entityCode: defaultEntity },
     orderBy: { createdAt: 'asc' },
   });
   if (existing) return existing;
 
+  const anyClient = await prisma.outsourcingClient.findFirst({ orderBy: { createdAt: 'asc' } });
+  if (anyClient) return anyClient;
+
+  const defaults = getWorkspaceDefaults();
   return prisma.outsourcingClient.create({
     data: {
-      name: DEFAULT_PRIMARY_WORKSPACE_NAME,
-      employeeNumberPrefix: DEFAULT_EMPLOYEE_PREFIX,
-      currency: 'KES',
+      name: defaults.name,
+      employeeNumberPrefix: defaults.employeeNumberPrefix,
+      currency: defaults.currency,
+      contactName: defaults.contactName,
+      contactEmail: defaults.contactEmail,
+      contactPhone: defaults.contactPhone,
+      entityCode: defaults.entityCode,
     },
   });
 }
@@ -29,9 +39,20 @@ export async function resolvePrimaryWorkspaceClientId(
   requestedClientId?: string | null,
   request?: Pick<NextRequest, 'headers' | 'cookies' | 'nextUrl'> | NextRequest | null,
 ) {
+  const requested = requestedClientId?.trim();
   if (request) {
-    const entityId = parseEntityIdFromRequest(request);
+    const entityId = await resolveEntityIdOrDefault(request);
     if (entityId) {
+      if (requested) {
+        const scoped = await prisma.outsourcingClient.findFirst({
+          where: { id: requested, entityCode: entityId },
+          select: { id: true },
+        });
+        if (!scoped) {
+          throw new Error(`Requested client is outside active entity scope (${entityId}).`);
+        }
+        return scoped.id;
+      }
       const row = await prisma.outsourcingClient.findFirst({
         where: { entityCode: entityId },
         select: { id: true },
@@ -39,18 +60,20 @@ export async function resolvePrimaryWorkspaceClientId(
       if (row) return row.id;
     }
   }
-  if (requestedClientId && requestedClientId.trim()) return requestedClientId.trim();
+  if (requested) return requested;
   const workspace = await getOrCreatePrimaryWorkspaceClient(prisma);
   return workspace.id;
 }
 
 /**
- * Outsourcing clients tied to the dashboard entity switcher (ke / ug).
- * Used for "combined" list views that span both legal employers.
+ * Outsourcing clients tied to configured operating entities.
+ * Used for combined list views that span multiple legal employers.
  */
 export async function listEntitySwitcherOutsourcingClientIds(prisma: PrismaClient): Promise<string[]> {
+  const settings = await loadOperatingEntitiesSettings();
+  const entityCodes = getActiveEntities(settings).map((e) => e.id);
   const rows = await prisma.outsourcingClient.findMany({
-    where: { entityCode: { in: ['ke', 'ug'] } },
+    where: { entityCode: { in: entityCodes } },
     select: { id: true },
     orderBy: { name: 'asc' },
   });

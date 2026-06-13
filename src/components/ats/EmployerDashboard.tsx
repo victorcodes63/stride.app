@@ -22,7 +22,7 @@ import {
   Activity
 } from 'lucide-react';
 import { JobListing, JobApplication, Employer } from '@/types/ats';
-import { useATS } from '@/lib/ats-api';
+import { useATS } from '@/lib/use-ats';
 
 interface EmployerDashboardProps {
   employerId: string;

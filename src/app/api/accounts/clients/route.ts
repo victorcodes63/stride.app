@@ -5,6 +5,7 @@ import { getAccountsAccess } from '@/lib/accounts-access';
 import { reportApiError } from '@/lib/monitoring';
 import { syncLinkedBillingClients } from '@/lib/sync-accounts-clients';
 import type { AccountsClientType } from '@prisma/client';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const activeEntity = await resolveEntityIdOrDefault(request);
     const syncParam = request.nextUrl.searchParams.get('sync')?.toLowerCase() ?? '';
     const runSync = syncParam === '1' || syncParam === 'true' || syncParam === 'yes';
 
@@ -56,6 +58,18 @@ export async function GET(request: NextRequest) {
 
     // No joins to Client / OutsourcingClient: list uses denormalised `name` from billing row (sync updates it).
     const rows = await prisma.accountsClient.findMany({
+      where: activeEntity
+        ? {
+            OR: [
+              { type: 'custom' },
+              { type: 'recruitment' },
+              {
+                type: 'outsourcing',
+                outsourcingClient: { entityCode: activeEntity },
+              },
+            ],
+          }
+        : undefined,
       select: {
         id: true,
         type: true,
@@ -152,6 +166,7 @@ export async function POST(request: NextRequest) {
   let contactEmail = str(b.contactEmail);
   let contactPhone = str(b.contactPhone);
   const billingNotesOpt = billingNotesFromBody(b.billingNotes);
+  const activeEntity = await resolveEntityIdOrDefault(request);
 
   if (type === 'custom') {
     if (recruitmentClientId || outsourcingClientId) {
@@ -198,6 +213,12 @@ export async function POST(request: NextRequest) {
     const oc = await prisma.outsourcingClient.findUnique({ where: { id: outsourcingClientId } });
     if (!oc) {
       return NextResponse.json({ error: 'Outsourcing client not found.' }, { status: 404 });
+    }
+    if (activeEntity && oc.entityCode !== activeEntity) {
+      return NextResponse.json(
+        { error: `Cannot create billing profile for client outside active entity (${activeEntity}).` },
+        { status: 403 },
+      );
     }
     const taken = await prisma.accountsClient.findUnique({
       where: { outsourcingClientId },

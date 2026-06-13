@@ -9,6 +9,7 @@ import type { StaffUserType, UserRole } from '@/types/dashboard';
 import { userRowToSummary } from '@/lib/user-summary-api';
 import { logAuditEvent } from '@/lib/audit-events';
 import { sendNotification } from '@/lib/notifications';
+import { brand } from '@/lib/brand';
 
 const ROUNDS = 10;
 const ROLES: UserRole[] = ['admin', 'staff', 'viewer'];
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       await sendNotification({
         event: 'user_invited',
         recipientUserIds: [user.id],
-        title: 'Welcome to Stabex International HR',
+        title: `Welcome to ${brand.appName}`,
         body: `An account has been created for you. Log in with ${user.email}.`,
         href: '/dashboard/login',
         priority: 'info',

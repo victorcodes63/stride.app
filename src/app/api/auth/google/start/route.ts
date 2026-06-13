@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { assertOAuthProviderEnabled } from '@/lib/oauth/assert-oauth-enabled';
 
 const OAUTH_STATE_COOKIE = 'staff_oauth_state_google';
 const OAUTH_STATE_MAX_AGE = 60 * 10; // 10 minutes
@@ -26,6 +27,9 @@ function getRedirectUri() {
 }
 
 export async function GET(request: NextRequest) {
+  const disabled = await assertOAuthProviderEnabled(request, 'staff', 'google');
+  if (disabled) return disabled;
+
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   if (!clientId) {
     return NextResponse.redirect(new URL('/dashboard/login?error=oauth', request.url));

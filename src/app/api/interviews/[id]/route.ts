@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { InterviewWithDetails, InterviewType, InterviewDurationMinutes, UpdateInterviewBody } from '@/types/dashboard';
+import type {
+  InterviewWithDetails,
+  InterviewType,
+  InterviewDurationMinutes,
+  InterviewStatus,
+  UpdateInterviewBody,
+} from '@/types/dashboard';
+import type { Prisma } from '@prisma/client';
 
 const VALID_TYPES: InterviewType[] = ['phone', 'video', 'onsite'];
 const VALID_DURATIONS: InterviewDurationMinutes[] = [30, 45, 60];
@@ -44,7 +51,7 @@ function toInterviewWithDetails(i: Awaited<ReturnType<typeof prisma.interview.fi
   const app = i.application as {
     id: string;
     status: string;
-    candidate: { id: string; firstName: string; lastName: string; email: string; phone: string | null; location: string | null; experience: number; education: string | null; resumePath: string | null; createdAt: Date };
+    candidate: { id: string; firstName: string; lastName: string; email: string; phone: string | null; location: string | null; nationality: string | null; homeCounty: string | null; experience: number; education: string | null; resumePath: string | null; createdAt: Date };
     job: { id: string; title: string; company: string; location: string; type: string; category: string; postedDate: Date; isActive: boolean; clientId: string | null; client: { name: string } | null; minYearsExperience: number | null; educationLevel: string | null; educationQualification: string | null; requiredCertifications: string | null };
   };
   return {
@@ -55,7 +62,7 @@ function toInterviewWithDetails(i: Awaited<ReturnType<typeof prisma.interview.fi
     type: i.type as InterviewType,
     locationOrLink: i.locationOrLink,
     notes: i.notes,
-    status: i.status,
+    status: i.status as InterviewStatus,
     inviteSentAt: i.inviteSentAt?.toISOString() ?? null,
     officialLetterPath: i.officialLetterPath,
     confirmationStatus: (i.confirmationStatus ?? 'pending') as import('@/types/dashboard').ConfirmationStatus,
@@ -73,6 +80,8 @@ function toInterviewWithDetails(i: Awaited<ReturnType<typeof prisma.interview.fi
         email: app.candidate.email,
         phone: app.candidate.phone,
         location: app.candidate.location,
+        nationality: app.candidate.nationality ?? null,
+        homeCounty: app.candidate.homeCounty ?? null,
         experience: app.candidate.experience,
         education: app.candidate.education,
         resumePath: app.candidate.resumePath,
@@ -113,15 +122,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
   const b = body as UpdateInterviewBody;
-  const updates: {
-    scheduledAt?: Date;
-    durationMinutes?: number;
-    type?: string;
-    locationOrLink?: string | null;
-    notes?: string | null;
-    status?: string;
-    officialLetterPath?: string | null;
-  } = {};
+  const updates: Prisma.InterviewUpdateInput = {};
   if (b.scheduledAt !== undefined) {
     const d = new Date(b.scheduledAt);
     if (!Number.isNaN(d.getTime())) updates.scheduledAt = d;
@@ -139,7 +140,7 @@ export async function PATCH(
   }
   if (b.notes !== undefined) updates.notes = b.notes ?? null;
   if (b.status !== undefined && ['scheduled', 'completed', 'cancelled'].includes(b.status)) {
-    updates.status = b.status;
+    updates.status = b.status as InterviewStatus;
   }
   if (b.officialLetterPath !== undefined) updates.officialLetterPath = b.officialLetterPath ?? null;
   if (Object.keys(updates).length === 0) {

@@ -48,7 +48,7 @@ const GRAY_500 = rgb(115 / 255, 115 / 255, 115 / 255);
 const LIGHT_BG = rgb(249 / 255, 250 / 255, 251 / 255); // #f9fafb
 const BORDER = rgb(229 / 255, 229 / 255, 229 / 255);
 
-/** PNG for pdf-lib (embedPng). Default `public/brand/stabex-logo.png` or set NEXT_PUBLIC_BRAND_LOGO_PNG. */
+/** PNG for pdf-lib (embedPng). Uses NEXT_PUBLIC_BRAND_LOGO_PNG via getLogoFileAbsolutePath(). */
 const LOGO_PATH = getLogoFileAbsolutePath();
 const BRAND_LINE = brand.wordmark;
 

@@ -45,6 +45,27 @@ export const PERMISSION_SEEDS: PermissionSeed[] = [
     description: 'Approve payroll batches before payment.',
     defaults: { admin: true, staff: true, viewer: false },
   },
+  {
+    key: 'payroll.export.bulk',
+    label: 'Run payroll/bulk exports',
+    module: 'Payroll',
+    description: 'Generate bank exports and other bulk payroll output files.',
+    defaults: { admin: true, staff: true, viewer: false },
+  },
+  {
+    key: 'statutory.submit',
+    label: 'Submit statutory returns',
+    module: 'Payroll',
+    description: 'Prepare and submit PAYE/NSSF/SHIF/AHL monthly statutory obligations.',
+    defaults: { admin: true, staff: true, viewer: false },
+  },
+  {
+    key: 'finance.critical.write',
+    label: 'Execute critical finance actions',
+    module: 'Accounts',
+    description: 'Create invoices, vendor bills, and other high-impact finance entries.',
+    defaults: { admin: true, staff: true, viewer: false },
+  },
 ];
 
 export async function ensurePermissionCatalog(): Promise<void> {

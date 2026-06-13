@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client';
+import { Prisma as PrismaRuntime } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { AdminActor } from '@/lib/admin-security';
 
@@ -21,7 +23,10 @@ export async function logAuditEvent(input: AuditInput): Promise<void> {
         entityType: input.entityType,
         entityId: input.entityId ?? null,
         route: input.route ?? null,
-        metadata: input.metadata ?? null,
+        metadata:
+          input.metadata == null
+            ? PrismaRuntime.JsonNull
+            : (input.metadata as Prisma.InputJsonValue),
       },
     });
   } catch (error) {

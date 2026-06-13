@@ -120,6 +120,10 @@ model OutsourcingClient {
   leavePolicies      LeavePolicy[]
   attendanceEvents   AttendanceEvent[]
   attendanceDaySummaries AttendanceDaySummary[]
+  employeeTransfersOut EmployeeEntityTransfer[] @relation("EmployeeEntityTransferSourceClient")
+  employeeTransfersIn  EmployeeEntityTransfer[] @relation("EmployeeEntityTransferTargetClient")
+  employeeLifecycleEvents EmployeeLifecycleEvent[]
+  companyAssets           CompanyAsset[]
 
   @@index([name])
 }
@@ -227,6 +231,8 @@ model Employee {
   nhifNumber          String?   // National Hospital Insurance Fund
   dateOfJoining       DateTime?
   jobTitle            String?
+  costCenterCode      String?
+  costCenterName      String?
   /// Monthly basic pay (KES). Pre-fills payroll when you generate a month; edit per month if needed.
   baseSalary          Decimal?  @db.Decimal(12, 2)
   // Bank details for salary disbursement
@@ -259,18 +265,88 @@ model Employee {
   attendanceExceptions AttendanceException[]
   leaveBalanceLedgers LeaveBalanceLedger[]
   documents      EmployeeDocument[]
+  lifecycleEvents EmployeeLifecycleEvent[]
   onboardingWorkflows OnboardingWorkflow[]
   disciplinaryCases   DisciplinaryCase[]
   grievancesFiled     Grievance[]
   grievancesAgainst   Grievance[] @relation("GrievanceAgainst")
+  entityTransfersOut  EmployeeEntityTransfer[] @relation("EmployeeEntityTransferSourceEmployee")
+  entityTransfersIn   EmployeeEntityTransfer[] @relation("EmployeeEntityTransferTargetEmployee")
+  assignedAssets      CompanyAsset[]
 
   @@index([outsourcingClientId])
   @@index([departmentId])
   @@index([managerEmployeeId])
   @@index([employmentStatus])
+  @@index([costCenterCode])
   @@index([email])
   /// One national ID maps to at most one employee record system-wide (multiple NULL allowed).
   @@unique([idNumber])
+}
+
+enum EmployeeLifecycleEventType {
+  hire
+  confirmation
+  promotion
+  transfer
+  suspension
+  separation
+}
+
+model EmployeeLifecycleEvent {
+  id                   String                    @id @default(cuid())
+  employeeId           String
+  outsourcingClientId  String
+  eventType            EmployeeLifecycleEventType
+  effectiveDate        DateTime                  @db.Date
+  reason               String?                   @db.Text
+  notes                String?                   @db.Text
+  fromJobTitle         String?
+  toJobTitle           String?
+  fromDepartmentId     String?
+  toDepartmentId       String?
+  fromEmploymentStatus EmployeeEmploymentStatus?
+  toEmploymentStatus   EmployeeEmploymentStatus?
+  actedByUserId        String?
+  metadata             Json?
+  createdAt            DateTime                  @default(now())
+
+  employee   Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  client     OutsourcingClient @relation(fields: [outsourcingClientId], references: [id], onDelete: Cascade)
+  actedByUser User?            @relation(fields: [actedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, effectiveDate(sort: Desc)])
+  @@index([outsourcingClientId, eventType, effectiveDate(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model EmployeeEntityTransfer {
+  id                    String   @id @default(cuid())
+  employeeId            String
+  sourceEmployeeId      String
+  sourceClientId        String
+  sourceEntityCode      String
+  targetClientId        String
+  targetEntityCode      String
+  effectiveAt           DateTime
+  transferReason        String?  @db.Text
+  initiatedByUserId     String?
+  previousDepartmentId  String?
+  previousJobTitle      String?
+  previousEmploymentStatus EmployeeEmploymentStatus?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+
+  sourceEmployee    Employee         @relation("EmployeeEntityTransferSourceEmployee", fields: [sourceEmployeeId], references: [id], onDelete: Cascade)
+  targetEmployee    Employee         @relation("EmployeeEntityTransferTargetEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  sourceClient      OutsourcingClient @relation("EmployeeEntityTransferSourceClient", fields: [sourceClientId], references: [id], onDelete: Restrict)
+  targetClient      OutsourcingClient @relation("EmployeeEntityTransferTargetClient", fields: [targetClientId], references: [id], onDelete: Restrict)
+  initiatedByUser   User?            @relation(fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, createdAt(sort: Desc)])
+  @@index([sourceEntityCode, targetEntityCode, createdAt(sort: Desc)])
+  @@index([sourceClientId])
+  @@index([targetClientId])
 }
 
 model DisciplinaryCase {
@@ -447,6 +523,11 @@ model EmployeeDocument {
   fileName   String
   fileSize   Int?
   mimeType   String?
+  documentNumber String?
+  issuedOn      DateTime?               @db.Date
+  expiresOn     DateTime?               @db.Date
+  isVerified    Boolean                 @default(false)
+  tags          Json?
 
   notes      String?
   uploadedBy String
@@ -455,6 +536,8 @@ model EmployeeDocument {
 
   @@index([employeeId])
   @@index([category])
+  @@index([expiresOn])
+  @@index([isVerified])
 }
 
 enum EmployeeEmploymentStatus {
@@ -838,6 +921,56 @@ enum CredentialStatus {
   revoked
 }
 
+enum AssetCategory {
+  it_equipment
+  furniture
+  vehicle
+  mobile_device
+  tools
+  uniform_ppe
+  other
+}
+
+enum AssetStatus {
+  available
+  assigned
+  maintenance
+  retired
+  lost
+}
+
+model CompanyAsset {
+  id                  String        @id @default(cuid())
+  outsourcingClientId String
+  assetTag            String
+  name                String
+  description         String?       @db.Text
+  category            AssetCategory @default(it_equipment)
+  status              AssetStatus   @default(available)
+  serialNumber        String?
+  manufacturer        String?
+  model               String?
+  purchaseDate        DateTime?     @db.Date
+  purchaseCost        Decimal?      @db.Decimal(12, 2)
+  warrantyExpiry      DateTime?     @db.Date
+  location            String?
+  notes               String?       @db.Text
+  assignedEmployeeId  String?
+  assignedAt          DateTime?
+  assignedByUserId    String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  client           OutsourcingClient @relation(fields: [outsourcingClientId], references: [id], onDelete: Cascade)
+  assignedEmployee Employee?         @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  assignedByUser   User?             @relation("AssetAssignedByUser", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([outsourcingClientId, assetTag])
+  @@index([outsourcingClientId, status])
+  @@index([assignedEmployeeId])
+  @@index([category])
+}
+
 model EmployeeCredential {
   id                 String           @id @default(cuid())
   employeeId         String
@@ -1186,6 +1319,7 @@ model Job {
   client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   applications Application[]
   scheduleBreaks InterviewScheduleBreak[]
+  requisitionApprovals JobRequisitionApproval[]
 
   @@index([isActive, postedDate(sort: Desc)])
   @@index([category])
@@ -1237,6 +1371,8 @@ model Application {
   candidate  Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   interviews Interview[]
   views      ApplicationView[]
+  offerApprovals JobOfferApproval[]
+  hireConversion ApplicationHireConversion?
 
   @@index([jobId])
   @@index([status])
@@ -1275,6 +1411,7 @@ model Interview {
   updatedAt            DateTime            @updatedAt
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scorecards  InterviewScorecard[]
 
   @@index([applicationId])
   @@index([scheduledAt])
@@ -1320,6 +1457,91 @@ enum InterviewStatus {
   cancelled
 }
 
+enum AtsApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AtsOfferDecision {
+  strong_yes
+  yes
+  hold
+  no
+}
+
+model JobRequisitionApproval {
+  id               String            @id @default(cuid())
+  jobId             String
+  requestedByUserId String
+  approverUserId    String
+  status            AtsApprovalStatus @default(pending)
+  notes             String?           @db.Text
+  actedAt           DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, status])
+  @@index([approverUserId, status])
+}
+
+model InterviewScorecard {
+  id                  String   @id @default(cuid())
+  interviewId         String
+  interviewerUserId   String
+  technicalScore      Int
+  communicationScore  Int
+  cultureScore        Int
+  decision            AtsOfferDecision
+  strengths           String?  @db.Text
+  concerns            String?  @db.Text
+  recommendationNotes String?  @db.Text
+  submittedAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, interviewerUserId])
+  @@index([interviewId, submittedAt(sort: Desc)])
+}
+
+model JobOfferApproval {
+  id                  String            @id @default(cuid())
+  applicationId       String
+  requestedByUserId   String
+  approverUserId      String
+  status              AtsApprovalStatus @default(pending)
+  proposedGrossSalary Decimal?          @db.Decimal(12, 2)
+  currency            String            @default("KES")
+  startDate           DateTime?         @db.Date
+  notes               String?           @db.Text
+  actedAt             DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, status])
+  @@index([approverUserId, status])
+}
+
+model ApplicationHireConversion {
+  id                String   @id @default(cuid())
+  applicationId     String   @unique
+  employeeId        String   @unique
+  convertedByUserId String
+  convertedAt       DateTime @default(now())
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([convertedAt(sort: Desc)])
+}
+
 // Staff members who can access the dashboard
 model User {
   id           String   @id @default(cuid())
@@ -1330,6 +1552,13 @@ model User {
   /// Job function preset; drives leave approver queue etc. Admins may ignore visually but column still set.
   staffUserType StaffUserType @default(operations)
   isActive     Boolean  @default(true)
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?
+  mfaRecoveryCodes Json?
+  mfaVerifiedAt DateTime?
+  lastLoginAt  DateTime?
+  /// Ordered dashboard sidebar hrefs pinned by this user (JSON string array).
+  dashboardPinnedNav Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1357,6 +1586,15 @@ model User {
   disciplinaryActions        DisciplinaryAction[] @relation("DisciplinaryActionPerformer")
   uploadedDisciplinaryDocuments DisciplinaryDocument[] @relation("DisciplinaryDocumentUploader")
   resolvedGrievances         Grievance[] @relation("GrievanceResolver")
+  initiatedEmployeeEntityTransfers EmployeeEntityTransfer[]
+  actedEmployeeLifecycleEvents EmployeeLifecycleEvent[]
+  workflowRunsCurrentAssignee WorkflowRun[] @relation("WorkflowCurrentAssigneeUser")
+  workflowRunsDelegatedFrom   WorkflowRun[] @relation("WorkflowDelegatedFromUser")
+  workflowRunsDelegatedTo     WorkflowRun[] @relation("WorkflowDelegatedToUser")
+  workflowEventRecipients     WorkflowEvent[] @relation("WorkflowEventRecipientUser")
+  notificationPolicy          NotificationPolicy?
+  notificationDeliveries      NotificationDelivery[] @relation("NotificationDeliveryRecipientUser")
+  assetsAssigned              CompanyAsset[]         @relation("AssetAssignedByUser")
 
   @@index([email])
   @@index([isActive])
@@ -1425,6 +1663,10 @@ model EssPortalUser {
   createdByUser User?     @relation("EssPortalUserCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   notifications  StaffNotification[] @relation("EssUserNotifications")
+  workflowRunsCurrentAssignee WorkflowRun[] @relation("WorkflowCurrentAssigneeEss")
+  workflowEventRecipients WorkflowEvent[] @relation("WorkflowEventRecipientEss")
+  notificationPolicy NotificationPolicy?
+  notificationDeliveries NotificationDelivery[] @relation("NotificationDeliveryRecipientEss")
 
   @@index([employeeId])
   @@index([isActive])
@@ -1733,6 +1975,32 @@ enum AccountsInvoicePaymentBank {
   consultancy_fees
 }
 
+/// Company bank account shown on invoice / credit note PDFs.
+model AccountsPaymentAccount {
+  id            String   @id @default(cuid())
+  label         String
+  accountName   String
+  bank          String
+  accountNumber String
+  bankCode      String   @default("")
+  branchCode    String   @default("")
+  swiftCode     String   @default("")
+  purposeNotes  String?  @db.Text
+  isPayrollOnly Boolean  @default(false)
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  /// Maps to legacy enum for existing invoices created before configurable accounts.
+  legacyKind    AccountsInvoicePaymentBank? @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invoices    AccountsInvoice[]
+  creditNotes AccountsCreditNote[]
+
+  @@index([isActive, sortOrder])
+}
+
 model AccountsInvoice {
   id            String                @id @default(cuid())
   clientId      String
@@ -1748,11 +2016,13 @@ model AccountsInvoice {
   totalOverrideIncVat Decimal?        @db.Decimal(14, 2)
   status        AccountsInvoiceStatus @default(unpaid)
   /// Bank details block on invoice: payroll remittance vs consultancy & other fees.
-  paymentBank   AccountsInvoicePaymentBank @default(consultancy_fees)
-  notes         String?               @db.Text
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  paymentBank      AccountsInvoicePaymentBank @default(consultancy_fees)
+  paymentAccountId String?
+  notes            String?               @db.Text
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
+  paymentAccount AccountsPaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: SetNull)
   accountsClient AccountsClient    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contract       AccountsContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
   lines          AccountsInvoiceLine[]
@@ -1778,10 +2048,12 @@ model AccountsCreditNote {
   /// Denormalized total incl. VAT at issue (for balances & reporting).
   totalIncVat       Decimal  @db.Decimal(14, 2)
   paymentBank       AccountsInvoicePaymentBank @default(consultancy_fees)
+  paymentAccountId  String?
   notes             String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  paymentAccount  AccountsPaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: SetNull)
   client          AccountsClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   originalInvoice AccountsInvoice @relation(fields: [originalInvoiceId], references: [id], onDelete: Cascade)
   lines           AccountsCreditNoteLine[]
@@ -1954,6 +2226,7 @@ model StaffNotification {
 
   user User? @relation("StaffUserNotifications", fields: [userId], references: [id], onDelete: Cascade)
   essPortalUser EssPortalUser? @relation("EssUserNotifications", fields: [essPortalUserId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
 
   @@index([userId, createdAt])
   @@index([essPortalUserId, createdAt])
@@ -1961,9 +2234,525 @@ model StaffNotification {
   @@index([event, priority])
 }
 
+enum WorkflowRunStatus {
+  pending
+  in_progress
+  delegated
+  escalated
+  approved
+  rejected
+  completed
+  cancelled
+}
+
+enum WorkflowTriggerType {
+  event
+  time
+  manual
+}
+
+enum WorkflowRecipientKind {
+  staff
+  ess
+}
+
+enum NotificationDeliveryStatus {
+  pending
+  sent
+  failed
+  skipped_quiet_hours
+  skipped_policy
+}
+
+model WorkflowRun {
+  id               String            @id @default(cuid())
+  module           String
+  event            String
+  entityType       String
+  entityId         String
+  entityCode       String?
+  status           WorkflowRunStatus @default(pending)
+  currentAssigneeUserId String?
+  currentAssigneeEssPortalUserId String?
+  delegatedFromUserId String?
+  delegatedToUserId   String?
+  delegatedAt      DateTime?
+  escalatedAt      DateTime?
+  startedAt        DateTime          @default(now())
+  dueAt            DateTime?
+  completedAt      DateTime?
+  metadata         Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  currentAssigneeUser User? @relation("WorkflowCurrentAssigneeUser", fields: [currentAssigneeUserId], references: [id], onDelete: SetNull)
+  currentAssigneeEssPortalUser EssPortalUser? @relation("WorkflowCurrentAssigneeEss", fields: [currentAssigneeEssPortalUserId], references: [id], onDelete: SetNull)
+  delegatedFromUser User? @relation("WorkflowDelegatedFromUser", fields: [delegatedFromUserId], references: [id], onDelete: SetNull)
+  delegatedToUser User? @relation("WorkflowDelegatedToUser", fields: [delegatedToUserId], references: [id], onDelete: SetNull)
+  events WorkflowEvent[]
+  notificationDeliveries NotificationDelivery[]
+
+  @@index([module, status, dueAt])
+  @@index([entityType, entityId])
+  @@index([entityCode, status])
+}
+
+model WorkflowEvent {
+  id              String               @id @default(cuid())
+  workflowRunId   String
+  triggerType     WorkflowTriggerType
+  eventType       String
+  recipientKind   WorkflowRecipientKind?
+  recipientUserId String?
+  recipientEssPortalUserId String?
+  status          WorkflowRunStatus?
+  dueAt           DateTime?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+
+  workflowRun     WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  recipientUser   User?       @relation("WorkflowEventRecipientUser", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientEssPortalUser EssPortalUser? @relation("WorkflowEventRecipientEss", fields: [recipientEssPortalUserId], references: [id], onDelete: SetNull)
+
+  @@index([workflowRunId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model NotificationPolicy {
+  id                  String   @id @default(cuid())
+  userId              String?  @unique
+  essPortalUserId     String?  @unique
+  inAppEnabled        Boolean  @default(true)
+  emailEnabled        Boolean  @default(true)
+  actionRequiredEmail Boolean  @default(true)
+  urgentEmail         Boolean  @default(true)
+  quietHoursEnabled   Boolean  @default(false)
+  quietHoursStart     String?
+  quietHoursEnd       String?
+  timezone            String   @default("Africa/Nairobi")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  essPortalUser EssPortalUser? @relation(fields: [essPortalUserId], references: [id], onDelete: Cascade)
+}
+
+model NotificationDelivery {
+  id                  String                   @id @default(cuid())
+  staffNotificationId String?
+  workflowRunId       String?
+  event               String
+  triggerType         WorkflowTriggerType      @default(event)
+  recipientKind       WorkflowRecipientKind
+  recipientUserId     String?
+  recipientEssPortalUserId String?
+  channel             String
+  status              NotificationDeliveryStatus @default(pending)
+  provider            String?
+  error               String?
+  metadata            Json?
+  deliveredAt         DateTime?
+  createdAt           DateTime                 @default(now())
+
+  staffNotification StaffNotification? @relation(fields: [staffNotificationId], references: [id], onDelete: SetNull)
+  workflowRun WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+  recipientUser User? @relation("NotificationDeliveryRecipientUser", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientEssPortalUser EssPortalUser? @relation("NotificationDeliveryRecipientEss", fields: [recipientEssPortalUserId], references: [id], onDelete: SetNull)
+
+  @@index([event, createdAt])
+  @@index([recipientUserId, createdAt])
+  @@index([recipientEssPortalUserId, createdAt])
+  @@index([status, channel])
+}
+
 model SchedulerLock {
   key       String   @id
   lastRunAt DateTime @default(now()) @updatedAt
+}
+
+// --- Finance extensions: Chart of Accounts, GL, Expenses, Budgets, Petty Cash ---
+
+enum AccountCategory {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+model ChartOfAccount {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  category    AccountCategory
+  parentId    String?
+  parent      ChartOfAccount? @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ChartOfAccount[] @relation("AccountHierarchy")
+  description String?         @db.Text
+  isActive    Boolean         @default(true)
+  isSystem    Boolean         @default(false)
+  currency    String          @default("KES")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  journalLines GeneralLedgerEntry[]
+
+  @@index([category])
+  @@index([parentId])
+  @@index([isActive])
+}
+
+model GeneralLedgerEntry {
+  id            String   @id @default(cuid())
+  accountId     String
+  transactionId String
+  date          DateTime @db.Date
+  description   String
+  debit         Decimal  @default(0) @db.Decimal(14, 2)
+  credit        Decimal  @default(0) @db.Decimal(14, 2)
+  reference     String?
+  sourceType    String?
+  sourceId      String?
+  createdByUserId String?
+  createdAt     DateTime @default(now())
+
+  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, date])
+  @@index([transactionId])
+  @@index([date])
+  @@index([sourceType, sourceId])
+}
+
+enum ExpenseClaimStatus {
+  draft
+  submitted
+  approved
+  rejected
+  reimbursed
+  cancelled
+}
+
+model ExpenseClaim {
+  id              String             @id @default(cuid())
+  claimNumber     String             @unique
+  employeeId      String?
+  userId          String?
+  claimantName    String
+  department      String?
+  description     String             @db.Text
+  currency        String             @default("KES")
+  totalAmount     Decimal            @default(0) @db.Decimal(14, 2)
+  status          ExpenseClaimStatus @default(draft)
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  approvedByUserId String?
+  rejectionReason String?            @db.Text
+  reimbursedAt    DateTime?
+  paymentReference String?
+  notes           String?            @db.Text
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  items ExpenseClaimItem[]
+
+  @@index([status])
+  @@index([employeeId])
+  @@index([userId])
+  @@index([submittedAt])
+}
+
+enum ExpenseCategory {
+  travel
+  meals
+  accommodation
+  transport
+  office_supplies
+  communication
+  training
+  entertainment
+  medical
+  fuel
+  parking
+  utilities
+  subscriptions
+  other
+}
+
+model ExpenseClaimItem {
+  id            String          @id @default(cuid())
+  claimId       String
+  date          DateTime        @db.Date
+  category      ExpenseCategory @default(other)
+  description   String
+  amount        Decimal         @db.Decimal(14, 2)
+  receiptPath   String?
+  notes         String?         @db.Text
+  createdAt     DateTime        @default(now())
+
+  claim ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@index([date])
+  @@index([category])
+}
+
+enum BudgetStatus {
+  draft
+  active
+  closed
+  exceeded
+}
+
+enum BudgetPeriodType {
+  monthly
+  quarterly
+  annual
+}
+
+model Budget {
+  id             String           @id @default(cuid())
+  name           String
+  department     String?
+  category       String?
+  fiscalYear     Int
+  periodType     BudgetPeriodType @default(annual)
+  currency       String           @default("KES")
+  allocatedAmount Decimal         @db.Decimal(14, 2)
+  spentAmount    Decimal          @default(0) @db.Decimal(14, 2)
+  status         BudgetStatus     @default(draft)
+  startDate      DateTime         @db.Date
+  endDate        DateTime         @db.Date
+  notes          String?          @db.Text
+  createdByUserId String?
+  approvedByUserId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  items BudgetLineItem[]
+
+  @@index([fiscalYear, status])
+  @@index([department])
+  @@index([startDate, endDate])
+}
+
+model BudgetLineItem {
+  id              String   @id @default(cuid())
+  budgetId        String
+  name            String
+  allocatedAmount Decimal  @db.Decimal(14, 2)
+  spentAmount     Decimal  @default(0) @db.Decimal(14, 2)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+}
+
+enum PettyCashStatus {
+  open
+  closed
+  reconciled
+}
+
+model PettyCashFund {
+  id              String          @id @default(cuid())
+  name            String
+  currency        String          @default("KES")
+  floatAmount     Decimal         @db.Decimal(14, 2)
+  currentBalance  Decimal         @default(0) @db.Decimal(14, 2)
+  status          PettyCashStatus @default(open)
+  custodianUserId String?
+  custodianName   String?
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  transactions PettyCashTransaction[]
+
+  @@index([status])
+  @@index([custodianUserId])
+}
+
+enum PettyCashTransactionType {
+  replenishment
+  disbursement
+  refund
+}
+
+model PettyCashTransaction {
+  id             String                    @id @default(cuid())
+  fundId         String
+  type           PettyCashTransactionType
+  amount         Decimal                   @db.Decimal(14, 2)
+  date           DateTime                  @db.Date
+  description    String
+  category       String?
+  receiptPath    String?
+  approvedByUserId String?
+  createdByUserId String?
+  reference      String?
+  notes          String?                   @db.Text
+  createdAt      DateTime                  @default(now())
+
+  fund PettyCashFund @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId, date])
+  @@index([type])
+  @@index([date])
+}
+
+// --- SME Modules: Announcements, Training, Org Chart ---
+
+enum AnnouncementStatus {
+  draft
+  published
+  archived
+}
+
+enum AnnouncementPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+model Announcement {
+  id           String               @id @default(cuid())
+  title        String
+  body         String               @db.Text
+  status       AnnouncementStatus   @default(draft)
+  priority     AnnouncementPriority @default(normal)
+  authorUserId String
+  publishedAt  DateTime?
+  expiresAt    DateTime?
+  isPinned     Boolean              @default(false)
+  targetDepartments Json?
+  targetRoles       Json?
+  attachmentPath    String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([isPinned, publishedAt])
+  @@index([authorUserId])
+  @@index([expiresAt])
+}
+
+enum TrainingStatus {
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+model TrainingProgram {
+  id           String         @id @default(cuid())
+  title        String
+  description  String?        @db.Text
+  category     String?
+  provider     String?
+  location     String?
+  isOnline     Boolean        @default(false)
+  startDate    DateTime?      @db.Date
+  endDate      DateTime?      @db.Date
+  durationHours Int?
+  maxParticipants Int?
+  cost         Decimal?       @db.Decimal(14, 2)
+  currency     String         @default("KES")
+  status       TrainingStatus @default(scheduled)
+  notes        String?        @db.Text
+  createdByUserId String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  enrollments TrainingEnrollment[]
+  materials   TrainingMaterial[]
+
+  @@index([status])
+  @@index([category])
+  @@index([startDate])
+}
+
+enum EnrollmentStatus {
+  enrolled
+  in_progress
+  completed
+  withdrawn
+  failed
+}
+
+model TrainingEnrollment {
+  id            String           @id @default(cuid())
+  programId     String
+  employeeId    String?
+  userId        String?
+  enrolleeName  String
+  status        EnrollmentStatus @default(enrolled)
+  enrolledAt    DateTime         @default(now())
+  completedAt   DateTime?
+  score         Decimal?         @db.Decimal(5, 2)
+  certificatePath String?
+  feedback      String?          @db.Text
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  program TrainingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, employeeId])
+  @@index([programId])
+  @@index([employeeId])
+  @@index([userId])
+  @@index([status])
+}
+
+model TrainingMaterial {
+  id          String   @id @default(cuid())
+  programId   String
+  title       String
+  filePath    String?
+  externalUrl String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  program TrainingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, sortOrder])
+}
+
+enum DocumentStatus {
+  draft
+  published
+  archived
+}
+
+model CompanyDocument {
+  id           String         @id @default(cuid())
+  title        String
+  description  String?        @db.Text
+  category     String
+  filePath     String
+  fileName     String
+  fileSize     Int?
+  mimeType     String?
+  version      String?
+  status       DocumentStatus @default(published)
+  isPublic     Boolean        @default(false)
+  uploadedByUserId String
+  department   String?
+  tags         Json?
+  effectiveDate DateTime?     @db.Date
+  expiryDate   DateTime?      @db.Date
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([department])
+  @@index([effectiveDate])
 }
 
 model Insight {

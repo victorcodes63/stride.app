@@ -4,7 +4,7 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canViewSystemAnalytics } from '@/lib/staff-permissions';
 import { listFeatureFlags } from '@/lib/feature-flags';
 import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client';
-import { parseEntityIdFromRequest, jobLocationMatchesEntity } from '@/lib/entity-request';
+import { resolveEntityIdOrDefault, jobLocationMatchesEntity } from '@/lib/entity-request';
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2021';
@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
     const expiringThreshold = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const workspaceClientId = await resolvePrimaryWorkspaceClientId(prisma, null, request);
-    const entityId = parseEntityIdFromRequest(request);
-    const jobGeoFilter = entityId ? jobLocationMatchesEntity(entityId) : null;
+    const entityId = await resolveEntityIdOrDefault(request);
+    const jobGeoFilter = jobLocationMatchesEntity(entityId);
     const accountsRow = await prisma.accountsClient.findFirst({
       where: { outsourcingClientId: workspaceClientId },
       select: { id: true },
@@ -69,6 +69,9 @@ export async function GET(request: NextRequest) {
       jobs,
       applications,
       interviews,
+      requisitionApprovalsPending,
+      offerApprovalsPending,
+      hiresConverted,
       employees,
       departments,
       credentials,
@@ -139,6 +142,33 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
+      safeCount(() =>
+        prisma.jobRequisitionApproval.count({
+          where: {
+            status: 'pending',
+            job: jobGeoFilter ?? undefined,
+          },
+        })
+      ),
+      safeCount(() =>
+        prisma.jobOfferApproval.count({
+          where: {
+            status: 'pending',
+            application: {
+              job: jobGeoFilter ?? undefined,
+            },
+          },
+        })
+      ),
+      safeCount(() =>
+        prisma.applicationHireConversion.count({
+          where: {
+            application: {
+              job: jobGeoFilter ?? undefined,
+            },
+          },
+        })
+      ),
       safeCount(() =>
         prisma.employee.count({
           where: { outsourcingClientId: workspaceClientId },
@@ -221,6 +251,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       recruitment: { jobs, applications, interviews },
+      recruitmentAnalytics: {
+        requisitionApprovalsPending,
+        offerApprovalsPending,
+        hiresConverted,
+        hireConversionRate:
+          applications.length > 0
+            ? Number(((hiresConverted / applications.length) * 100).toFixed(2))
+            : 0,
+      },
       operations: {
         employees,
         departments,

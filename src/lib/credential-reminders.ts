@@ -1,6 +1,6 @@
 import type { CredentialReminderKind, Prisma } from '@prisma/client';
 import { daysBetweenYmd, nairobiYmd, prismaDateToYmd } from '@/lib/nairobi-calendar';
-import { getEssPortalUserIdForEmployee, sendNotification } from '@/lib/notifications';
+import { createWorkflowRun, getEssPortalUserIdForEmployee, sendNotification } from '@/lib/notifications';
 
 const SCHEDULER_KEY = 'credential-reminders';
 
@@ -40,6 +40,31 @@ async function notifyUsers(
     sentOnYmd: string;
   }
 ) {
+  let workflowRunId: string | null = null;
+  if (params.kind === 'overdue') {
+    const existingRun = await db.workflowRun.findFirst({
+      where: {
+        module: 'credentials',
+        entityType: 'EmployeeCredential',
+        entityId: params.credentialId,
+        status: { in: ['pending', 'in_progress', 'delegated', 'escalated'] },
+      },
+      select: { id: true },
+    });
+    workflowRunId = existingRun?.id ?? null;
+    if (!workflowRunId) {
+      const run = await createWorkflowRun({
+        module: 'credentials',
+        event: 'credential_expired',
+        entityType: 'EmployeeCredential',
+        entityId: params.credentialId,
+        assigneeUserId: params.users[0]?.id ?? null,
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        metadata: { kind: params.kind, employeeId: params.employeeId },
+      });
+      workflowRunId = run.id;
+    }
+  }
   for (const user of params.users) {
     const existing = await db.credentialReminderSent.findUnique({
       where: {
@@ -77,6 +102,7 @@ async function notifyUsers(
       href: params.href,
       priority: params.kind === 'overdue' || params.kind === 'days_7' ? 'urgent' : 'info',
       channel: params.kind === 'overdue' || params.kind === 'days_7' ? 'both' : 'in_app',
+      workflowRunId: workflowRunId ?? undefined,
       metadata: { credentialId: params.credentialId, kind: params.kind },
     });
   }

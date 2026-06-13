@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from '@/components/ui/toast';
+import { EssPageHeader } from '@/components/ess/EssPageHeader';
+import { EssCard, EssSectionTitle, essInputClass, essPrimaryButtonClass } from '@/components/ess/EssUi';
 
 type MePayload = {
   name: string;
@@ -39,6 +41,10 @@ export default function EssProfilePage() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!navigator.onLine) {
+      toast.error('You are offline. Reconnect before updating your profile.');
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/ess/profile', {
@@ -71,75 +77,76 @@ export default function EssProfilePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-primary-900">Profile</h1>
-      <section className="bg-white border border-neutral-200 rounded-xl p-4">
+      <EssPageHeader title="Profile" backHref="/ess/more" />
+      <EssCard>
+        <EssSectionTitle eyebrow="Employee record" title="Your details" />
         <dl className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <dt className="text-neutral-500">ESS name</dt>
-            <dd className="text-neutral-900 font-medium">{me?.name || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">ESS name</dt>
+            <dd className="text-[var(--ess-text)] font-bold">{me?.name || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">ESS email</dt>
-            <dd className="text-neutral-900 font-medium">{me?.email || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">ESS email</dt>
+            <dd className="text-[var(--ess-text)] font-bold">{me?.email || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Role</dt>
-            <dd className="text-neutral-900 font-medium capitalize">{me?.role || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">Role</dt>
+            <dd className="text-[var(--ess-text)] font-bold capitalize">{me?.role || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Employee number</dt>
-            <dd className="text-neutral-900 font-medium">{me?.employee?.employeeNumber || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">Employee number</dt>
+            <dd className="text-[var(--ess-text)] font-bold">{me?.employee?.employeeNumber || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Job title</dt>
-            <dd className="text-neutral-900 font-medium">{me?.employee?.jobTitle || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">Job title</dt>
+            <dd className="text-[var(--ess-text)] font-bold">{me?.employee?.jobTitle || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Employment status</dt>
-            <dd className="text-neutral-900 font-medium capitalize">{me?.employee?.employmentStatus || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">Employment status</dt>
+            <dd className="text-[var(--ess-text)] font-bold capitalize">{me?.employee?.employmentStatus || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Phone</dt>
-            <dd className="text-neutral-900 font-medium">{me?.employee?.phone || '-'}</dd>
+            <dt className="text-[var(--ess-muted)]">Phone</dt>
+            <dd className="text-[var(--ess-text)] font-bold">{me?.employee?.phone || '-'}</dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Date joined</dt>
-            <dd className="text-neutral-900 font-medium">
+            <dt className="text-[var(--ess-muted)]">Date joined</dt>
+            <dd className="text-[var(--ess-text)] font-bold">
               {me?.employee?.dateOfJoining ? new Date(me.employee.dateOfJoining).toLocaleDateString() : '-'}
             </dd>
           </div>
         </dl>
-      </section>
-      <section className="bg-white border border-neutral-200 rounded-xl p-4 max-w-xl">
-        <h2 className="text-sm font-semibold text-neutral-800 mb-3">Update contact details</h2>
+      </EssCard>
+      <EssCard className="max-w-xl">
+        <EssSectionTitle eyebrow="Self-service" title="Update contact details" />
         <form className="space-y-3" onSubmit={onSave}>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Phone</label>
+            <label className="block text-sm font-bold text-[var(--ess-text)] mb-1">Phone</label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+              className={essInputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Employee email</label>
+            <label className="block text-sm font-bold text-[var(--ess-text)] mb-1">Employee email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm"
+              className={essInputClass}
             />
           </div>
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-60"
+            className={essPrimaryButtonClass}
           >
             {saving ? 'Saving...' : 'Save profile'}
           </button>
         </form>
-      </section>
+      </EssCard>
     </div>
   );
 }

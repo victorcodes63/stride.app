@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const requestedClientId = formData.get('clientId') as string | null;
     const autoCreateDepartmentsRaw = formData.get('autoCreateDepartments');
     const autoCreateDepartments =
-      autoCreateDepartmentsRaw === 'true' || autoCreateDepartmentsRaw === '1' || autoCreateDepartmentsRaw === true;
+      autoCreateDepartmentsRaw === 'true' || autoCreateDepartmentsRaw === '1';
 
     if (!file) {
       return NextResponse.json(
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
     const sheet = workbook.worksheets[0];
     if (!sheet) {
       return NextResponse.json({ error: 'The Excel file has no worksheets.' }, { status: 400 });

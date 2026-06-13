@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const limit = Math.min(50, Math.max(1, parseInt(request.nextUrl.searchParams.get('limit') || '30', 10)));
+  const includeHistory = request.nextUrl.searchParams.get('includeHistory') === 'true';
   const [notifications, unreadCount] = await Promise.all([
     prisma.staffNotification.findMany({
       where: { essPortalUserId: user.id, ...whereExcludeSeedStaffNotifications() },
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  return NextResponse.json({
+  const response: Record<string, unknown> = {
     notifications: notifications.map((n) => ({
       id: n.id,
       title: n.title,
@@ -43,7 +44,31 @@ export async function GET(request: NextRequest) {
       createdAt: n.createdAt.toISOString(),
     })),
     unreadCount,
-  });
+  };
+  if (includeHistory) {
+    const history = await prisma.notificationDelivery.findMany({
+      where: { recipientEssPortalUserId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        event: true,
+        channel: true,
+        status: true,
+        provider: true,
+        error: true,
+        createdAt: true,
+        deliveredAt: true,
+        triggerType: true,
+      },
+    });
+    response.deliveryHistory = history.map((h) => ({
+      ...h,
+      createdAt: h.createdAt.toISOString(),
+      deliveredAt: h.deliveredAt?.toISOString() ?? null,
+    }));
+  }
+  return NextResponse.json(response);
 }
 
 export async function PATCH(request: NextRequest) {

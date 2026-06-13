@@ -5,6 +5,7 @@ import { getAccountsAccess } from '@/lib/accounts-access';
 import { computeInvoiceVatFromLines } from '@/lib/accounts-invoice-totals';
 import { generateAccountsInvoicePdf } from '@/lib/accounts-invoice-pdf';
 import { reportApiError } from '@/lib/monitoring';
+import { resolvePaymentDetails } from '@/lib/payment-accounts';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,11 @@ export async function GET(
       amountExVat: String(l.amountExVat),
     }));
 
+    const paymentDetails = await resolvePaymentDetails(prisma, {
+      paymentAccountId: cn.paymentAccountId,
+      paymentBank: cn.paymentBank,
+    });
+
     const pdfBytes = await generateAccountsInvoicePdf({
       kind: 'credit_note',
       documentNumber: cn.creditNoteNumber,
@@ -62,7 +68,7 @@ export async function GET(
       vatAmount,
       totalIncVat,
       lines,
-      paymentBank: cn.paymentBank,
+      paymentDetails,
     });
 
     const q = request.nextUrl.searchParams.get('disposition');

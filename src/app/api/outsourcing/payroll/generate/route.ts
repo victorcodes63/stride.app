@@ -9,7 +9,7 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 import { logAuditEvent } from '@/lib/audit-events';
-import { getPayrollUserIds, sendNotification } from '@/lib/notifications';
+import { createWorkflowRun, getPayrollUserIds, sendNotification } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -211,6 +211,16 @@ export async function POST(request: NextRequest) {
     });
     try {
       const payrollUserIds = await getPayrollUserIds();
+      const workflow = await createWorkflowRun({
+        module: 'payroll',
+        event: 'payroll_generated',
+        entityType: 'PayrollBatch',
+        entityId: `${year}-${month}-${clientId}`,
+        entityCode: clientId ? (await prisma.outsourcingClient.findUnique({ where: { id: clientId }, select: { entityCode: true } }))?.entityCode ?? null : null,
+        assigneeUserId: payrollUserIds[0] ?? null,
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        metadata: { month, year, clientId, created: toCreate.length },
+      });
       await sendNotification({
         event: 'payroll_generated',
         recipientUserIds: payrollUserIds,
@@ -219,7 +229,8 @@ export async function POST(request: NextRequest) {
         href: '/dashboard/outsourcing/payroll',
         priority: 'info',
         channel: 'in_app',
-        metadata: { month, year, clientId },
+        workflowRunId: workflow.id,
+        metadata: { month, year, clientId, workflowRunId: workflow.id },
       });
     } catch (err) {
       console.error('[notifications] Failed to send payroll_generated:', err);

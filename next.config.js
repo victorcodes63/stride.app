@@ -82,6 +82,11 @@ const nextConfig = {
         destination: '/dashboard/settings',
         permanent: false,
       },
+      {
+        source: '/ess/leave-approvals',
+        destination: '/ess/team/leave',
+        permanent: false,
+      },
     ];
   },
   eslint: {

@@ -5,6 +5,7 @@ import { getStaffSessionMaxAgeSeconds } from '@/lib/auth-session';
 import { reportApiError } from '@/lib/monitoring';
 import { logAuditEvent } from '@/lib/audit-events';
 import { getStaffAllowedDomains } from '@/lib/staff-allowed-domains';
+import { createAuthChallengeToken } from '@/lib/auth-challenge';
 
 const STAFF_SESSION_COOKIE = 'staff_session';
 const COOKIE_MAX_AGE = getStaffSessionMaxAgeSeconds();
@@ -117,6 +118,24 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    const mfaEnabled = Boolean((user as { mfaEnabled?: boolean }).mfaEnabled);
+    if (mfaEnabled) {
+      const challenge = createAuthChallengeToken({
+        userId: user.id,
+        email: user.email,
+        purpose: 'login_mfa',
+        exp: Math.floor(Date.now() / 1000) + 5 * 60,
+      });
+      await logAuditEvent({
+        actor: { userId: user.id, email: user.email, name: user.name },
+        action: 'auth.login.mfa_challenge',
+        entityType: 'User',
+        entityId: user.id,
+        route: 'POST /api/auth/login',
+        metadata: { role: user.role },
+      });
+      return NextResponse.json({ success: false, mfaRequired: true, challenge });
+    }
     await logAuditEvent({
       actor: { userId: user.id, email: user.email, name: user.name },
       action: 'auth.login.succeeded',
@@ -125,9 +144,10 @@ export async function POST(request: NextRequest) {
       route: 'POST /api/auth/login',
       metadata: { role: user.role },
     });
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => null);
 
     const response = NextResponse.json({ success: true });
-    response.cookies.set(STAFF_SESSION_COOKIE, `local:${user.id}:${user.role}`, {
+    response.cookies.set(STAFF_SESSION_COOKIE, `local:${user.id}:${user.role}:${Math.floor(Date.now() / 1000)}`, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

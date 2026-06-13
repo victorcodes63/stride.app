@@ -13,7 +13,8 @@ import { requireStaffUser } from '@/lib/staff-api-auth';
 import { canAccessPayroll, forbiddenResponse, unauthorizedResponse } from '@/lib/demo-route-access';
 import { ATTENDANCE_SUMMARY_STATUSES_FOR_PAYROLL } from '@/lib/attendance-reconciliation';
 import { logAuditEvent } from '@/lib/audit-events';
-import { getPayrollUserIds, sendNotification } from '@/lib/notifications';
+import { getPayrollUserIds, sendNotification, transitionWorkflowRun } from '@/lib/notifications';
+import { enforceSodCheck, requireRecentSensitiveAuth, SodViolationError } from '@/lib/admin-security';
 
 export async function GET(
   _request: NextRequest,
@@ -127,7 +128,7 @@ export async function GET(
   }
 }
 
-function toDecimal(v: string | number): Decimal {
+function toDecimal(v: unknown): Decimal {
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, '')) || 0;
   return new Decimal(Math.round(n * 100) / 100);
 }
@@ -307,6 +308,18 @@ export async function PATCH(
         await mapOutsourcingClientsToAccountsClients([existing.employee.outsourcingClientId])
       ).get(existing.employee.outsourcingClientId) ?? null;
 
+    if (statusOverride === 'approved' || statusOverride === 'paid') {
+      const reauthError = requireRecentSensitiveAuth(request, user.id);
+      if (reauthError) return reauthError;
+      await enforceSodCheck({
+        actorUserId: user.id,
+        entityType: 'Payroll',
+        entityId: id,
+        forbiddenActions: ['payroll.updated', 'payroll.generated'],
+        actionLabel: `payroll status transition to ${statusOverride}`,
+      });
+    }
+
     const updated = await prisma.payroll.update({
       where: { id },
       data: {
@@ -358,6 +371,16 @@ export async function PATCH(
     });
     try {
       if (statusChanged && (statusOverride === 'approved' || statusOverride === 'paid')) {
+        const workflowRun = await prisma.workflowRun.findFirst({
+          where: { entityType: 'PayrollBatch', entityId: `${updated.year}-${updated.month}-${existing.employee.outsourcingClientId}` },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true },
+        });
+        if (workflowRun) {
+          await transitionWorkflowRun(workflowRun.id, statusOverride === 'approved' ? 'approved' : 'completed', {
+            actorUserId: user.id,
+          });
+        }
         const payrollUserIds = await getPayrollUserIds();
         await sendNotification({
           event: statusOverride === 'approved' ? 'payroll_approved' : 'payroll_locked',
@@ -370,7 +393,8 @@ export async function PATCH(
           href: '/dashboard/outsourcing/payroll',
           priority: 'info',
           channel: 'in_app',
-          metadata: { month: updated.month, year: updated.year, approver: user.name },
+          workflowRunId: workflowRun?.id,
+          metadata: { month: updated.month, year: updated.year, approver: user.name, workflowRunId: workflowRun?.id },
         });
       }
     } catch (err) {
@@ -395,6 +419,9 @@ export async function PATCH(
       netPay: String(updated.netPay),
     });
   } catch (e) {
+    if (e instanceof SodViolationError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     console.error('[payroll PATCH]', e);
     return NextResponse.json({ error: 'Failed to update payroll' }, { status: 500 });
   }

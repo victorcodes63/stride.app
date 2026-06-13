@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { CreateJobInput } from '@/lib/jobs-store';
+import { CreateJobInput, toJobStringArray } from '@/lib/jobs-store';
 import { JobListing } from '@/types/ats';
 import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 import { parseDateTimeAsNairobi } from '@/lib/timezone';
@@ -247,9 +247,9 @@ export async function POST(request: NextRequest) {
     type,
     category,
     description,
-    requirements,
-    responsibilities,
-    benefits: (typeof benefits === 'string' ? benefits.trim() : benefits.length) ? benefits : undefined,
+    requirements: toJobStringArray(requirements),
+    responsibilities: toJobStringArray(responsibilities),
+    benefits: toJobStringArray(benefits).length ? toJobStringArray(benefits) : undefined,
     salary,
     experience,
     education,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     educationQualification,
     requiredCertifications,
     skills: skills.length ? skills : undefined,
-    clientId: resolvedClientId,
+    clientId: resolvedClientId ?? undefined,
     concealCompany,
     salaryPublic,
     applicationStartAt: applicationStartAt ? applicationStartAt.toISOString() : undefined,
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
           description: input.description,
           requirements: input.requirements,
           responsibilities: input.responsibilities,
-          benefits: (input.benefits !== undefined && input.benefits !== null && (typeof input.benefits === 'string' ? input.benefits.trim() : (input.benefits as unknown[]).length)) ? input.benefits : [],
+          benefits: input.benefits?.length ? input.benefits : [],
           salary: input.salary ?? undefined,
           experience: input.experience ?? null,
           education: input.education ?? null,

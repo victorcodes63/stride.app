@@ -32,8 +32,9 @@ function run(command: string) {
     cwd: root,
     env: {
       ...process.env,
+      DEMO_PACK: process.env.DEMO_PACK ?? 'generic',
       ACCOUNTS_SEED_USER_EMAIL:
-        process.env.ACCOUNTS_SEED_USER_EMAIL ?? 'demo@stabexintl.com',
+        process.env.ACCOUNTS_SEED_USER_EMAIL ?? process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL ?? 'demo@example.com',
     },
   });
 }

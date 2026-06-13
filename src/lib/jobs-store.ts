@@ -62,9 +62,9 @@ function toListing(j: StoredJob, maskAnonymous = false): JobListing {
     category: j.category,
     postedDate: j.postedDate,
     description: j.description,
-    requirements: j.requirements,
-    responsibilities: j.responsibilities,
-    benefits: j.benefits,
+    requirements: j.requirements.join('\n'),
+    responsibilities: j.responsibilities.join('\n'),
+    benefits: j.benefits.join('\n'),
     salary: showSalary ? j.salary : undefined,
     experience: j.experience,
     education: j.education,
@@ -176,6 +176,16 @@ export function updateInMemoryJob(id: string, input: UpdateJobInput): JobListing
   };
   jobs[index] = updated;
   return toListing(updated, false);
+}
+
+/** Normalize API body field (string or string[]) to CreateJobInput string[]. */
+export function toJobStringArray(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  if (typeof value === 'string') {
+    const t = value.trim();
+    return t ? [t] : [];
+  }
+  return value.map((x) => (typeof x === 'string' ? x.trim() : String(x))).filter(Boolean);
 }
 
 export interface CreateJobInput {

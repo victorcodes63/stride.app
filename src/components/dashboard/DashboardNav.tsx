@@ -1,240 +1,186 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { UserRole } from '@/types/dashboard';
+import type { EnabledModulesMap } from '@/lib/nav-modules';
 import {
-  LayoutDashboard,
-  Users,
-  Briefcase,
-  UserSearch,
-  FileText,
-  FolderOpen,
-  ChevronRight,
-  Building2,
-  Banknote,
-  CalendarDays,
-  Clock4,
-  CalendarOff,
-  FileSignature,
-  BadgeCheck,
-  ListTodo,
-  Fingerprint,
-  Receipt,
-  Landmark,
-  BarChart3,
-  BarChart2,
-  Shield,
-  ShieldAlert,
-  UserCog,
-  KeyRound,
-  History,
-  Settings,
-  LayoutGrid,
-  Wallet,
-  FileStack,
-  Scale,
-} from 'lucide-react';
+  ALL_MODULES_ENABLED,
+  buildDashboardNavSections,
+  DASHBOARD_NAV_GROUPS,
+  OVERVIEW_NAV_ITEM,
+  resolveDashboardNavItems,
+  type DashboardNavItem,
+  type DashboardNavSection,
+} from '@/lib/dashboard-nav-catalog';
+import { ChevronRight, Pin, PinOff, type LucideIcon } from 'lucide-react';
 
 const NAV_STORAGE_KEY = 'dashboard-nav-expanded';
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 interface DashboardNavProps {
   currentUserRole: UserRole | null;
-  collapsed: boolean;
-  /** When true, show Accounts section (admin or AccountsStaffAccess in dashboard API). */
   hasAccountsAccess?: boolean;
-  /** Executive analytics (/dashboard/analytics) — admin or Director staff type. */
   canViewSystemAnalytics?: boolean;
+  enabledModules?: EnabledModulesMap;
+  onNavigate?: () => void;
 }
 
-type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+function isPathActive(pathname: string, href: string): boolean {
+  if (href === '/dashboard') return pathname === '/dashboard';
+  const base = href.split('?')[0];
+  return pathname === base || pathname.startsWith(base + '/');
+}
 
-type AccordionSection = {
-  id: string;
+function NavPinButton({
+  href,
+  isPinned,
+  onTogglePin,
+  variant = 'default',
+}: {
+  href: string;
+  isPinned: boolean;
+  onTogglePin: (href: string) => void;
+  variant?: 'default' | 'onPrimary';
+}) {
+  const idleClass =
+    variant === 'onPrimary'
+      ? 'text-white/50 opacity-60 group-hover/link-row:opacity-100 group-hover/link-row:text-white hover:bg-white/15 hover:text-white'
+      : 'text-neutral-400 opacity-50 group-hover/link-row:opacity-100 hover:bg-neutral-100 hover:text-primary-600';
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onTogglePin(href);
+      }}
+      className={`ml-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:opacity-100 ${
+        isPinned
+          ? variant === 'onPrimary'
+            ? 'text-white opacity-100 hover:bg-white/15'
+            : 'text-primary-600 opacity-100'
+          : idleClass
+      }`}
+      title={isPinned ? 'Unpin from top' : 'Pin to top'}
+      aria-label={isPinned ? `Unpin ${href} from top` : `Pin ${href} to top`}
+      aria-pressed={isPinned}
+    >
+      {isPinned ? <PinOff className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Pin className="h-3.5 w-3.5" strokeWidth={1.75} />}
+    </button>
+  );
+}
+
+function NavSubLink({
+  href,
+  label,
+  pathname,
+  onNavigate,
+  isPinned,
+  onTogglePin,
+  isLast = false,
+  sectionActive = false,
+}: {
+  href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  items: NavItem[];
-};
+  pathname: string;
+  onNavigate?: () => void;
+  isPinned: boolean;
+  onTogglePin: (href: string) => void;
+  isLast?: boolean;
+  sectionActive?: boolean;
+}) {
+  const isActive = isPathActive(pathname, href);
+  const connectorClass = sectionActive ? 'bg-primary-200' : 'bg-neutral-200';
 
-const primarySections: AccordionSection[] = [
-  {
-    id: 'people-hr',
-    label: 'People & HR',
-    icon: Users,
-    items: [
-      { href: '/dashboard/employees', label: 'Employees', icon: Users },
-      { href: '/dashboard/departments', label: 'Departments', icon: Building2 },
-      { href: '/dashboard/people/contracts', label: 'Contracts', icon: FileSignature },
-      { href: '/dashboard/credentials', label: 'Credentials', icon: BadgeCheck },
-      { href: '/dashboard/performance', label: 'Performance', icon: BarChart2 },
-      { href: '/dashboard/disciplinary', label: 'Disciplinary', icon: Shield },
-      { href: '/dashboard/onboarding', label: 'Onboarding', icon: ListTodo },
-    ],
-  },
-  {
-    id: 'recruitment',
-    label: 'Recruitment',
-    icon: Briefcase,
-    items: [
-      { href: '/dashboard/jobs', label: 'Job openings', icon: Briefcase },
-      { href: '/dashboard/applications', label: 'Applications', icon: FileText },
-      { href: '/dashboard/candidates', label: 'Talent pool', icon: UserSearch },
-      { href: '/dashboard/interviews', label: 'Interviews', icon: CalendarDays },
-      { href: '/dashboard/interviews/schedule', label: 'Interview calendar', icon: Clock4 },
-      { href: '/dashboard/recruitment/profile', label: 'Careers profile', icon: Building2 },
-    ],
-  },
-  {
-    id: 'time-attendance',
-    label: 'Time & Attendance',
-    icon: CalendarDays,
-    items: [
-      { href: '/dashboard/rota', label: 'Rota & scheduling', icon: CalendarDays },
-      { href: '/dashboard/attendance', label: 'Attendance', icon: Clock4 },
-      { href: '/dashboard/leave', label: 'Leave', icon: CalendarOff },
-      { href: '/dashboard/biometric-devices', label: 'Biometric devices', icon: Fingerprint },
-    ],
-  },
-];
+  return (
+    <div className="relative flex items-stretch">
+      <div className="relative ml-3 w-4 flex-shrink-0">
+        <span
+          className={`absolute left-0 top-0 w-px ${connectorClass} ${isLast ? 'h-3.5' : 'bottom-0 h-full'}`}
+          aria-hidden
+        />
+        <span className={`absolute left-0 top-3.5 h-px w-3 ${connectorClass}`} aria-hidden />
+      </div>
+      <Link
+        href={href}
+        onClick={onNavigate}
+        title={label}
+        className={`group/link-row mb-0.5 flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 pl-1 pr-1 text-[12.5px] leading-snug transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
+          isActive
+            ? 'bg-primary-50 font-medium text-primary-900'
+            : 'font-normal text-neutral-600 hover:bg-neutral-50 hover:text-ink'
+        }`}
+      >
+        <span className="truncate">{label}</span>
+        <NavPinButton href={href} isPinned={isPinned} onTogglePin={onTogglePin} />
+      </Link>
+    </div>
+  );
+}
 
-const hseComplianceSection: AccordionSection = {
-  id: 'hse-compliance',
-  label: 'HSE & Compliance',
-  icon: ShieldAlert,
-  items: [{ href: '/dashboard/hse', label: 'Incidents', icon: ShieldAlert }],
-};
-
-const payrollSection: AccordionSection = {
-  id: 'payroll',
-  label: 'Payroll',
-  icon: Banknote,
-  items: [
-    { href: '/dashboard/payroll', label: 'Payroll runs', icon: Banknote },
-    { href: '/dashboard/payroll/payslips', label: 'Payslips', icon: Receipt },
-    { href: '/dashboard/payroll/statutory', label: 'Statutory', icon: Landmark },
-  ],
-};
-
-const adminSection: AccordionSection = {
-  id: 'admin',
-  label: 'Admin',
-  icon: Shield,
-  items: [
-    { href: '/dashboard/users/staff', label: 'System users', icon: Shield },
-    { href: '/dashboard/admin/roles-permissions', label: 'Roles & permissions', icon: KeyRound },
-    { href: '/dashboard/admin/holidays', label: 'Public holidays', icon: CalendarDays },
-    { href: '/dashboard/admin/audit-log', label: 'Audit log', icon: History },
-    { href: '/dashboard/admin/ess-portal-users', label: 'ESS portal users', icon: UserCog },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  ],
-};
-
-const reportsSection: AccordionSection = {
-  id: 'reports',
-  label: 'Reports',
-  icon: BarChart3,
-  items: [
-    { href: '/dashboard/reports', label: 'All reports', icon: BarChart3 },
-  ],
-};
-
-/** Billing / AR-AP — same gate as Accounts APIs (`hasAccountsAccess`: admin always, or AccountsStaffAccess). */
-const financeSection: AccordionSection = {
-  id: 'finance',
-  label: 'Finance',
-  icon: Landmark,
-  items: [
-    { href: '/dashboard/accounts', label: 'Accounts overview', icon: LayoutGrid },
-    { href: '/dashboard/accounts/clients', label: 'Billing clients', icon: Building2 },
-    { href: '/dashboard/accounts/invoices', label: 'Invoices', icon: FileText },
-    { href: '/dashboard/accounts/receipts', label: 'Receipts', icon: Receipt },
-    { href: '/dashboard/accounts/vendors', label: 'Vendors', icon: Wallet },
-    { href: '/dashboard/accounts/vendor-bills', label: 'Vendor bills', icon: FileStack },
-    { href: '/dashboard/accounts/statements', label: 'Statements', icon: Scale },
-    { href: '/dashboard/accounts/payroll', label: 'Payroll (accounts)', icon: Banknote },
-  ],
-};
-
-function NavLink({
+function NavRootLink({
   href,
   label,
   icon: Icon,
   pathname,
-  indent = false,
+  onNavigate,
+  isPinned,
+  onTogglePin,
 }: {
   href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   pathname: string;
-  indent?: boolean;
+  onNavigate?: () => void;
+  isPinned: boolean;
+  onTogglePin: (href: string) => void;
 }) {
-  const isActive =
-    href === '/dashboard'
-      ? pathname === '/dashboard'
-      : pathname === href || pathname.startsWith(href + '/');
+  const isActive = isPathActive(pathname, href);
+
   return (
     <Link
       href={href}
-      title={label}
-      className={`relative flex h-9 items-center gap-3 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 ${
-        indent ? 'ml-2 pl-3 pr-2' : 'px-3'
-      } ${
+      onClick={onNavigate}
+      className={`group/link-row flex h-8 items-center gap-2 rounded-lg px-2 pr-1 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
         isActive
-          ? 'bg-blue-50 text-blue-900 font-medium border border-blue-200'
-          : 'text-neutral-700 hover:bg-neutral-50 hover:text-ink border border-transparent'
+          ? 'bg-primary-600 font-medium text-white shadow-sm'
+          : 'font-medium text-neutral-700 hover:bg-neutral-100/80 hover:text-ink'
       }`}
     >
-      {isActive ? (
-        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-blue-600" />
-      ) : null}
-      <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+      <Icon
+        className={`h-4 w-4 flex-shrink-0 [stroke-width:1.75] ${isActive ? 'text-white' : 'text-neutral-500'}`}
+      />
       <span className="truncate">{label}</span>
+      <NavPinButton
+        href={href}
+        isPinned={isPinned}
+        onTogglePin={onTogglePin}
+        variant={isActive ? 'onPrimary' : 'default'}
+      />
     </Link>
   );
 }
 
-function NavLinkIcon({
-  href,
-  label,
-  icon: Icon,
-  pathname,
-}: {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  pathname: string;
-}) {
-  const isActive =
-    href === '/dashboard'
-      ? pathname === '/dashboard'
-      : pathname === href || pathname.startsWith(href + '/');
+function NavGroupLabel({ label }: { label: string }) {
   return (
-    <Link
-      href={href}
-      title={label}
-      aria-label={label}
-      className={`flex items-center justify-center w-9 h-9 mx-auto rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 ${
-        isActive
-          ? 'bg-blue-50 text-blue-900'
-          : 'text-neutral-500 hover:bg-neutral-50 hover:text-ink'
-      }`}
-    >
-      <Icon className="w-5 h-5" />
-    </Link>
+    <p className="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-400">
+      {label}
+    </p>
   );
 }
 
-function getStoredExpanded(fallbackSectionIds: string[]): Set<string> {
-  if (typeof window === 'undefined') return new Set(fallbackSectionIds);
+function getStoredExpanded(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
   try {
     const raw = localStorage.getItem(NAV_STORAGE_KEY);
-    if (!raw) return new Set(fallbackSectionIds);
+    if (!raw) return new Set();
     const parsed = JSON.parse(raw) as string[];
     return new Set(Array.isArray(parsed) ? parsed : []);
   } catch {
-    return new Set(fallbackSectionIds);
+    return new Set();
   }
 }
 
@@ -244,6 +190,16 @@ function setStoredExpanded(expanded: Set<string>) {
   } catch {
     /* ignore */
   }
+}
+
+function getActiveSectionIds(sections: DashboardNavSection[], pathname: string): Set<string> {
+  const active = new Set<string>();
+  for (const section of sections) {
+    if (section.items.some((item) => isPathActive(pathname, item.href))) {
+      active.add(section.id);
+    }
+  }
+  return active;
 }
 
 export function readSidebarCollapsed(): boolean {
@@ -265,41 +221,101 @@ export function writeSidebarCollapsed(collapsed: boolean) {
 
 export default function DashboardNav({
   currentUserRole,
-  collapsed,
   hasAccountsAccess = false,
   canViewSystemAnalytics = false,
+  enabledModules = ALL_MODULES_ENABLED,
+  onNavigate,
 }: DashboardNavProps) {
   const pathname = usePathname();
-  const sections = useMemo<AccordionSection[]>(() => {
-    const chunks: AccordionSection[] = [...primarySections, hseComplianceSection, payrollSection, reportsSection];
-    if (hasAccountsAccess) chunks.push(financeSection);
-    if (currentUserRole === 'admin' || hasAccountsAccess || canViewSystemAnalytics) chunks.push(adminSection);
-    return chunks;
-  }, [canViewSystemAnalytics, currentUserRole, hasAccountsAccess]);
-
-  const [expanded, setExpanded] = useState<Set<string>>(
-    () =>
-      new Set([
-        ...primarySections.map((s) => s.id),
-        hseComplianceSection.id,
-        payrollSection.id,
-        reportsSection.id,
-        financeSection.id,
-        adminSection.id,
-      ])
+  const navOptions = useMemo(
+    () => ({
+      currentUserRole,
+      hasAccountsAccess,
+      canViewSystemAnalytics,
+      enabledModules,
+    }),
+    [canViewSystemAnalytics, currentUserRole, enabledModules, hasAccountsAccess],
   );
 
-  useEffect(() => {
-    const stored = getStoredExpanded(sections.map((s) => s.id));
-    const expandedSet = new Set(stored);
-    for (const section of sections) {
-      const isActive = section.items.some(
-        (item) => pathname === item.href || pathname.startsWith(item.href + '/')
-      );
-      if (isActive) expandedSet.add(section.id);
+  const sections = useMemo(() => buildDashboardNavSections(navOptions), [navOptions]);
+  const groupLabelBySection = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of DASHBOARD_NAV_GROUPS) {
+      map.set(group.startSectionId, group.label);
     }
+    return map;
+  }, []);
+
+  const [pinnedHrefs, setPinnedHrefs] = useState<string[]>([]);
+  const [pinsLoaded, setPinsLoaded] = useState(false);
+
+  const pinnedItems = useMemo(
+    () => resolveDashboardNavItems(pinnedHrefs, sections),
+    [pinnedHrefs, sections],
+  );
+
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [hydrated, setHydrated] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    let cancelled = false;
+    fetch('/api/dashboard/nav-preferences')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { pinned?: string[] } | null) => {
+        if (cancelled || !data?.pinned) return;
+        setPinnedHrefs(Array.isArray(data.pinned) ? data.pinned : []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPinsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMounted]);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    const stored = getStoredExpanded();
+    const activeSections = getActiveSectionIds(sections, pathname);
+    const expandedSet = new Set([...stored, ...activeSections]);
     setExpanded(expandedSet);
-  }, [pathname, sections]);
+    setHydrated(true);
+  }, [hasMounted, pathname, sections]);
+
+  const persistPins = useCallback(async (next: string[]) => {
+    try {
+      const response = await fetch('/api/dashboard/nav-preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned: next }),
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { pinned?: string[] };
+      if (Array.isArray(data.pinned)) setPinnedHrefs(data.pinned);
+    } catch {
+      /* keep optimistic state */
+    }
+  }, []);
+
+  const togglePin = useCallback(
+    (href: string) => {
+      setPinnedHrefs((prev) => {
+        const next = prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href];
+        void persistPins(next);
+        return next;
+      });
+    },
+    [persistPins],
+  );
+
+  const isPinned = useCallback((href: string) => pinnedHrefs.includes(href), [pinnedHrefs]);
 
   const toggleSection = (id: string) => {
     setExpanded((prev) => {
@@ -311,65 +327,99 @@ export default function DashboardNav({
     });
   };
 
-  if (collapsed) {
-    const flatItems: NavItem[] = [
-      { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-      ...sections.flatMap((s) => s.items),
-    ];
-    return (
-      <nav className="flex-1 py-2 px-1 overflow-y-auto overflow-x-hidden flex flex-col items-center gap-1">
-        {flatItems.map((item) => (
-          <NavLinkIcon key={item.href} {...item} pathname={pathname} />
-        ))}
-      </nav>
-    );
-  }
+  const renderPinnedLink = (item: DashboardNavItem) => (
+    <NavRootLink
+      key={item.href}
+      {...item}
+      pathname={pathname}
+      onNavigate={onNavigate}
+      isPinned={isPinned(item.href)}
+      onTogglePin={togglePin}
+    />
+  );
 
   return (
-    <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-      <p className="px-3 pt-4 pb-2 text-xs font-semibold uppercase tracking-[0.06em] text-neutral-400">Menu</p>
-      <NavLink href="/dashboard" label="Overview" icon={LayoutDashboard} pathname={pathname} />
+    <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-1.5 scrollbar-thin">
+      {pinsLoaded && pinnedItems.length > 0 ? (
+        <div className="mb-1">
+          <NavGroupLabel label="Pinned" />
+          <div className="space-y-0.5">{pinnedItems.map(renderPinnedLink)}</div>
+        </div>
+      ) : null}
+
+      <NavRootLink
+        {...OVERVIEW_NAV_ITEM}
+        pathname={pathname}
+        onNavigate={onNavigate}
+        isPinned={isPinned(OVERVIEW_NAV_ITEM.href)}
+        onTogglePin={togglePin}
+      />
 
       {sections.map((section) => {
-        const isExpanded = expanded.has(section.id);
-        const FolderIcon = isExpanded ? FolderOpen : section.icon;
+        const isExpanded = hasMounted && hydrated ? expanded.has(section.id) : false;
+        const sectionActive = section.items.some((item) => isPathActive(pathname, item.href));
+        const SectionIcon = section.icon;
+        const groupLabel = groupLabelBySection.get(section.id);
+
         return (
-          <div key={section.id} className="pt-4">
-            <button
-              type="button"
-              onClick={() => toggleSection(section.id)}
-              className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-left transition-colors text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
-              aria-expanded={isExpanded}
-              aria-controls={`nav-section-${section.id}`}
-              id={`nav-trigger-${section.id}`}
-            >
-              <ChevronRight
-                className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 text-neutral-400 ${
-                  isExpanded ? 'rotate-90' : ''
+          <div key={section.id}>
+            {groupLabel ? <NavGroupLabel label={groupLabel} /> : null}
+            <div>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className={`flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
+                  sectionActive
+                    ? 'bg-neutral-100 font-semibold text-ink'
+                    : 'font-medium text-neutral-600 hover:bg-neutral-50'
                 }`}
-              />
-              <FolderIcon className="w-[18px] h-[18px] flex-shrink-0" />
-              <span className="flex-1 text-xs font-semibold uppercase tracking-[0.06em]">{section.label}</span>
-            </button>
-            <div
-              id={`nav-section-${section.id}`}
-              role="region"
-              aria-labelledby={`nav-trigger-${section.id}`}
-              className={`overflow-hidden transition-all duration-200 ${
-                isExpanded ? 'max-h-[560px] opacity-100' : 'max-h-0 opacity-0'
-              }`}
-            >
-              {/* Right padding so active state (border) is not clipped by overflow-hidden */}
-              <div className="mt-1 space-y-1 border-l border-neutral-200 ml-4 pl-2 pr-2 pb-1">
-                {section.items.map((item) => (
-                  <NavLink key={item.href} {...item} pathname={pathname} indent />
-                ))}
+                aria-expanded={isExpanded}
+                aria-controls={`nav-section-${section.id}`}
+                id={`nav-trigger-${section.id}`}
+              >
+                <SectionIcon
+                  className={`h-4 w-4 flex-shrink-0 [stroke-width:1.75] ${
+                    sectionActive ? 'text-primary-600' : 'text-neutral-400'
+                  }`}
+                />
+                <span className="min-w-0 flex-1 truncate">{section.label}</span>
+                <ChevronRight
+                  className={`h-3.5 w-3.5 flex-shrink-0 text-neutral-400 transition-transform duration-200 ${
+                    isExpanded ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
+
+              <div
+                id={`nav-section-${section.id}`}
+                role="region"
+                aria-labelledby={`nav-trigger-${section.id}`}
+                className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                  isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div className="space-y-0.5 pb-1 pt-0.5">
+                    {section.items.map((item, index) => (
+                      <NavSubLink
+                        key={item.href}
+                        href={item.href}
+                        label={item.label}
+                        pathname={pathname}
+                        onNavigate={onNavigate}
+                        isPinned={isPinned(item.href)}
+                        onTogglePin={togglePin}
+                        isLast={index === section.items.length - 1}
+                        sectionActive={sectionActive}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         );
       })}
-
     </nav>
   );
 }

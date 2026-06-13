@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
   const zipBuffer = await zipPromise;
 
   const date = new Date().toISOString().slice(0, 10);
-  return new NextResponse(zipBuffer, {
+  return new NextResponse(new Uint8Array(zipBuffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',

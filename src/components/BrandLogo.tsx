@@ -1,50 +1,64 @@
 'use client';
 
-import Image from 'next/image';
 import { usePublicBrand } from '@/components/BrandProvider';
-import { useResolvedBrandLogoSrc } from '@/hooks/useResolvedBrandLogoSrc';
+import { normalizeLogoSrc } from '@/lib/brand-constants';
 
 type BrandLogoProps = {
   className?: string;
-  /** Navbar / marketing header */
-  variant?: 'header' | 'sidebarExpanded' | 'sidebarCollapsed' | 'compact' | 'auth';
+  variant?: 'mark' | 'markSm' | 'markLg' | 'header' | 'sidebarExpanded' | 'sidebarCollapsed' | 'compact' | 'auth';
   priority?: boolean;
-  /** Override alt text (e.g. empty string for decorative collapsed sidebar icon). */
   alt?: string;
+  /** Override URL — use when parent already has brand snapshot */
+  src?: string;
 };
 
+/** Square platform mark sizes (width/height match class for stable SSR hydration). */
 const variantClass: Record<NonNullable<BrandLogoProps['variant']>, string> = {
-  header: 'h-10 w-auto',
-  sidebarExpanded: 'h-10 w-auto max-w-[11rem] object-contain mx-auto',
-  sidebarCollapsed: 'h-10 w-10 object-contain mx-auto',
-  compact: 'h-8 w-auto',
-  auth: 'h-16 w-auto object-contain',
+  mark: 'h-10 w-10 object-contain',
+  markSm: 'h-9 w-9 object-contain',
+  markLg: 'h-12 w-12 object-contain',
+  header: 'h-9 w-9 object-contain',
+  sidebarExpanded: 'h-9 w-9 object-contain',
+  sidebarCollapsed: 'h-9 w-9 object-contain',
+  compact: 'h-8 w-8 object-contain',
+  auth: 'h-14 w-14 object-contain',
 };
 
-const variantSize: Record<NonNullable<BrandLogoProps['variant']>, { w: number; h: number }> = {
-  header: { w: 120, h: 40 },
-  sidebarExpanded: { w: 150, h: 45 },
-  sidebarCollapsed: { w: 40, h: 40 },
-  compact: { w: 120, h: 40 },
-  auth: { w: 220, h: 64 },
+const variantSize: Record<NonNullable<BrandLogoProps['variant']>, number> = {
+  mark: 40,
+  markSm: 36,
+  markLg: 48,
+  header: 36,
+  sidebarExpanded: 36,
+  sidebarCollapsed: 36,
+  compact: 32,
+  auth: 56,
 };
 
 /**
- * Single source for product logo — keep public header and dashboard sidebar in sync.
+ * Brand mark — native img (not next/image) to avoid hydration mismatches when
+ * dev HMR serves stale client chunks. Logo URL comes from BrandProvider snapshot.
  */
-export default function BrandLogo({ className, variant = 'header', priority, alt }: BrandLogoProps) {
-  const { appName } = usePublicBrand();
-  const logoSrc = useResolvedBrandLogoSrc();
-  const dims = variantSize[variant];
+export default function BrandLogo({
+  className,
+  variant = 'mark',
+  alt,
+  src,
+}: BrandLogoProps) {
+  const { appName, logoSrc: brandLogoSrc } = usePublicBrand();
+  const size = variantSize[variant];
   const cls = className ?? variantClass[variant];
+  const logoSrc = normalizeLogoSrc(src ?? brandLogoSrc);
+
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={logoSrc}
       alt={alt ?? appName}
-      width={dims.w}
-      height={dims.h}
+      width={size}
+      height={size}
       className={cls}
-      priority={priority}
+      decoding="async"
     />
   );
 }

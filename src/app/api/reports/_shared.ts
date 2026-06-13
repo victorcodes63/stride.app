@@ -70,7 +70,7 @@ export async function jsonOrPdf(
 ) {
   if (format !== 'pdf') return NextResponse.json(payload);
   const pdf = await toSimplePdf(title, previewLines);
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: downloadHeaders('application/pdf', filename),
   });
 }

@@ -10,6 +10,7 @@ import {
 import { logAuditEvent } from '@/lib/audit-events';
 import { DocumentUploadError, uploadEmployeeDocument } from '@/lib/document-upload';
 import { getEssPortalUserIdForEmployee, sendNotification } from '@/lib/notifications';
+import { resolvePrimaryWorkspaceClientId } from '@/lib/primary-workspace-client';
 
 const CATEGORIES = new Set([
   'CONTRACT',
@@ -38,14 +39,36 @@ export async function GET(
   if (!process.env.DATABASE_URL) return NextResponse.json([], { status: 200 });
 
   const { id } = await params;
+  const workspaceId = await resolvePrimaryWorkspaceClientId(prisma, null, request);
   const includeMedical = canViewMedicalDocuments(user.role, user.staffUserType);
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get('q')?.trim();
+  const category = searchParams.get('category')?.trim().toUpperCase();
+  const verifiedOnly = searchParams.get('verifiedOnly') === 'true';
 
-  const employee = await prisma.employee.findUnique({ where: { id }, select: { id: true } });
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: { id: true, outsourcingClientId: true },
+  });
   if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  if (employee.outsourcingClientId !== workspaceId) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  }
 
   const documents = await prisma.employeeDocument.findMany({
     where: {
       employeeId: id,
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { fileName: { contains: q, mode: 'insensitive' } },
+              { documentNumber: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(category && CATEGORIES.has(category) ? { category: category as never } : {}),
+      ...(verifiedOnly ? { isVerified: true } : {}),
       ...(includeMedical ? {} : { category: { not: 'MEDICAL' } }),
     },
     include: {
@@ -67,6 +90,11 @@ export async function GET(
       fileName: doc.fileName,
       fileSize: doc.fileSize,
       mimeType: doc.mimeType,
+      documentNumber: doc.documentNumber,
+      issuedOn: doc.issuedOn?.toISOString().slice(0, 10) ?? null,
+      expiresOn: doc.expiresOn?.toISOString().slice(0, 10) ?? null,
+      isVerified: doc.isVerified,
+      tags: doc.tags,
       uploadedBy: doc.uploader,
       uploadedAt: doc.uploadedAt.toISOString(),
       notes: doc.notes,
@@ -90,8 +118,15 @@ export async function POST(
   }
 
   const { id } = await params;
-  const employee = await prisma.employee.findUnique({ where: { id }, select: { id: true } });
+  const workspaceId = await resolvePrimaryWorkspaceClientId(prisma, null, request);
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: { id: true, outsourcingClientId: true },
+  });
   if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  if (employee.outsourcingClientId !== workspaceId) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  }
 
   try {
     const formData = await request.formData();
@@ -99,6 +134,11 @@ export async function POST(
     const titleRaw = formData.get('title');
     const categoryRaw = formData.get('category');
     const notesRaw = formData.get('notes');
+    const documentNumberRaw = formData.get('documentNumber');
+    const issuedOnRaw = formData.get('issuedOn');
+    const expiresOnRaw = formData.get('expiresOn');
+    const isVerifiedRaw = formData.get('isVerified');
+    const tagsRaw = formData.get('tags');
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Missing file (field: file)' }, { status: 400 });
@@ -115,6 +155,23 @@ export async function POST(
 
     const uploaded = await uploadEmployeeDocument(file);
     const notes = typeof notesRaw === 'string' ? notesRaw.trim() || null : null;
+    const documentNumber = typeof documentNumberRaw === 'string' ? documentNumberRaw.trim() || null : null;
+    const issuedOn =
+      typeof issuedOnRaw === 'string' && issuedOnRaw.trim()
+        ? new Date(issuedOnRaw.trim())
+        : null;
+    const expiresOn =
+      typeof expiresOnRaw === 'string' && expiresOnRaw.trim()
+        ? new Date(expiresOnRaw.trim())
+        : null;
+    const isVerified = typeof isVerifiedRaw === 'string' ? isVerifiedRaw === 'true' : false;
+    const tags =
+      typeof tagsRaw === 'string' && tagsRaw.trim()
+        ? tagsRaw
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [];
 
     const created = await prisma.employeeDocument.create({
       data: {
@@ -125,6 +182,11 @@ export async function POST(
         fileName: uploaded.fileName,
         fileSize: uploaded.fileSize,
         mimeType: uploaded.mimeType,
+        documentNumber,
+        issuedOn: issuedOn && !Number.isNaN(issuedOn.getTime()) ? issuedOn : null,
+        expiresOn: expiresOn && !Number.isNaN(expiresOn.getTime()) ? expiresOn : null,
+        isVerified,
+        tags,
         notes,
         uploadedBy: user.id,
       },
@@ -145,6 +207,11 @@ export async function POST(
         category: created.category,
         fileName: created.fileName,
         fileSize: created.fileSize,
+        documentNumber: created.documentNumber,
+        issuedOn: created.issuedOn?.toISOString().slice(0, 10) ?? null,
+        expiresOn: created.expiresOn?.toISOString().slice(0, 10) ?? null,
+        isVerified: created.isVerified,
+        tags: created.tags,
       },
     });
     try {

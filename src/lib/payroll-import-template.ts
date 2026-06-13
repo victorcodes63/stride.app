@@ -72,7 +72,9 @@ export async function parsePayrollImportWorkbook(buffer: Uint8Array): Promise<{
   invalidRows: { row: number; reason: string }[];
 }> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Buffer.from(buffer) as unknown as Buffer);
+  await workbook.xlsx.load(
+    Buffer.from(buffer) as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]
+  );
   const sheet = workbook.worksheets[0];
   if (!sheet) {
     return { rows: [], invalidRows: [{ row: 0, reason: 'The Excel file has no worksheets.' }] };

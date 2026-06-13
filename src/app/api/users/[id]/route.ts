@@ -11,6 +11,7 @@ import { isStaffUserType } from '@/lib/staff-permissions';
 import type { StaffUserType, UserRole } from '@/types/dashboard';
 import { userRowToSummary } from '@/lib/user-summary-api';
 import { logAuditEvent } from '@/lib/audit-events';
+import { requireRecentSensitiveAuth } from '@/lib/admin-security';
 
 const ROUNDS = 10;
 const ROLES: UserRole[] = ['admin', 'staff', 'viewer'];
@@ -103,6 +104,7 @@ export async function PATCH(
   const isActive = typeof b.isActive === 'boolean' ? b.isActive : undefined;
   const password = typeof b.password === 'string' ? b.password : undefined;
   const staffUserType = typeof b.staffUserType === 'string' ? b.staffUserType : undefined;
+  const mfaEnabled = typeof b.mfaEnabled === 'boolean' ? b.mfaEnabled : undefined;
 
   let accountsPatch: ReturnType<typeof parseAccountsPermissionsBody>;
   try {
@@ -121,6 +123,7 @@ export async function PATCH(
     isActive === undefined &&
     password === undefined &&
     staffUserType === undefined &&
+    mfaEnabled === undefined &&
     accountsPatch === undefined
   ) {
     return NextResponse.json({ error: 'Provide at least one field to update.' }, { status: 400 });
@@ -137,18 +140,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
     }
 
+    if (role !== undefined || password !== undefined || mfaEnabled !== undefined) {
+      const reauthError = requireRecentSensitiveAuth(request, actor.userId || '');
+      if (reauthError) return reauthError;
+    }
     const data: {
       name?: string;
       role?: UserRole;
       isActive?: boolean;
       passwordHash?: string;
       staffUserType?: StaffUserType;
+      mfaEnabled?: boolean;
+      mfaSecret?: string | null;
     } = {};
     if (name !== undefined) data.name = name;
     if (role !== undefined) data.role = role;
     if (isActive !== undefined) data.isActive = isActive;
     if (password !== undefined) data.passwordHash = await bcrypt.hash(password, ROUNDS);
     if (staffUserType !== undefined) data.staffUserType = staffUserType;
+    if (mfaEnabled !== undefined) {
+      data.mfaEnabled = mfaEnabled;
+      if (!mfaEnabled) data.mfaSecret = null;
+    }
 
     const before = await prisma.user.findUnique({
       where: { id },
@@ -167,12 +180,17 @@ export async function PATCH(
     }
     await logAuditEvent({
       actor,
-      action: 'user.updated',
+      action: password !== undefined ? 'user.credentials.changed' : 'user.updated',
       entityType: 'User',
       entityId: user.id,
       route: 'PATCH /api/users/[id]',
       metadata: {
         changedFields: Object.keys(data),
+        sensitiveChanges: {
+          roleChanged: role !== undefined && before.role !== user.role,
+          passwordChanged: password !== undefined,
+          mfaEnabledChanged: mfaEnabled !== undefined,
+        },
         roleBefore: before.role,
         roleAfter: user.role,
         isActiveBefore: before.isActive,
