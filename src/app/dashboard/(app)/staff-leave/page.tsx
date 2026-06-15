@@ -194,7 +194,6 @@ export default function StaffLeavePage() {
  reason: '',
  });
  const [opsMeta, setOpsMeta] = useState<StaffLeaveOpsMeta>(DEFAULT_STAFF_LEAVE_OPS);
- const [policyInfo, setPolicyInfo] = useState<{ leavePolicyV2: boolean; attendanceV2: boolean } | null>(null);
 
  const loadMe = useCallback(async () => {
  const me = await fetch('/api/auth/me').then((r) => r.json());
@@ -211,8 +210,6 @@ export default function StaffLeavePage() {
  if (b.balances) setBalances(b.balances);
  if (Array.isArray(a)) setApplications(a);
  if (Array.isArray(t)) setTypes(t);
- const overview = await fetch('/api/reports/overview').then((r) => r.json()).catch(() => null);
- if (overview?.featureFlags) setPolicyInfo(overview.featureFlags);
  if (approver) {
  const team = await fetch('/api/staff/leave/applications?scope=team&status=pending').then((r) =>
  r.json()
@@ -440,11 +437,6 @@ export default function StaffLeavePage() {
  {error}
  </div>
  )}
- {policyInfo ? (
- <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
- Policy engine flags - leavePolicyV2: {policyInfo.leavePolicyV2 ? 'enabled' : 'disabled'} | attendanceV2: {policyInfo.attendanceV2 ? 'enabled' : 'disabled'}
- </div>
- ) : null}
 
  {loading ? (
  <div className="flex justify-center py-20">
