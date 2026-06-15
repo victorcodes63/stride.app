@@ -1,6 +1,10 @@
 import { redirect } from 'next/navigation';
+import { isModuleLicensed } from '@/lib/modules';
 
-/** Public entry: vacancies (medical roles). Marketing home removed. */
+/** Public entry: careers when ATS is licensed; otherwise staff login (Imara BMS wedge). */
 export default function Home() {
-  redirect('/careers');
+  if (isModuleLicensed('ats')) {
+    redirect('/careers');
+  }
+  redirect('/dashboard/login');
 }

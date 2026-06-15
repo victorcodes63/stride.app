@@ -37,7 +37,7 @@ function enforceModuleLicense(request: NextRequest): NextResponse | null {
   }
 
   if (pathname.startsWith('/careers') || pathname.startsWith('/interview')) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
   }
 
   const redirectUrl = new URL(
