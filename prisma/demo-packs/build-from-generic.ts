@@ -45,6 +45,10 @@ export function buildVerticalPackFromGeneric(config: VerticalPackConfig): DemoPa
   const employees = genericPack.employees.map((e) => ({
     ...e,
     employeeNumber: e.employeeNumber.replace(/^DMO/, prefix),
+    idNumber: e.idNumber.replace(/^DMO/, prefix),
+    kraPin: e.kraPin.replace(/DMO/g, prefix),
+    nssfNumber: e.nssfNumber.replace(/^DMO/, prefix),
+    nhifNumber: e.nhifNumber.replace(/^DMO/, prefix),
     email: mapEmail(e.email),
     department: departmentMap[e.department] ?? e.department,
     role: e.role
