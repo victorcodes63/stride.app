@@ -590,7 +590,7 @@ export default function DashboardOverviewContent() {
       value: onLeave,
       note: 'Approved leave today',
       icon: CalendarDays,
-      href: '/dashboard/leave',
+      href: '/dashboard/outsourcing/leave?status=pending',
       variant: 'amber' as KpiVariant,
       show: showLeaveKpis,
     },
@@ -599,7 +599,7 @@ export default function DashboardOverviewContent() {
       value: pendingApprovals,
       note: me?.canApproveStaffLeave ? 'Needs your approval' : 'Awaiting approval',
       icon: Inbox,
-      href: '/dashboard/leave',
+      href: '/dashboard/outsourcing/leave?status=pending',
       variant: 'violet' as KpiVariant,
       show: showLeaveKpis && persona !== 'viewer',
     },
@@ -889,7 +889,7 @@ export default function DashboardOverviewContent() {
                     {credentialsExpiring > 0 && credentialsExpired > 0 ? ' · ' : null}
                     {credentialsExpired > 0 ? `${credentialsExpired} expired` : null}
                   </p>
-                  <Link href="/dashboard/credentials" className="mt-2 inline-flex text-xs font-medium text-amber-950 underline-offset-2 hover:underline">
+                  <Link href="/dashboard/credentials?status=expiring_soon" className="mt-2 inline-flex text-xs font-medium text-amber-950 underline-offset-2 hover:underline">
                     Review credentials →
                   </Link>
                 </div>

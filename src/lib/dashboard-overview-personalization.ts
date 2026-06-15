@@ -203,7 +203,7 @@ export function buildAttentionItems(input: {
       id: 'leave',
       label: 'Leave approvals',
       detail: `${input.pendingLeave} request${input.pendingLeave === 1 ? '' : 's'} awaiting action`,
-      href: '/dashboard/leave',
+      href: '/dashboard/outsourcing/leave?status=pending',
       tone: 'amber',
     });
   }
@@ -212,7 +212,7 @@ export function buildAttentionItems(input: {
       id: 'attendance',
       label: 'Attendance exceptions',
       detail: `${input.openAttendanceExceptions} open — review clock data`,
-      href: '/dashboard/attendance',
+      href: '/dashboard/attendance?status=open',
       tone: 'rose',
     });
   }
@@ -226,7 +226,9 @@ export function buildAttentionItems(input: {
       ]
         .filter(Boolean)
         .join(' · '),
-      href: '/dashboard/credentials',
+      href: input.credentialsExpired > 0
+        ? '/dashboard/credentials?status=expired'
+        : '/dashboard/credentials?status=expiring_soon',
       tone: 'amber',
     });
   }
@@ -235,7 +237,7 @@ export function buildAttentionItems(input: {
       id: 'onboarding',
       label: 'Onboarding tasks',
       detail: `${input.myOnboardingCount} assigned to you`,
-      href: '/dashboard/onboarding',
+      href: '/dashboard/onboarding?status=IN_PROGRESS',
       tone: 'sky',
     });
   }

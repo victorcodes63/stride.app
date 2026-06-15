@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
  AlertTriangle,
  Clock3,
@@ -174,7 +175,19 @@ function computeRisk(app: Application) {
 }
 
 export default function StaffLeavePage() {
- const [tab, setTab] = useState<'my' | 'team' | 'types'>('my');
+ return (
+  <Suspense fallback={<div className="py-16 text-center text-sm text-neutral-500">Loading leave…</div>}>
+   <StaffLeavePageContent />
+  </Suspense>
+ );
+}
+
+function StaffLeavePageContent() {
+ const searchParams = useSearchParams();
+ const initialTab = searchParams.get('tab');
+ const [tab, setTab] = useState<'my' | 'team' | 'types'>(
+  initialTab === 'team' || initialTab === 'types' ? initialTab : 'my',
+ );
  const [year, setYear] = useState(new Date().getFullYear());
  const [balances, setBalances] = useState<BalanceRow[]>([]);
  const [applications, setApplications] = useState<Application[]>([]);

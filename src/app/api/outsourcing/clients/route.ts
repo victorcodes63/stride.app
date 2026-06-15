@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getOrCreatePrimaryWorkspaceClient } from '@/lib/primary-workspace-client';
-import { parseEntityIdFromRequest } from '@/lib/entity-request';
+import { entityScopedClientWhere, resolveEntityIdOrDefault } from '@/lib/entity-request';
 
 type ClientWithCounts = Awaited<
   ReturnType<typeof prisma.outsourcingClient.findMany>
@@ -91,10 +91,10 @@ export async function GET(request: NextRequest) {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json([], { status: 200 });
     }
-    const entityId = parseEntityIdFromRequest(request);
+    const entityId = await resolveEntityIdOrDefault(request);
     if (entityId) {
       const scoped = await prisma.outsourcingClient.findFirst({
-        where: { entityCode: entityId },
+        where: entityScopedClientWhere(entityId),
         include: { _count: { select: { employees: true, departments: true } } },
       });
       if (!scoped) {

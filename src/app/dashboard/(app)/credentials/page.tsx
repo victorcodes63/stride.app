@@ -67,13 +67,18 @@ export default function CredentialsPage() {
 function CredentialsPageContent() {
  const searchParams = useSearchParams();
  const employeeIdFilterFromUrl = searchParams.get('employeeId') || '';
+ const statusFromUrl = searchParams.get('status') || '';
  const [credentials, setCredentials] = useState<CredentialRecord[]>([]);
  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [search, setSearch] = useState('');
- const [statusFilter, setStatusFilter] = useState('');
+ const [statusFilter, setStatusFilter] = useState(statusFromUrl);
+
+ useEffect(() => {
+   if (statusFromUrl) setStatusFilter(statusFromUrl);
+ }, [statusFromUrl]);
  const [categoryFilter, setCategoryFilter] = useState('');
  const [editingId, setEditingId] = useState<string | null>(null);
  const [form, setForm] = useState(emptyForm);

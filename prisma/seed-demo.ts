@@ -2255,9 +2255,13 @@ async function main() {
   await upsertLeaveApplication(brian.id, sickLeaveType, daysFromToday(-1), daysFromToday(2), LeaveStatus.approved, 'Sick leave — medical certificate on file');
   await upsertLeaveApplication(aishaLeave.id, annualLeaveType, daysFromToday(7), daysFromToday(11), LeaveStatus.pending, 'Pending annual leave request');
 
+  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
   for (const monthData of [
     { month: 3, year: marchYear, status: PayrollStatus.approved },
     { month: 4, year: aprilYear, status: PayrollStatus.draft },
+    { month: prevMonth, year: prevMonthYear, status: PayrollStatus.approved },
+    { month: currentMonth, year: currentYear, status: PayrollStatus.draft },
   ]) {
     for (const seed of pack.employees) {
       const employee = employeeByEmail.get(seed.email);
