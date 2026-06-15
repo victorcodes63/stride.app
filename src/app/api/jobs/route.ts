@@ -5,6 +5,9 @@ import { JobListing } from '@/types/ats';
 import { ensureUniqueSlug, jobSlugBase } from '@/lib/slug';
 import { parseDateTimeAsNairobi } from '@/lib/timezone';
 import { getOrCreateRecruitmentSettings, resolveJobCompanyAndClientId } from '@/lib/recruitment-workspace';
+import { isDemoMode } from '@/lib/deployment-config';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
+import { getActiveEntities, loadOperatingEntitiesSettings } from '@/lib/operating-entities';
 
 type PrismaJobForListing = {
   id: string;
@@ -81,8 +84,15 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
     const recruitmentSettings = activeOnly ? await getOrCreateRecruitmentSettings(prisma) : null;
+    let employerCompany: string | undefined;
+    if (isDemoMode()) {
+      const entityId = await resolveEntityIdOrDefault(request);
+      const oe = await loadOperatingEntitiesSettings();
+      employerCompany = getActiveEntities(oe).find((e) => e.id === entityId)?.legalName;
+    }
     const jobs = await prisma.job.findMany({
         where: {
+          ...(employerCompany ? { company: employerCompany } : {}),
           ...(activeOnly
             ? {
                 isActive: true,

@@ -75,10 +75,37 @@ function atUtc(dateYmd: string, hhmm: string): Date {
   return new Date(`${dateYmd}T${hhmm}:00.000Z`);
 }
 
-async function seedPackRecruitmentJobs(now: Date) {
-  let settings = await prisma.recruitmentSettings.findUnique({ where: { id: 'default' } });
-  let clientId: string;
+async function getOrCreatePackRecruitmentClientId(): Promise<string> {
+  const multi = process.env.DEMO_MULTI_CONTEXT === 'true';
 
+  if (multi) {
+    let client = await prisma.client.findFirst({
+      where: { name: pack.recruitmentEmployer },
+    });
+    if (!client) {
+      client = await prisma.client.create({
+        data: {
+          name: pack.recruitmentEmployer,
+          isAnonymous: false,
+          contactName: pack.workspace.contactName,
+          contactEmail: pack.workspace.contactEmail,
+          contactPhone: pack.workspace.contactPhone,
+        },
+      });
+    } else {
+      await prisma.client.update({
+        where: { id: client.id },
+        data: {
+          contactName: pack.workspace.contactName,
+          contactEmail: pack.workspace.contactEmail,
+          contactPhone: pack.workspace.contactPhone,
+        },
+      });
+    }
+    return client.id;
+  }
+
+  let settings = await prisma.recruitmentSettings.findUnique({ where: { id: 'default' } });
   if (!settings) {
     const client = await prisma.client.create({
       data: {
@@ -89,8 +116,7 @@ async function seedPackRecruitmentJobs(now: Date) {
         contactPhone: pack.workspace.contactPhone,
       },
     });
-    clientId = client.id;
-    settings = await prisma.recruitmentSettings.create({
+    await prisma.recruitmentSettings.create({
       data: {
         id: 'default',
         employerName: pack.recruitmentEmployer,
@@ -100,7 +126,10 @@ async function seedPackRecruitmentJobs(now: Date) {
         linkedClientId: client.id,
       },
     });
-  } else if (!settings.linkedClientId) {
+    return client.id;
+  }
+
+  if (!settings.linkedClientId) {
     const client = await prisma.client.create({
       data: {
         name: pack.recruitmentEmployer,
@@ -110,7 +139,6 @@ async function seedPackRecruitmentJobs(now: Date) {
         contactPhone: pack.workspace.contactPhone,
       },
     });
-    clientId = client.id;
     await prisma.recruitmentSettings.update({
       where: { id: 'default' },
       data: {
@@ -121,27 +149,32 @@ async function seedPackRecruitmentJobs(now: Date) {
         contactPhone: pack.workspace.contactPhone,
       },
     });
-  } else {
-    clientId = settings.linkedClientId;
-    await prisma.client.update({
-      where: { id: clientId },
-      data: {
-        name: pack.recruitmentEmployer,
-        contactName: pack.workspace.contactName,
-        contactEmail: pack.workspace.contactEmail,
-        contactPhone: pack.workspace.contactPhone,
-      },
-    });
-    await prisma.recruitmentSettings.update({
-      where: { id: 'default' },
-      data: {
-        employerName: pack.recruitmentEmployer,
-        contactName: pack.workspace.contactName,
-        contactEmail: pack.workspace.contactEmail,
-        contactPhone: pack.workspace.contactPhone,
-      },
-    });
+    return client.id;
   }
+
+  await prisma.client.update({
+    where: { id: settings.linkedClientId },
+    data: {
+      name: pack.recruitmentEmployer,
+      contactName: pack.workspace.contactName,
+      contactEmail: pack.workspace.contactEmail,
+      contactPhone: pack.workspace.contactPhone,
+    },
+  });
+  await prisma.recruitmentSettings.update({
+    where: { id: 'default' },
+    data: {
+      employerName: pack.recruitmentEmployer,
+      contactName: pack.workspace.contactName,
+      contactEmail: pack.workspace.contactEmail,
+      contactPhone: pack.workspace.contactPhone,
+    },
+  });
+  return settings.linkedClientId;
+}
+
+async function seedPackRecruitmentJobs(now: Date) {
+  const clientId = await getOrCreatePackRecruitmentClientId();
 
   await prisma.job.deleteMany({ where: { clientId } });
 
@@ -206,8 +239,8 @@ function utcAtOffsetDaysHour(daysFromUtcToday: number, hourUtc: number, minuteUt
  * Emails end with @{pack.pipelineEmailDomain}; re-seed clears prior demo rows via deleteMany.
  */
 async function seedPackRecruitmentApplicationsAndInterviews() {
-  const settings = await prisma.recruitmentSettings.findUnique({ where: { id: 'default' } });
-  if (!settings?.linkedClientId) {
+  const clientId = await getOrCreatePackRecruitmentClientId();
+  if (!clientId) {
     console.log('→ Recruitment pipeline: skipped (no linked recruitment client).');
     return;
   }
@@ -220,7 +253,7 @@ async function seedPackRecruitmentApplicationsAndInterviews() {
   }
 
   const jobs = await prisma.job.findMany({
-    where: { clientId: settings.linkedClientId },
+    where: { clientId },
     orderBy: [{ referenceId: 'asc' }],
     select: { id: true, title: true },
   });

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { reportApiError } from '@/lib/monitoring';
+import { isDemoMode } from '@/lib/deployment-config';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +13,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const category = request.nextUrl.searchParams.get('category')?.trim() || undefined;
+    const entityScope = isDemoMode() ? await resolveEntityIdOrDefault(request) : null;
     const documents = await prisma.companyDocument.findMany({
       where: {
         ...(category ? { category } : {}),
         status: { not: 'archived' },
+        ...(entityScope
+          ? { tags: { path: ['entityCode'], equals: entityScope } }
+          : {}),
       },
       orderBy: [{ category: 'asc' }, { title: 'asc' }],
       take: 200,

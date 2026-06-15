@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { reportApiError } from '@/lib/monitoring';
+import { isDemoMode } from '@/lib/deployment-config';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +13,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const status = request.nextUrl.searchParams.get('status')?.trim() || undefined;
+    const entityScope = isDemoMode() ? await resolveEntityIdOrDefault(request) : null;
     const announcements = await prisma.announcement.findMany({
-      where: status ? { status: status as any } : undefined,
+      where: {
+        ...(status ? { status: status as any } : {}),
+        ...(entityScope
+          ? { targetRoles: { path: ['demoEntityCode'], equals: entityScope } }
+          : {}),
+      },
       orderBy: [{ isPinned: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: 100,
     });

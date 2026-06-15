@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { reportApiError } from '@/lib/monitoring';
+import { isDemoMode } from '@/lib/deployment-config';
+import { resolveEntityIdOrDefault } from '@/lib/entity-request';
+import { demoEntityNote } from '@/lib/demo-entity-content';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +14,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const status = request.nextUrl.searchParams.get('status')?.trim() || undefined;
+    const entityScope = isDemoMode() ? await resolveEntityIdOrDefault(request) : null;
     const programs = await prisma.trainingProgram.findMany({
-      where: status ? { status: status as any } : undefined,
+      where: {
+        ...(status ? { status: status as any } : {}),
+        ...(entityScope ? { notes: demoEntityNote(entityScope) } : {}),
+      },
       include: {
         enrollments: {
           select: { id: true, enrolleeName: true, status: true, completedAt: true },
