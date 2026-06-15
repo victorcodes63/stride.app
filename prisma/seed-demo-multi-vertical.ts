@@ -94,6 +94,8 @@ async function main() {
 
   await seedCombinedOperatingEntities();
   console.log('\nAll vertical contexts seeded. Use the top-bar switcher to change sector demo.\n');
+
+  execSync('npx tsx prisma/seed-training-demo.ts', { cwd: root, stdio: 'inherit', env: process.env });
 }
 
 main()
