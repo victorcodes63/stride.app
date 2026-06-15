@@ -611,7 +611,7 @@ export default function DashboardOverviewContent() {
         variant="hero"
         badges={[
           { label: roleLabel },
-          { label: activeEntity.name, icon: Building2, prefix: activeEntity.flag },
+          { label: activeEntity.name, icon: Building2 },
         ]}
         title={greeting}
         description={subtitle}

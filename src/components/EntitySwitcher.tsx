@@ -13,7 +13,6 @@ export type Entity = {
   flag: string;
   color: string;
   sector?: string;
-  sectorEmoji?: string;
 };
 
 const STORAGE_KEY = 'hris_active_entity';
@@ -176,10 +175,9 @@ export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 
         title={`${activeEntity.name} (${activeEntity.currency})`}
       >
         <Building2
-          className={`shrink-0 text-neutral-400 ${isTopbar ? 'hidden h-3.5 w-3.5 sm:block' : 'w-3.5 h-3.5'}`}
+          className={`shrink-0 text-neutral-500 ${isTopbar ? 'h-3.5 w-3.5' : 'w-3.5 h-3.5'}`}
           aria-hidden
         />
-        <span className="text-base leading-none shrink-0">{activeEntity.flag}</span>
         {isTopbar ? (
           <>
             <span className="hidden min-w-0 truncate sm:inline">{activeEntity.name}</span>
@@ -234,7 +232,12 @@ export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 
                   activeEntity.id === entity.id ? 'bg-primary-50' : ''
                 }`}
               >
-                <span className="text-2xl shrink-0">{entity.sectorEmoji ?? entity.flag}</span>
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50"
+                  aria-hidden
+                >
+                  <Building2 className="h-4 w-4 text-neutral-500" />
+                </span>
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-sm font-medium truncate ${

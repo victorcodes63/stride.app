@@ -40,7 +40,6 @@ export type PublicEntity = {
   color: string;
   /** Industry sector label for multi-vertical demo switcher */
   sector?: string;
-  sectorEmoji?: string;
 };
 
 export const COUNTRY_PROFILES: Record<
@@ -209,10 +208,9 @@ export function toPublicEntity(entity: OperatingEntity): PublicEntity {
     country: profile.country,
     countryCode: entity.countryCode,
     currency: entity.currency,
-    flag: vertical?.emoji ?? profile.flag,
+    flag: profile.flag,
     color: profile.color,
     sector: vertical?.sector,
-    sectorEmoji: vertical?.emoji,
   };
 }
 
