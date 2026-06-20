@@ -70,6 +70,30 @@ export function getMarketingLoginUrl(): string {
   return MARKETING_ROUTES.login;
 }
 
+/** Home URL for close buttons on login/contact — same host in dev; marketing domain when app is split. */
+export function getMarketingHomeUrl(): string {
+  if (process.env.NODE_ENV === 'development') {
+    return MARKETING_ROUTES.home;
+  }
+
+  try {
+    const siteUrl = getMarketingSiteUrl();
+    const siteHost = new URL(siteUrl).host;
+
+    if (isLocalDevHost(siteHost)) {
+      return MARKETING_ROUTES.home;
+    }
+
+    const appHost = new URL(MARKETING_APP_ORIGIN).host;
+    if (appHost !== siteHost) {
+      return siteUrl;
+    }
+  } catch {
+    /* fall through */
+  }
+  return MARKETING_ROUTES.home;
+}
+
 /**
  * Public sales inbox — footer, contact page mailto links, and book-demo CTAs.
  * TODO(launch): Confirm hello@getstride.co.ke is live and monitored before shipping.
@@ -144,6 +168,47 @@ export const MARKETING_DASHBOARD_HERO = {
   visibleHeight: 352,
   alt: 'Stride HR and payroll dashboard — organization overview',
 } as const;
+
+/** Product screenshots for industry / architecture vertical previews. */
+export const MARKETING_VERTICAL_SCREENSHOTS = {
+  logistics: {
+    src: '/marketing/stride-vertical-logistics.png',
+    alt: 'Stride logistics trip board — fleet workflow kanban',
+    moduleLabel: 'Fleet & logistics',
+    screenTitle: 'Trip board',
+    path: '/fleet/trips',
+  },
+  saccos: {
+    src: '/marketing/stride-vertical-saccos.png',
+    alt: 'Stride accounts clients — member and ledger workflows',
+    moduleLabel: 'SACCOs',
+    screenTitle: 'Member & ledger',
+    path: '/saccos/members',
+  },
+  healthcare: {
+    src: '/marketing/stride-vertical-healthcare.png',
+    alt: 'Stride rota grid — shift scheduling for clinical teams',
+    moduleLabel: 'Healthcare',
+    screenTitle: 'Rota grid',
+    path: '/rota',
+  },
+  energy: {
+    src: '/marketing/stride-vertical-energy.png',
+    alt: 'Stride HSE incidents panel — safety and compliance tracking',
+    moduleLabel: 'Energy',
+    screenTitle: 'HSE panel',
+    path: '/hse',
+  },
+  construction: {
+    src: '/marketing/stride-vertical-construction.png',
+    alt: 'Stride asset register — plant and site equipment tracking',
+    moduleLabel: 'Construction',
+    screenTitle: 'Site tracker',
+    path: '/projects',
+  },
+} as const;
+
+export type MarketingVerticalScreenshotId = keyof typeof MARKETING_VERTICAL_SCREENSHOTS;
 
 export const MARKETING_DEMO_STEPS = [
   { number: 1, text: 'Tell us about your team' },

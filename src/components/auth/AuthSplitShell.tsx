@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { type ReactNode } from 'react';
-import { X } from 'lucide-react';
 import { StrideLogo } from '@/components/marketing/StrideMark';
+import { MarketingCloseButton } from '@/components/marketing/MarketingCloseButton';
 import { brandConfig } from '@/lib/brand.config';
 import { getMarketingSiteUrl } from '@/lib/marketing-config';
 import { usePublicBrand } from '@/components/BrandProvider';
@@ -81,15 +81,9 @@ export function AuthSplitShell({
       </section>
 
       <section className="relative flex min-h-0 flex-col overflow-y-auto rounded-[20px] bg-[var(--sc-ink)] sm:rounded-[28px] lg:overflow-hidden">
-        <Link
-          href={marketingHome}
-          className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#fbf8f4]/70 transition-colors hover:border-white/20 hover:text-[#fbf8f4] sm:right-8 sm:top-8"
-          aria-label="Back to Stride homepage"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </Link>
+        <MarketingCloseButton label="Back to Stride homepage" />
 
-        <div className="auth-studio-form bd-demo-form relative z-10 flex flex-1 flex-col">
+        <div className="auth-studio-form bd-demo-form relative z-0 flex flex-1 flex-col">
           <div className="flex flex-1 items-center justify-center px-5 py-14 sm:px-10 lg:px-14 lg:py-10 xl:px-20">
             <div className="w-full max-w-md">{children}</div>
           </div>

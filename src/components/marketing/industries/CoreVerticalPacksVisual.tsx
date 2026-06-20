@@ -21,8 +21,8 @@ import { StaticStack } from './StaticStack';
 
 const PACK_COUNT = VERTICAL_PACKS.length;
 /** Viewport heights of scroll runway per pack, plus a little tail to settle. */
-const SCROLL_SEGMENT_VH = 58;
-const TAIL_VH = 30;
+const SCROLL_SEGMENT_VH = 38;
+const TAIL_VH = 16;
 
 /** Short descriptor per pack, reused from deep-dive content. */
 const PACK_DETAIL: Record<string, string> = Object.fromEntries(
@@ -54,12 +54,17 @@ function PackTile({
   const segment = 1 / PACK_COUNT;
   const start = index * segment;
   const end = start + segment * 0.62;
+  const isFirst = index === 0;
 
-  const opacity = useTransform(progress, [start, end], [0, 1]);
-  const x = useTransform(progress, [start, end], [44, 0]);
-  const y = useTransform(progress, [start, end], [18, 0]);
-  const scale = useTransform(progress, [start, end], [0.96, 1]);
-  const rotate = useTransform(progress, [start, end], [1.6, 0]);
+  const opacity = useTransform(
+    progress,
+    isFirst ? [0, end] : [start, end],
+    isFirst ? [1, 1] : [0, 1],
+  );
+  const x = useTransform(progress, [start, end], [isFirst ? 0 : 44, 0]);
+  const y = useTransform(progress, [start, end], [isFirst ? 0 : 18, 0]);
+  const scale = useTransform(progress, [start, end], [isFirst ? 1 : 0.96, 1]);
+  const rotate = useTransform(progress, [start, end], [isFirst ? 0 : 1.6, 0]);
 
   return (
     <motion.div
@@ -119,10 +124,10 @@ function PinnedSequence() {
       className="relative"
       style={{ height: `calc(${PACK_COUNT * SCROLL_SEGMENT_VH}vh + ${TAIL_VH}vh)` }}
     >
-      <div className="sticky top-[var(--nav-h)] flex h-[calc(100vh-var(--nav-h))] items-center py-8">
-        <div className="mx-auto grid w-full max-w-4xl items-center gap-10 px-5 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="sticky top-[var(--nav-h)] flex h-[calc(100vh-var(--nav-h))] items-start justify-center py-6 sm:py-8">
+        <div className="mx-auto grid w-full max-w-4xl items-start gap-8 px-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-10">
           {/* Diagram column */}
-          <div className="relative flex gap-4">
+          <div className="relative flex min-w-0 gap-3 sm:gap-4">
             {/* Progress rail */}
             <div className="relative mt-1 w-px shrink-0 self-stretch bg-[var(--sc-line)]">
               <motion.div
@@ -131,17 +136,17 @@ function PinnedSequence() {
               />
             </div>
 
-            <div className="relative flex flex-1 flex-col-reverse gap-2">
+            <div className="relative flex flex-1 flex-col-reverse gap-1.5 sm:gap-2">
               {/* Core base */}
-              <div className="relative z-[1] rounded-xl border border-[var(--sc-line)] bg-[var(--sc-ink)] p-4 text-white">
+              <div className="relative z-[1] rounded-xl border border-[var(--sc-line)] bg-[var(--sc-ink)] p-3 text-white sm:p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-white/50">
                   {CORE_PACKS_EXPLAINER.coreLabel}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
                   {CORE_CAPABILITIES.map((cap) => (
                     <span
                       key={cap}
-                      className="rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/90"
+                      className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/90 sm:px-2.5 sm:py-1 sm:text-[11px]"
                     >
                       {cap}
                     </span>
@@ -150,7 +155,7 @@ function PinnedSequence() {
               </div>
 
               {/* Docking packs */}
-              <div className="relative z-[2] flex flex-col gap-2">
+              <div className="relative z-[2] flex flex-col gap-1.5 sm:gap-2">
                 {VERTICAL_PACKS.map((pack, i) => (
                   <PackTile
                     key={pack.id}
@@ -164,7 +169,7 @@ function PinnedSequence() {
           </div>
 
           {/* Synced detail panel */}
-          <div className="hidden lg:block">
+          <div className="lg:sticky lg:top-6">
             <p className="font-mono text-xs text-[var(--sc-ink-subtle,#8A8076)]">
               {String(activeIndex + 1).padStart(2, '0')} / {String(PACK_COUNT).padStart(2, '0')}
             </p>
@@ -202,13 +207,13 @@ function PinnedSequence() {
  * Renders exactly one diagram: SSR/static stack first (and on mobile or
  * reduced-motion), then the pinned scroll sequence on desktop once mounted.
  */
-export function CoreVerticalPacksVisual() {
+export function CoreVerticalPacksVisual({ pinnedScroll = true }: { pinnedScroll?: boolean }) {
   const [mounted, setMounted] = useState(false);
   const reduceMotion = useReducedMotion();
   const isDesktop = useIsDesktop();
 
   useEffect(() => setMounted(true), []);
 
-  const showPinned = mounted && isDesktop && !reduceMotion;
+  const showPinned = pinnedScroll && mounted && isDesktop && !reduceMotion;
   return showPinned ? <PinnedSequence /> : <StaticStack />;
 }

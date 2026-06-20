@@ -96,7 +96,7 @@ export function StrideHeroDashboardMockup() {
                 N
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-medium text-white/90">Nyati SACCO</p>
+                <p className="truncate text-[11px] font-medium text-white/90">Demo Company</p>
                 <p className="text-[9px] text-white/40">Nairobi HQ</p>
               </div>
             </div>

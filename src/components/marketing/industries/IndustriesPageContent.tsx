@@ -1,4 +1,3 @@
-import { IndustriesHero } from './IndustriesHero';
 import { CoreVerticalPacks } from './CoreVerticalPacks';
 import { IndustryDeepDiveSection } from './IndustryDeepDiveSection';
 import { CoreCapabilitiesBand, StrideVsAlternativeStrip } from './IndustriesBands';
@@ -8,8 +7,7 @@ import { IndustriesClosingCta } from './IndustriesClosingCta';
 export function IndustriesPageContent() {
   return (
     <>
-      <IndustriesHero />
-      <CoreVerticalPacks />
+      <CoreVerticalPacks leadSection />
       {INDUSTRY_DEEP_DIVES.map((industry, index) => (
         <IndustryDeepDiveSection key={industry.id} industry={industry} index={index} />
       ))}

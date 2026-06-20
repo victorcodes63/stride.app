@@ -13,7 +13,6 @@ export type IndustryDeepDive = {
   id: string;
   name: string;
   status: IndustryStatus;
-  reference?: string;
   positioning: string;
   pain: string;
   strideRuns: string;
@@ -92,7 +91,6 @@ export const INDUSTRY_DEEP_DIVES: IndustryDeepDive[] = [
     id: 'logistics',
     name: 'Logistics & Cargo',
     status: 'available',
-    reference: 'OhCargo',
     positioning: 'The full fleet workflow on one platform.',
     pain:
       'Mid-size fleets run on WhatsApp, spreadsheets and disconnected tools — no single view of a trip, disputed settlements, billing done by hand.',
@@ -109,7 +107,6 @@ export const INDUSTRY_DEEP_DIVES: IndustryDeepDive[] = [
     id: 'saccos',
     name: 'SACCOs',
     status: 'coming_soon',
-    reference: 'Nyati SACCO',
     positioning: 'Built for regulated cooperatives.',
     pain:
       'Legacy core systems are rigid and costly; member servicing and statutory reporting are manual.',

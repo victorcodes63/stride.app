@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, Calendar, Check, ChevronDown, Loader2, Mail, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, Check, ChevronDown, Loader2, Mail } from 'lucide-react';
 import { StrideLogo } from '@/components/marketing/StrideMark';
+import { MarketingCloseButton } from '@/components/marketing/MarketingCloseButton';
 import {
   CORE_MODULES,
   MARKETING_CTAS,
@@ -308,13 +309,7 @@ export function BookDemoPage() {
       <BookDemoLeftPanel currentStep={step} />
 
       <section className="relative flex min-h-0 flex-col overflow-y-auto rounded-[20px] bg-[var(--sc-ink)] sm:rounded-[28px] lg:overflow-hidden">
-        <Link
-          href={MARKETING_ROUTES.home}
-          className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#fbf8f4]/70 transition-colors hover:border-white/20 hover:text-[#fbf8f4] sm:right-8 sm:top-8"
-          aria-label="Close and return home"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </Link>
+        <MarketingCloseButton />
 
         <div className="flex flex-1 flex-col items-center justify-center px-5 py-14 sm:px-10 lg:px-14 lg:py-10 xl:px-20">
           <motion.div

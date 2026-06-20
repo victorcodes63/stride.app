@@ -52,11 +52,6 @@ export function IndustryDeepDiveSection({ industry, index }: IndustryDeepDiveSec
             <Reveal>
               <div className="flex flex-wrap items-center gap-3">
                 <StatusPill status={industry.status} />
-                {industry.reference ? (
-                  <span className="text-xs text-[var(--sc-ink-subtle,#8A8076)]">
-                    Reference: {industry.reference}
-                  </span>
-                ) : null}
               </div>
             </Reveal>
 

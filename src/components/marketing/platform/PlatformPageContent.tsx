@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { DashboardMockup } from '@/components/marketing/mockups/DashboardMockup';
+import { PlatformArchitectureSection } from '@/components/marketing/platform/PlatformArchitectureSection';
 import { MarketingFaq } from '@/components/marketing/sections/MarketingFaq';
 import { MarketingFinalCta } from '@/components/marketing/sections/MarketingFinalCta';
 import {
@@ -326,6 +327,7 @@ export function PlatformPageContent() {
       <PlatformHero />
       <PlatformAudienceSection />
       <PlatformModulesSection />
+      <PlatformArchitectureSection />
       <PlatformConnectedSection />
       <PlatformComplianceSection />
       <PlatformVerticalsSection />

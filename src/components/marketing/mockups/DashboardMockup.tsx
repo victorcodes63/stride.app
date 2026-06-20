@@ -44,7 +44,7 @@ export function DashboardMockup({ className = '' }: { className?: string }) {
             </span>
             <div>
               <p className="text-[10px] font-semibold text-white">Operations overview</p>
-              <p className="text-[8px] text-white/40">Nyati SACCO · Nairobi HQ</p>
+              <p className="text-[8px] text-white/40">Demo Company · HQ</p>
             </div>
           </div>
           <span
