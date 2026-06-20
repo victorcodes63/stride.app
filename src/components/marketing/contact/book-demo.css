@@ -24,30 +24,67 @@
   animation: bd-demo-drift-b 38s ease-in-out infinite alternate-reverse;
 }
 
-@keyframes bd-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
+.bd-demo-panel {
+  background:
+    radial-gradient(ellipse 90% 80% at 20% 10%, rgba(255, 84, 54, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 75%, rgba(230, 62, 34, 0.35) 0%, transparent 50%),
+    linear-gradient(145deg, #3d1810 0%, #1a1714 42%, #0e0c0a 100%);
 }
 
-.bd-animate-fade-up {
-  animation: bd-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+.bd-demo-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.bd-demo-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(14, 12, 10, 0.75) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.bd-demo-copy h1 {
+  color: #fbf8f4;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+
+.bd-demo-copy p {
+  color: rgba(251, 248, 244, 0.82);
+}
+
+.bd-demo-copy .bd-demo-tagline {
+  color: rgba(251, 248, 244, 0.45);
+}
+
+.bd-demo-steps {
+  max-width: 22rem;
+  width: 100%;
+}
+
+.bd-demo-form input,
+.bd-demo-form select,
+.bd-demo-form textarea {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.bd-demo-form input:-webkit-autofill,
+.bd-demo-form input:-webkit-autofill:hover,
+.bd-demo-form input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #2a2520 inset;
+  -webkit-text-fill-color: #fbf8f4;
+  caret-color: #fbf8f4;
+  transition: background-color 9999s ease-out 0s;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bd-demo-drift-a,
-  .bd-demo-drift-b,
-  .bd-animate-fade-up {
+  .bd-demo-drift-b {
     animation: none;
-    opacity: 1;
-    transform: none;
-    filter: none;
   }
 }

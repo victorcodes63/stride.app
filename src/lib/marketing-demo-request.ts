@@ -8,6 +8,9 @@ export type DemoRequestPayload = {
   company: string;
   teamSize: string;
   interest: string;
+  modules: string[];
+  preferredDate: string;
+  preferredTime: string;
   message: string;
 };
 
@@ -32,6 +35,8 @@ export async function notifyDemoRequest(payload: DemoRequestPayload) {
         <tr><td style="padding: 8px 0; color: #8A8076;">Email</td><td style="padding: 8px 0;">${escapeHtml(payload.email)}</td></tr>
         <tr><td style="padding: 8px 0; color: #8A8076;">Company</td><td style="padding: 8px 0;">${escapeHtml(payload.company)}</td></tr>
         <tr><td style="padding: 8px 0; color: #8A8076;">Team size</td><td style="padding: 8px 0;">${escapeHtml(payload.teamSize || '—')}</td></tr>
+        <tr><td style="padding: 8px 0; color: #8A8076;">Modules</td><td style="padding: 8px 0;">${escapeHtml(payload.modules.length ? payload.modules.join(', ') : '—')}</td></tr>
+        <tr><td style="padding: 8px 0; color: #8A8076;">Preferred date</td><td style="padding: 8px 0;">${escapeHtml(payload.preferredDate || '—')}${payload.preferredTime ? ` (${escapeHtml(payload.preferredTime)})` : ''}</td></tr>
         <tr><td style="padding: 8px 0; color: #8A8076;">Interest</td><td style="padding: 8px 0;">${escapeHtml(payload.interest)}</td></tr>
       </table>
       ${

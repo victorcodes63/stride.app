@@ -101,7 +101,7 @@ export const MARKETING_DASHBOARD_HERO = {
 } as const;
 
 export const MARKETING_DEMO_STEPS = [
-  { number: 1, text: 'Tell us about your team', active: true },
+  { number: 1, text: 'Tell us about your team' },
   { number: 2, text: 'Pick the modules you need' },
   { number: 3, text: 'Book your walkthrough' },
 ] as const;

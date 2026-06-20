@@ -20,6 +20,11 @@ export async function POST(request: Request) {
     company: clean(body.company),
     teamSize: clean(body.teamSize),
     interest: clean(body.interest) || 'Booking a demo',
+    modules: Array.isArray(body.modules)
+      ? body.modules.filter((m): m is string => typeof m === 'string').map((m) => m.trim()).filter(Boolean)
+      : [],
+    preferredDate: clean(body.preferredDate),
+    preferredTime: clean(body.preferredTime),
     message: clean(body.message),
   };
 
