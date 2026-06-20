@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Calendar, ChevronDown, Loader2, Mail } from 'lucide-react';
-import { StrideLogo } from '@/components/marketing/StrideMark';
+import { StudioCraftNav } from '@/components/marketing/v3/StudioCraftNav';
 import { BookDemoVideoBackground } from './BookDemoVideoBackground';
-import { brandConfig } from '@/lib/brand.config';
 import {
   MARKETING_CTAS,
   MARKETING_DEMO_STEPS,
   MARKETING_ROUTES,
+  MARKETING_SALES_EMAIL,
 } from '@/lib/marketing-config';
 import './book-demo.css';
 
@@ -126,29 +126,6 @@ const fieldMotion = {
   }),
 };
 
-function StrideHeaderMark({
-  className = '',
-  theme = 'on-dark',
-}: {
-  className?: string;
-  theme?: 'on-dark' | 'on-light';
-}) {
-  const circleClass =
-    theme === 'on-dark'
-      ? 'bg-[var(--sc-paper)]'
-      : 'bg-[var(--sc-ink)]';
-
-  return (
-    <Link href={MARKETING_ROUTES.home} aria-label="Stride home" className={className}>
-      <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[0_4px_16px_rgba(26,23,20,0.12)] sm:h-10 sm:w-10 ${circleClass}`}
-      >
-        <StrideLogo className="h-8 w-auto sm:h-9" />
-      </span>
-    </Link>
-  );
-}
-
 export function BookDemoPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -196,7 +173,11 @@ export function BookDemoPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full gap-3 bg-[var(--sc-ink)] p-3 transition-all duration-500 selection:bg-[var(--sc-coral)]/25 lg:h-screen lg:overflow-hidden lg:p-4">
+    <main className="flex min-h-screen w-full flex-col gap-3 bg-[var(--sc-ink)] p-3 transition-all duration-500 selection:bg-[var(--sc-coral)]/25 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-4">
+      <div className="shrink-0 pt-1 lg:hidden">
+        <StudioCraftNav />
+      </div>
+
       <section className="relative hidden h-full w-[52%] overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] lg:block">
         <BookDemoVideoBackground />
         <div
@@ -205,15 +186,7 @@ export function BookDemoPage() {
         />
 
         <header className="absolute inset-x-8 top-8 z-20 xl:inset-x-10">
-          <nav className="flex items-center justify-between rounded-full border border-white/15 bg-white/10 px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-            <StrideHeaderMark theme="on-dark" />
-            <Link
-              href={MARKETING_ROUTES.login}
-              className="text-[13px] font-medium text-[var(--sc-paper)]/80 transition-colors hover:text-[var(--sc-paper)]"
-            >
-              {MARKETING_CTAS.signIn}
-            </Link>
-          </nav>
+          <StudioCraftNav />
         </header>
 
         <motion.div
@@ -267,16 +240,6 @@ export function BookDemoPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="flex items-center justify-between lg:hidden">
-              <StrideHeaderMark theme="on-light" />
-              <Link
-                href={MARKETING_ROUTES.login}
-                className="text-[13px] font-medium text-[var(--sc-ink-muted)] transition-colors hover:text-[var(--sc-ink)]"
-              >
-                {MARKETING_CTAS.signIn}
-              </Link>
-            </div>
-
             {submitted ? (
               <div className="space-y-5 rounded-2xl border border-[var(--sc-line)] bg-white p-8 shadow-[0_8px_32px_rgba(26,23,20,0.05)]">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sc-coral)]/10 text-[var(--sc-coral)]">
@@ -321,12 +284,12 @@ export function BookDemoPage() {
                   <SocialButton
                     icon={<Mail className="h-4 w-4 text-[var(--sc-coral)]" aria-hidden />}
                     label="Email us"
-                    href={`mailto:${brandConfig.supportEmail}`}
+                    href={`mailto:${MARKETING_SALES_EMAIL}`}
                   />
                   <SocialButton
                     icon={<Calendar className="h-4 w-4 text-[var(--sc-coral)]" aria-hidden />}
                     label="Talk to sales"
-                    href={`mailto:${brandConfig.supportEmail}?subject=${encodeURIComponent('Stride sales enquiry')}`}
+                    href={`mailto:${MARKETING_SALES_EMAIL}?subject=${encodeURIComponent('Stride sales enquiry')}`}
                   />
                 </div>
 

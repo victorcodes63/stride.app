@@ -1,6 +1,7 @@
 import { MarketingCtaBand } from '@/components/marketing/MarketingCtaBand';
 import { MarketingPageBody } from '@/components/marketing/MarketingPageBody';
 import { MarketingPageHeader } from '@/components/marketing/MarketingPageHeader';
+import { FleetBoardMockup } from '@/components/marketing/mockups/FleetBoardMockup';
 
 export const metadata = {
   title: 'Logistics & Cargo',
@@ -49,6 +50,7 @@ export default function LogisticsIndustryPage() {
         eyebrow="Logistics & Cargo"
         title="Fleet operations on the same platform as payroll."
         description="Built for cargo operators, transporters and 3PLs who need trip management, compliance and billing without bolting on a separate fleet system."
+        visual={<FleetBoardMockup />}
       />
 
       <MarketingPageBody>

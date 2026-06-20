@@ -35,6 +35,9 @@ export function getMarketingSiteUrl(): string {
   return `https://${MARKETING_CANONICAL_DOMAIN}`;
 }
 
+/** Public sales inbox for marketing site CTAs (forwards to team until getstride.co.ke mail is live). */
+export const MARKETING_SALES_EMAIL = 'hello@getstride.co.ke';
+
 /** Sales-led CTAs — no public self-service signup until provisioning exists. */
 export const MARKETING_CTAS = {
   bookDemo: 'Book a demo',

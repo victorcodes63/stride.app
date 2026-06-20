@@ -6,6 +6,7 @@ type MarketingPageHeaderProps = {
   description?: string;
   align?: 'left' | 'center';
   className?: string;
+  visual?: ReactNode;
 };
 
 export function MarketingPageHeader({
@@ -14,6 +15,7 @@ export function MarketingPageHeader({
   description,
   align = 'left',
   className = '',
+  visual,
 }: MarketingPageHeaderProps) {
   const centered = align === 'center';
 
@@ -44,6 +46,11 @@ export function MarketingPageHeader({
           >
             {description}
           </p>
+        ) : null}
+        {visual ? (
+          <div className={`mt-10 sm:mt-12 ${centered ? 'mx-auto max-w-4xl' : 'max-w-4xl'}`}>
+            {visual}
+          </div>
         ) : null}
       </div>
     </header>

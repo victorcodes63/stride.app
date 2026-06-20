@@ -3,6 +3,7 @@ import { CORE_MODULES, MARKETING_CTAS, MARKETING_ROUTES } from '@/lib/marketing-
 import { MarketingCtaBand } from '@/components/marketing/MarketingCtaBand';
 import { MarketingPageBody } from '@/components/marketing/MarketingPageBody';
 import { MarketingPageHeader } from '@/components/marketing/MarketingPageHeader';
+import { DashboardMockup } from '@/components/marketing/mockups/DashboardMockup';
 
 export const metadata = {
   title: 'Platform',
@@ -16,6 +17,7 @@ export default function PlatformPage() {
         eyebrow="Platform"
         title="One core. Every business."
         description="Stride is built as a horizontal operations platform first. Payroll and HR are the wedge — because every business has people to pay — but finance, procurement, documents, projects and admin share the same data layer."
+        visual={<DashboardMockup />}
       />
 
       <MarketingPageBody>

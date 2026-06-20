@@ -68,8 +68,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-10 text-center text-sm text-pub-ink-subtle">
-          Placeholder pricing for demo purposes — confirm final numbers before public launch. All plans
-          include data migration support.
+          All plans include data migration support.
         </p>
       </MarketingPageBody>
 

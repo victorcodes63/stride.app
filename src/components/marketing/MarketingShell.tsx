@@ -1,23 +1,20 @@
-import PublicAppShell from '@/components/public/PublicAppShell';
 import { MarketingFooter } from '@/components/marketing/MarketingFooter';
-import { MarketingNav } from '@/components/marketing/MarketingNav';
+import { StudioCraftNav } from '@/components/marketing/v3/StudioCraftNav';
+import { StudioCraftShell } from '@/components/marketing/v3/StudioCraftShell';
 
 type MarketingShellProps = {
   children: React.ReactNode;
-  /** Ink for the Linear-style homepage; paper for inner marketing routes. */
-  tone?: 'ink' | 'paper';
 };
 
-export function MarketingShell({ children, tone = 'paper' }: MarketingShellProps) {
+/** Inner marketing routes — same studio-craft nav as the homepage. */
+export function MarketingShell({ children }: MarketingShellProps) {
   return (
-    <PublicAppShell
-      className={
-        tone === 'ink' ? 'bg-pub-ink text-pub-ink-muted' : 'bg-pub-surface text-pub-ink-muted'
-      }
-    >
-      <MarketingNav />
+    <StudioCraftShell>
+      <div className="fixed inset-x-0 top-0 z-[100] pt-2 sm:pt-3">
+        <StudioCraftNav />
+      </div>
       <main>{children}</main>
       <MarketingFooter />
-    </PublicAppShell>
+    </StudioCraftShell>
   );
 }

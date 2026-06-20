@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { DashboardMockup } from '@/components/marketing/mockups/DashboardMockup';
-import { FleetBoardMockup } from '@/components/marketing/mockups/FleetBoardMockup';
 import { MARKETING_CTAS, MARKETING_WHY_STRIDE } from '@/lib/marketing-config';
 import {
   RollLabel,
@@ -34,13 +33,8 @@ export function StudioCraftWhySection() {
             </Link>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-[0.9fr_1.1fr] sm:items-end">
-            <div className="aspect-[438/346] overflow-hidden rounded-2xl">
-              <DashboardMockup className="h-full" />
-            </div>
-            <div className="aspect-[3/2] overflow-hidden rounded-2xl">
-              <FleetBoardMockup className="h-full" />
-            </div>
+          <div className="overflow-hidden rounded-2xl">
+            <DashboardMockup className="w-full" />
           </div>
         </div>
       </StudioCraftContainer>
