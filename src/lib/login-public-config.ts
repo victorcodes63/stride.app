@@ -6,6 +6,7 @@ import {
   getStaffDemoCredentialRows,
 } from '@/lib/demo-credentials';
 import { isPublicDemoMode } from '@/lib/deployment-config';
+import { isGenericPublicLogin } from '@/lib/marketing-site';
 
 /** Public login UI config — read on the server and passed as props to avoid hydration mismatches. */
 export type LoginPublicConfig = {
@@ -31,9 +32,11 @@ function isCredentialsHintEnabled(): boolean {
 }
 
 export function getLoginPublicConfig(): LoginPublicConfig {
+  const generic = isGenericPublicLogin();
+
   return {
-    emailPlaceholder: getDemoLoginEmailPlaceholder(),
-    showDemoHint: isCredentialsHintEnabled(),
+    emailPlaceholder: generic ? 'you@company.co.ke' : getDemoLoginEmailPlaceholder(),
+    showDemoHint: generic ? false : isCredentialsHintEnabled(),
     demoPassword: getDemoPassword(),
     staffDemoRows: getStaffDemoCredentialRows(),
     essDemoRow: getEssDemoCredentialRow(),

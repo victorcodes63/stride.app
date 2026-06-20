@@ -49,6 +49,11 @@ const vars = [
   ['NEXT_PUBLIC_BRAND_LOGO', '/brand/stride-mark.svg'],
   ['NEXT_PUBLIC_BRAND_LOGO_PNG', '/brand/stride-mark.svg'],
   ['NEXT_PUBLIC_BRAND_WORDMARK', '/brand/stride-wordmark.svg'],
+  ['DEMO_MODE', 'false'],
+  ['NEXT_PUBLIC_DEMO_MODE', 'false'],
+  ['NEXT_PUBLIC_SHOW_DEMO_LOGIN_HINT', 'false'],
+  ['NEXT_PUBLIC_GENERIC_PUBLIC_LOGIN', 'true'],
+  ['RUN_MIGRATIONS_ON_BUILD', 'false'],
 ];
 
 console.log(`Setting marketing Vercel env for ${siteUrl}…`);

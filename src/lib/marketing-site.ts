@@ -30,3 +30,15 @@ export function getLegacyHomeRedirectPath(): string {
   if (isModuleLicensed('ats')) return '/careers';
   return '/dashboard/login';
 }
+
+/**
+ * Public Stride surfaces (marketing / app subdomain) — login must not expose
+ * tenant org names or seeded demo emails. Internal demo sandboxes opt in via
+ * DEMO_MODE or NEXT_PUBLIC_TENANT_LOGIN_BRANDING=true.
+ */
+export function isGenericPublicLogin(): boolean {
+  if (parseBoolean(trimEnv('NEXT_PUBLIC_GENERIC_PUBLIC_LOGIN'), false)) return true;
+  if (parseBoolean(trimEnv('NEXT_PUBLIC_TENANT_LOGIN_BRANDING'), false)) return false;
+  if (isDemoMode() || isPublicDemoMode()) return false;
+  return Boolean(trimEnv('NEXT_PUBLIC_MARKETING_DOMAIN'));
+}

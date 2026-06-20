@@ -56,10 +56,16 @@
   color: var(--pub-ink);
 }
 
-.public-app :where(h1, h2, h3, h4) {
+.public-app:not(.studio-craft-marketing) :where(h1, h2, h3, h4) {
   color: var(--pub-ink);
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+/** Studio-craft dark bands — cream headings on ink backgrounds. */
+.public-app.studio-craft-marketing .sc-on-ink :where(h1, h2, h3, h4, h5, h6),
+.public-app.studio-craft-marketing .pub-on-ink :where(h1, h2, h3, h4, h5, h6) {
+  color: #fbf8f4;
 }
 
 /** Dark marketing bands — override default ink headings (e.g. Linear-style hero). */
@@ -734,8 +740,12 @@ html.dark .public-app:not(:has(.auth-split-form)) {
   color: var(--pub-ink-muted);
 }
 
-html.dark .public-app:not(:has(.auth-split-form)) :where(h1, h2, h3, h4, h5, h6) {
+html.dark .public-app:not(.studio-craft-marketing):not(:has(.auth-split-form)) :where(h1, h2, h3, h4, h5, h6) {
   color: var(--pub-ink);
+}
+
+html.dark .public-app.studio-craft-marketing .sc-on-ink :where(h1, h2, h3, h4, h5, h6) {
+  color: #fbf8f4;
 }
 
 html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink,

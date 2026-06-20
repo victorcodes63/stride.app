@@ -11,6 +11,7 @@ import {
   MARKETING_DEMO_STEPS,
   MARKETING_ROUTES,
   MARKETING_SALES_EMAIL,
+  getMarketingLoginUrl,
 } from '@/lib/marketing-config';
 import './book-demo.css';
 
@@ -148,7 +149,7 @@ function stepState(stepNumber: number, currentStep: number): StepItemProps['stat
 
 function BookDemoLeftPanel({ currentStep }: { currentStep: number }) {
   return (
-    <section className="bd-demo-panel relative flex min-h-[min(420px,55vh)] flex-col overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] lg:min-h-0 lg:w-[52%]">
+    <section className="bd-demo-panel relative flex min-h-[min(320px,42vh)] flex-col overflow-hidden rounded-[20px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:rounded-[28px] lg:min-h-0">
       <div
         className="pointer-events-none absolute -right-[10%] top-[5%] h-[55%] w-[55%] rounded-full opacity-30 blur-[80px] bd-demo-drift-a"
         style={{ background: 'radial-gradient(circle, var(--sc-coral) 0%, transparent 68%)' }}
@@ -171,7 +172,7 @@ function BookDemoLeftPanel({ currentStep }: { currentStep: number }) {
       <div className="bd-demo-copy relative z-10 flex flex-1 flex-col justify-end p-8 pt-10 xl:p-10 xl:pb-12">
         <div className="space-y-3">
           <h1 className="text-[clamp(1.75rem,3.5vw,2.375rem)] font-normal leading-[1.08] tracking-tight">
-            Book Stride
+            Get Stride
           </h1>
           <p className="max-w-[30ch] text-[14px] leading-relaxed">
             Follow these three quick steps to see Stride configured for your team.
@@ -303,10 +304,10 @@ export function BookDemoPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-3 bg-[var(--sc-ink)] p-3 selection:bg-[var(--sc-coral)]/25 lg:h-screen lg:flex-row lg:overflow-hidden lg:p-4">
+    <main className="flex min-h-[100dvh] w-full max-w-[100vw] flex-col gap-2 overflow-x-clip bg-[var(--sc-ink)] p-2 selection:bg-[var(--sc-coral)]/25 sm:gap-3 sm:p-3 lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden lg:p-4">
       <BookDemoLeftPanel currentStep={step} />
 
-      <section className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[28px] bg-[var(--sc-ink)] lg:overflow-hidden">
+      <section className="relative flex min-h-0 flex-col overflow-y-auto rounded-[20px] bg-[var(--sc-ink)] sm:rounded-[28px] lg:overflow-hidden">
         <Link
           href={MARKETING_ROUTES.home}
           className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#fbf8f4]/70 transition-colors hover:border-white/20 hover:text-[#fbf8f4] sm:right-8 sm:top-8"
@@ -360,7 +361,7 @@ export function BookDemoPage() {
                 </div>
 
                 {step === 1 ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <SocialButton
                       icon={<Mail className="h-4 w-4 text-[var(--sc-coral)]" aria-hidden />}
                       label="Email us"
@@ -600,7 +601,7 @@ export function BookDemoPage() {
                 <p className="text-center text-sm text-[#fbf8f4]/55">
                   Already on Stride?{' '}
                   <Link
-                    href={MARKETING_ROUTES.login}
+                    href={getMarketingLoginUrl()}
                     className="font-medium text-[#fbf8f4] underline-offset-4 hover:text-[var(--sc-coral)] hover:underline"
                   >
                     {MARKETING_CTAS.signIn}

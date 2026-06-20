@@ -1,39 +1,44 @@
+'use client';
+
 import { HOW_IT_WORKS_STEPS } from '@/lib/marketing-config';
-import { MarketingEyebrow } from '@/components/marketing/MarketingEyebrow';
-import { MarketingReveal } from '@/components/marketing/MarketingReveal';
+import { Reveal, Stagger, StaggerItem } from '@/components/marketing/motion';
+import { SectionBadge, StudioCraftContainer } from '@/components/marketing/v3/studio-craft-shared';
 
 export function MarketingHowSection() {
   return (
-    <section id="how" className="bg-pub-surface px-6 py-[80px] sm:px-10 lg:py-[120px]">
-      <div className="mx-auto max-w-[1120px]">
-        <MarketingReveal>
-          <MarketingEyebrow>How it works</MarketingEyebrow>
-        </MarketingReveal>
-        <MarketingReveal delay={0.08}>
-          <h2 className="max-w-[640px] font-heading text-[clamp(1.875rem,4vw,3.125rem)] font-extrabold leading-[1.06] tracking-[-1.5px] text-pub-ink">
-            Three steps to <span className="text-[var(--pub-primary)]">full speed.</span>
-          </h2>
-        </MarketingReveal>
+    <section id="how" className="bg-[var(--sc-paper)] py-16 sm:py-20 lg:py-28">
+      <StudioCraftContainer>
+        <Reveal>
+          <SectionBadge number="5" label="How it works" />
+        </Reveal>
 
-        <div className="mt-[60px] grid gap-7 md:grid-cols-3">
+        <Reveal delay={0.06}>
+          <h2 className="max-w-[640px] text-[clamp(2rem,4.5vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.03em] text-[var(--sc-ink)]">
+            Three steps to <span className="text-[var(--sc-coral)]">full speed.</span>
+          </h2>
+        </Reveal>
+
+        <Stagger className="mt-12 grid gap-8 md:grid-cols-3 lg:mt-16 lg:gap-10" delayChildren={0.14}>
           {HOW_IT_WORKS_STEPS.map((step, i) => (
-            <MarketingReveal key={step.step} delay={0.1 + i * 0.08}>
+            <StaggerItem key={step.step}>
               <div
-                className="border-t-[3px] pt-[26px]"
-                style={{ borderColor: `rgba(255, 84, 54, ${1 - i * 0.25})` }}
+                className="border-t-2 border-[var(--sc-coral)] pt-6"
+                style={{
+                  borderColor: `color-mix(in srgb, var(--sc-coral, #ff5436) ${100 - i * 22}%, transparent)`,
+                }}
               >
-                <p className="mb-3.5 font-heading text-[13px] font-bold text-[var(--pub-primary)]">
+                <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--sc-coral)]">
                   {step.step}
                 </p>
-                <h3 className="mb-2.5 font-heading text-[21px] font-bold leading-tight tracking-[-0.4px] text-pub-ink">
+                <h3 className="mb-3 text-xl font-medium leading-tight tracking-[-0.02em] text-[var(--sc-ink)]">
                   {step.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-pub-ink-muted">{step.body}</p>
+                <p className="text-sm leading-relaxed text-[var(--sc-ink-muted)]">{step.body}</p>
               </div>
-            </MarketingReveal>
+            </StaggerItem>
           ))}
-        </div>
-      </div>
+        </Stagger>
+      </StudioCraftContainer>
     </section>
   );
 }

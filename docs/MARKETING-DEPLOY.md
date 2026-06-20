@@ -1,15 +1,30 @@
-# Stride marketing deploy — getstride.co.ke
+# Stride deploy — getstride.co.ke + app.getstride.co.ke
 
-Public marketing site lives in **hris-demo** (`src/app/page.tsx`, `(marketing)/`, `/contact`).
+Two Vercel projects, same GitHub repo (`victorcodes63/stride.app`):
 
-## Domain map
+| Vercel project | Domain | Role |
+|----------------|--------|------|
+| `stride-app` | `getstride.co.ke` | Marketing site |
+| `stride-platform` | `app.getstride.co.ke` | Product (login, dashboard, ESS) |
 
-| Host | Purpose |
-|------|---------|
-| `getstride.co.ke` | Marketing site (this deploy) |
-| `app.getstride.co.ke` | Client product / dashboard (separate Vercel project or env profile) |
+Env profiles: `deployments/marketing-getstride.env`, `deployments/app-getstride.env`
 
-## Vercel checklist (RAV-44)
+## Marketing — getstride.co.ke
+
+See checklist below (stride-app).
+
+## Platform — app.getstride.co.ke
+
+1. **Project** — `stride-platform` on Vercel (not `hcm`).
+2. **Env** — run `node scripts/setup-app-vercel-env.mjs`, then in Vercel add **DATABASE_URL** + **DIRECT_DATABASE_URL** from Neon (Settings → stride-platform → Environment Variables). Copy module/demo vars from `deployments/all-verticals.env` or your Neon-linked project if needed.
+3. **Domain** — `app.getstride.co.ke` on `stride-platform`.
+4. **DNS** — at host-ww.net: `CNAME app → cname.vercel-dns.com` (or target shown in Vercel).
+5. **Redeploy** production after env + DNS.
+6. **Marketing** — keep `NEXT_PUBLIC_APP_ORIGIN=https://app.getstride.co.ke` on `stride-app` so Sign in links hit the app subdomain.
+
+---
+
+## Marketing checklist (stride-app)
 
 1. **Link project** — `cd hris-demo && vercel link` (or use existing hris-demo project).
 2. **Env vars** — run:

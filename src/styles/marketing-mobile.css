@@ -1,0 +1,27 @@
+/**
+ * Marketing layout — mobile safe areas, overflow, and touch targets.
+ */
+
+.public-app.studio-craft-marketing {
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+@media (max-width: 639px) {
+  .marketing-cta-stack a,
+  .marketing-cta-stack button {
+    width: 100%;
+  }
+
+  .marketing-cta-stack a:not(.group) {
+    justify-content: center;
+  }
+
+  .bd-demo-panel {
+    min-height: min(320px, 42vh) !important;
+  }
+
+  .marketing-mobile-drawer {
+    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+  }
+}

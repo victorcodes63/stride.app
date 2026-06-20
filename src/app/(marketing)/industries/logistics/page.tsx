@@ -56,7 +56,7 @@ export default function LogisticsIndustryPage() {
       <MarketingPageBody>
         <div className="grid gap-4 sm:grid-cols-2">
           {FEATURES.map((f) => (
-            <article key={f.title} className="rounded-2xl border border-pub-border bg-white p-6">
+            <article key={f.title} className="rounded-2xl border border-pub-border bg-white p-5 sm:p-6">
               <h2 className="font-heading text-lg font-bold text-pub-ink">{f.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-pub-ink-muted">{f.body}</p>
             </article>

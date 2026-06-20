@@ -1,48 +1,47 @@
-import Link from 'next/link';
 import { MARKETING_CTAS, MARKETING_ROUTES } from '@/lib/marketing-config';
-import { MarketingReveal } from '@/components/marketing/MarketingReveal';
+import {
+  MarketingPrimaryLink,
+  MarketingSignInLink,
+  StudioCraftContainer,
+} from '@/components/marketing/v3/studio-craft-shared';
 
 export function MarketingFinalCta() {
   return (
-    <section className="pub-on-ink relative overflow-hidden bg-pub-ink px-6 py-[130px] text-center sm:px-10">
+    <section className="pub-on-ink sc-on-ink relative overflow-hidden bg-[var(--sc-ink)] py-16 text-center text-[#FBF8F4] sm:py-24 lg:py-32">
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[900px] -translate-x-1/2 -translate-y-1/2"
         style={{
           background:
-            'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255,84,54,0.18) 0%, transparent 70%)',
+            'radial-gradient(ellipse 50% 50% at 50% 50%, color-mix(in srgb, var(--sc-coral) 22%, transparent) 0%, transparent 70%)',
         }}
         aria-hidden
       />
-      <MarketingReveal>
-        <h2 className="relative z-[1] font-heading text-[clamp(2.375rem,5.5vw,4.5rem)] font-extrabold leading-none tracking-[-2px] text-[#FBF8F4]">
+      <StudioCraftContainer className="relative z-[1]">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--sc-coral)]/[0.12] px-3 py-1 text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--sc-coral)]">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--sc-coral)]" aria-hidden />
+          Get started
+        </p>
+        <h2 className="!text-[#FBF8F4] text-[clamp(1.875rem,7vw,4rem)] font-medium leading-[1.05] tracking-[-0.03em] sm:leading-[1.02]">
           Ready to
           <br />
-          hit your <span className="text-[var(--pub-primary)]">stride?</span>
+          hit your <span className="text-[var(--sc-coral)]">stride?</span>
         </h2>
-      </MarketingReveal>
-      <MarketingReveal delay={0.08}>
-        <p className="relative z-[1] mx-auto mt-[22px] max-w-xl text-[17px] leading-relaxed text-[#F0EFE9]/70">
+        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-[#FBF8F4]/70 sm:mt-5 sm:text-base lg:text-lg">
           No setup fee. No lock-in. Local support from day one.
-          <br />
-          Your whole business, finally moving as one.
+          <span className="hidden sm:inline">
+            <br />
+          </span>{' '}
+          <span className="sm:block">Your whole business, finally moving as one.</span>
         </p>
-      </MarketingReveal>
-      <MarketingReveal delay={0.16}>
-        <div className="relative z-[1] mt-11 flex flex-wrap justify-center gap-3.5">
-          <Link
+        <div className="marketing-cta-stack mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+          <MarketingPrimaryLink
             href={MARKETING_ROUTES.contact}
-            className="inline-flex rounded-[10px] bg-[var(--pub-primary)] px-9 py-4 text-base font-semibold text-pub-ink transition hover:-translate-y-0.5 hover:bg-[var(--pub-primary-hover)] hover:shadow-[0_16px_36px_rgba(255,84,54,0.18)]"
-          >
-            {MARKETING_CTAS.bookDemo}
-          </Link>
-          <Link
-            href={MARKETING_ROUTES.login}
-            className="inline-flex rounded-[10px] border border-white/[0.14] bg-white/[0.06] px-9 py-4 text-base font-semibold text-pub-surface transition hover:bg-white/[0.12]"
-          >
-            {MARKETING_CTAS.signIn}
-          </Link>
+            label={MARKETING_CTAS.bookDemo}
+            variant="coral"
+          />
+          <MarketingSignInLink tone="dark" />
         </div>
-      </MarketingReveal>
+      </StudioCraftContainer>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import PublicAppShell from '@/components/public/PublicAppShell';
 import { MARKETING_BRAND } from '@/lib/marketing-config';
+import '@/styles/marketing-mobile.css';
 
 const brandVars = {
   '--sc-coral': MARKETING_BRAND.coral,
@@ -14,7 +15,7 @@ const brandVars = {
 export default function FullscreenMarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <PublicAppShell
-      className="bg-[var(--sc-ink)] font-[var(--font-inter)] text-[var(--sc-paper)] antialiased"
+      className="studio-craft-marketing max-w-[100vw] overflow-x-clip bg-[var(--sc-ink)] font-[var(--font-inter)] text-[var(--sc-paper)] antialiased"
       style={brandVars}
     >
       {children}

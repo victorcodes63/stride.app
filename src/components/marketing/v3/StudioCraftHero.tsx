@@ -1,7 +1,6 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import Link from 'next/link';
 import {
   MARKETING_BRAND,
   MARKETING_CTAS,
@@ -11,7 +10,11 @@ import {
 } from '@/lib/marketing-config';
 import { HeroShaderBackground } from './HeroShaderBackground';
 import { HeroDashboardShowcase } from './HeroDashboardShowcase';
-import { StudioCraftContainer } from './studio-craft-shared';
+import {
+  MarketingPrimaryLink,
+  MarketingSignInLink,
+  StudioCraftContainer,
+} from './studio-craft-shared';
 import { StudioCraftNav } from './StudioCraftNav';
 import './studio-craft-hero.css';
 
@@ -57,7 +60,7 @@ export function StudioCraftHero() {
             {MARKETING_HERO.eyebrow}
           </p>
 
-          <h1 className="font-normal leading-[1.05] tracking-tight text-[var(--sc-ink)] text-[40px] min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]">
+          <h1 className="font-normal leading-[1.05] tracking-tight text-[var(--sc-ink)] text-[clamp(2rem,9vw,2.75rem)] min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]">
             <span className="block sc-animate-fade-up" style={{ animationDelay: '160ms' }}>
               {MARKETING_HERO.titleLines[0]}
             </span>
@@ -78,22 +81,16 @@ export function StudioCraftHero() {
             className="sc-animate-fade-up mt-4 flex flex-wrap items-center justify-center gap-3 sm:mt-5"
             style={{ animationDelay: '400ms' }}
           >
-            <Link
+            <MarketingPrimaryLink
               href={MARKETING_ROUTES.contact}
-              className="rounded-full bg-[var(--sc-coral)] px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-[var(--sc-coral-deep)] hover:shadow-lg"
-            >
-              {MARKETING_CTAS.bookDemo}
-            </Link>
-            <Link
-              href={MARKETING_ROUTES.login}
-              className="rounded-full px-6 py-2.5 text-sm font-medium text-[var(--sc-ink-muted)] ring-1 ring-[var(--sc-line)] transition-colors hover:bg-[var(--sc-paper-2)]"
-            >
-              {MARKETING_CTAS.signIn}
-            </Link>
+              label={MARKETING_CTAS.bookDemo}
+              variant="coral"
+            />
+            <MarketingSignInLink />
           </div>
         </StudioCraftContainer>
 
-        <div className="sc-animate-hero-fade-in relative z-30 mt-auto w-full shrink-0 px-4 sm:px-6">
+        <div className="sc-animate-hero-fade-in relative z-30 mt-auto w-full shrink-0 px-3 sm:px-6">
           <HeroDashboardShowcase />
         </div>
       </div>

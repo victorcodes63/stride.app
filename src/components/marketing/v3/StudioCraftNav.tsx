@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, List, X } from '@phosphor-icons/react';
+import { List, X } from '@phosphor-icons/react';
 import { StrideLogo } from '@/components/marketing/StrideMark';
 import {
   MARKETING_CTAS,
   MARKETING_NAV_LINKS,
   MARKETING_ROUTES,
 } from '@/lib/marketing-config';
-import { RollLabel, StudioCraftContainer, TextRollLink } from './studio-craft-shared';
+import { MarketingPrimaryLink, MarketingSignInLink, StudioCraftContainer, TextRollLink } from './studio-craft-shared';
 
 export function StudioCraftNav() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,12 +50,7 @@ export function StudioCraftNav() {
             </nav>
 
             <div className="hidden items-center justify-end gap-4 md:flex">
-              <Link
-                href={MARKETING_ROUTES.login}
-                className="text-[14px] font-medium text-[var(--sc-ink-muted)] transition-colors duration-300 hover:text-[var(--sc-ink)]"
-              >
-                {MARKETING_CTAS.signIn}
-              </Link>
+              <MarketingSignInLink className="px-4 py-2 text-[13px]" />
               <TextRollLink
                 href={MARKETING_ROUTES.contact}
                 label={MARKETING_CTAS.bookDemo}
@@ -91,7 +86,7 @@ export function StudioCraftNav() {
           onClick={() => setMenuOpen(false)}
         />
         <div
-          className={`absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-6 pb-8 pt-6 transition-transform duration-500 ${
+          className={`marketing-mobile-drawer absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white px-5 pb-8 pt-6 transition-transform duration-500 sm:px-6 ${
             menuOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
           style={{ transitionTimingFunction: 'cubic-bezier(0.32,0.72,0,1)' }}
@@ -110,23 +105,17 @@ export function StudioCraftNav() {
             ))}
           </ul>
           <div className="mt-8 space-y-3">
-            <Link
-              href={MARKETING_ROUTES.login}
-              className="block text-center text-[15px] font-medium text-[var(--sc-ink-muted)]"
+            <MarketingSignInLink
+              className="w-full py-2.5 text-[15px]"
               onClick={() => setMenuOpen(false)}
-            >
-              {MARKETING_CTAS.signIn}
-            </Link>
-            <Link
+            />
+            <MarketingPrimaryLink
               href={MARKETING_ROUTES.contact}
-              className="group inline-flex w-full items-center justify-between rounded-full bg-[var(--sc-ink)] px-5 py-3 text-white"
+              label={MARKETING_CTAS.bookDemo}
+              variant="ink"
+              fullWidth
               onClick={() => setMenuOpen(false)}
-            >
-              <RollLabel label={MARKETING_CTAS.bookDemo} />
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[var(--sc-ink)] transition-transform duration-500 group-hover:-rotate-45">
-                <ArrowRight size={16} weight="bold" aria-hidden />
-              </span>
-            </Link>
+            />
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 import PublicAppShell from '@/components/public/PublicAppShell';
 import { MARKETING_BRAND } from '@/lib/marketing-config';
+import '@/styles/marketing-mobile.css';
 
 export const studioCraftBrandVars = {
   '--sc-coral': MARKETING_BRAND.coral,
@@ -21,7 +22,7 @@ type StudioCraftShellProps = {
 export function StudioCraftShell({ children }: StudioCraftShellProps) {
   return (
     <PublicAppShell
-      className="bg-[var(--sc-paper)] font-[var(--font-inter)] text-[var(--sc-ink-muted)]"
+      className="studio-craft-marketing max-w-[100vw] overflow-x-clip bg-[var(--sc-paper)] font-[var(--font-inter)] text-[var(--sc-ink-muted)]"
       style={studioCraftBrandVars}
     >
       {children}

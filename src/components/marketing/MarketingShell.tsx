@@ -10,11 +10,13 @@ type MarketingShellProps = {
 export function MarketingShell({ children }: MarketingShellProps) {
   return (
     <StudioCraftShell>
-      <div className="fixed inset-x-0 top-0 z-[100] pt-2 sm:pt-3">
-        <StudioCraftNav />
+      <div className="[--nav-h:5.25rem] sm:[--nav-h:5.75rem]">
+        <header className="fixed inset-x-0 top-0 z-[100] pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:pt-3">
+          <StudioCraftNav />
+        </header>
+        <main className="min-w-0 pt-[var(--nav-h)]">{children}</main>
+        <MarketingFooter />
       </div>
-      <main>{children}</main>
-      <MarketingFooter />
     </StudioCraftShell>
   );
 }

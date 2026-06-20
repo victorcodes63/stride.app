@@ -1,8 +1,11 @@
-import Link from 'next/link';
 import { PRICING_TIERS } from '@/lib/marketing-config';
 import { MarketingCtaBand } from '@/components/marketing/MarketingCtaBand';
 import { MarketingPageBody } from '@/components/marketing/MarketingPageBody';
 import { MarketingPageHeader } from '@/components/marketing/MarketingPageHeader';
+import {
+  MarketingOutlineLink,
+  MarketingPrimaryLink,
+} from '@/components/marketing/v3/studio-craft-shared';
 
 export const metadata = {
   title: 'Pricing',
@@ -24,14 +27,23 @@ export default function PricingPage() {
           {PRICING_TIERS.map((tier) => (
             <article
               key={tier.id}
-              className={`flex flex-col rounded-[20px] border p-8 ${
+              className={`flex flex-col rounded-[20px] border p-5 text-center sm:p-8 ${
                 tier.featured ? 'pub-on-ink border-pub-ink bg-pub-ink text-[#FBF8F4]' : 'border-pub-border bg-white'
               }`}
             >
+              {tier.featured ? (
+                <span className="mx-auto mb-4 inline-flex rounded-full bg-[var(--pub-primary)]/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--pub-primary)]">
+                  Most popular
+                </span>
+              ) : null}
               <p className="font-heading text-sm font-bold uppercase tracking-wide text-[var(--pub-primary)]">
                 {tier.name}
               </p>
-              <p className={`mt-4 font-heading text-4xl font-extrabold ${tier.featured ? '' : 'text-pub-ink'}`}>
+              <p
+                className={`mt-3 font-heading text-[clamp(1.75rem,8vw,2.25rem)] font-extrabold sm:mt-4 sm:text-4xl ${
+                  tier.featured ? '' : 'text-pub-ink'
+                }`}
+              >
                 {tier.price}
               </p>
               <p className={`text-sm ${tier.featured ? 'text-[#9C948A]' : 'text-pub-ink-subtle'}`}>
@@ -46,23 +58,29 @@ export default function PricingPage() {
               >
                 {tier.description}
               </p>
-              <ul className="mb-8 flex flex-1 flex-col gap-3 text-sm">
+              <ul
+                className={`mx-auto mb-8 flex w-full max-w-[16rem] flex-1 flex-col gap-3 text-left text-sm sm:max-w-[18rem] ${
+                  tier.featured ? 'text-[#D8D2C9]' : 'text-pub-ink-muted'
+                }`}
+              >
                 {tier.features.map((f) => (
-                  <li key={f} className={tier.featured ? 'text-[#D8D2C9]' : 'text-pub-ink-muted'}>
-                    <span className="text-[var(--pub-primary)]">✓</span> {f}
+                  <li key={f} className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 text-[var(--pub-primary)]">✓</span>
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/contact"
-                className={`rounded-lg py-3 text-center text-sm font-semibold transition ${
-                  tier.featured
-                    ? 'bg-[var(--pub-primary)] text-white hover:bg-[var(--pub-primary-hover)]'
-                    : 'border border-pub-border-strong text-pub-ink hover:border-pub-ink'
-                }`}
-              >
-                {tier.cta}
-              </Link>
+              {tier.featured ? (
+                <MarketingPrimaryLink
+                  href="/contact"
+                  label={tier.cta}
+                  variant="coral"
+                  showArrow
+                  fullWidth
+                />
+              ) : (
+                <MarketingOutlineLink href="/contact" label={tier.cta} showArrow fullWidth />
+              )}
             </article>
           ))}
         </div>

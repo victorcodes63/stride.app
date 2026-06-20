@@ -82,6 +82,112 @@
   transition: background-color 9999s ease-out 0s;
 }
 
+/* Staff / auth login — dark panel matching contact form */
+.auth-studio-form .dash-auth-title {
+  color: #fbf8f4;
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.auth-studio-form .dash-auth-label,
+.auth-studio-form .dash-auth-body {
+  color: rgba(251, 248, 244, 0.9);
+}
+
+.auth-studio-form .dash-auth-muted {
+  color: rgba(251, 248, 244, 0.55);
+}
+
+.auth-studio-form .dash-auth-link {
+  color: var(--sc-coral, #ff5436);
+}
+
+.auth-studio-form .dash-auth-link:hover {
+  color: var(--sc-coral-deep, #e63e22);
+}
+
+.auth-studio-form .dash-auth-input {
+  height: 2.75rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fbf8f4;
+}
+
+.auth-studio-form .dash-auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.auth-studio-form .dash-auth-input:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.auth-studio-form .dash-auth-input:focus {
+  border-color: rgba(255, 84, 54, 0.5);
+  box-shadow: 0 0 0 4px rgba(255, 84, 54, 0.15);
+}
+
+.auth-studio-form .dash-auth-submit {
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 84, 54, 0.35);
+  background: var(--sc-coral, #ff5436);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(255, 84, 54, 0.22);
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.auth-studio-form .dash-auth-submit:hover:not(:disabled) {
+  background: var(--sc-coral-deep, #e63e22);
+  box-shadow: 0 4px 10px rgba(255, 84, 54, 0.28);
+  transform: none;
+}
+
+.auth-studio-form .dash-auth-submit:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--sc-ink, #1a1714),
+    0 0 0 4px rgba(255, 84, 54, 0.35);
+}
+
+.auth-studio-form .dash-auth-submit:disabled {
+  opacity: 0.7;
+}
+
+.auth-studio-form .dash-auth-oauth-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fbf8f4;
+}
+
+.auth-studio-form .dash-auth-oauth-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-studio-form .dash-auth-divider-line {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.auth-studio-form .dash-auth-divider-label {
+  color: rgba(255, 255, 255, 0.35);
+  background: var(--sc-ink, #1a1714);
+}
+
+.auth-studio-form .dash-auth-checkbox {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  accent-color: var(--sc-coral, #ff5436);
+}
+
+.auth-studio-form .dash-auth-footer {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(251, 248, 244, 0.55);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bd-demo-drift-a,
   .bd-demo-drift-b {

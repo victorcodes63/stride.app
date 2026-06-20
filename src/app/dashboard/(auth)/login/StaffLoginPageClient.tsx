@@ -107,13 +107,13 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  welcomeTitle={welcomeCopy.welcomeTitle}
  welcomeSubtitle={welcomeCopy.welcomeSubtitle}
  footer={
- <footer className="dash-auth-footer border-t px-5 py-4 text-center lg:hidden">
- <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs dash-auth-muted">
- <Link href="/careers" className="hover:text-[var(--dash-text-strong)]">Careers</Link>
- <Link href={privacyPolicyUrl || '/privacy'} className="hover:text-[var(--dash-text-strong)]">Privacy</Link>
- <Link href={termsUrl || '/terms'} className="hover:text-[var(--dash-text-strong)]">Terms</Link>
+ <footer className="border-t border-white/10 px-5 py-4 text-center lg:hidden">
+ <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-[#fbf8f4]/50">
+ <Link href="/careers" className="hover:text-[#fbf8f4]">Careers</Link>
+ <Link href={privacyPolicyUrl || '/privacy'} className="hover:text-[#fbf8f4]">Privacy</Link>
+ <Link href={termsUrl || '/terms'} className="hover:text-[#fbf8f4]">Terms</Link>
  </nav>
- <p className="mx-auto mt-2 max-w-xs text-pretty text-xs leading-relaxed dash-auth-muted" suppressHydrationWarning>
+ <p className="mx-auto mt-2 max-w-xs text-pretty text-xs leading-relaxed text-[#fbf8f4]/45" suppressHydrationWarning>
  © {new Date().getFullYear()} {brandConfig.productName}
  </p>
  </footer>

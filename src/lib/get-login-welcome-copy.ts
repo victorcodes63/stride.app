@@ -3,6 +3,7 @@ import { loadCompanySetupSettings, toPublicCompanySetup } from '@/lib/company-se
 import { brandConfig } from '@/lib/brand.config';
 import { HRIS_ENTITY_COOKIE } from '@/lib/entity-constants';
 import { parseDemoEntitySlug } from '@/lib/demo-entity-slug';
+import { isGenericPublicLogin } from '@/lib/marketing-site';
 import { resolvePublicBrand } from '@/lib/resolve-public-brand';
 
 export type LoginWelcomeCopy = {
@@ -27,6 +28,22 @@ export async function getLoginWelcomeCopy(): Promise<LoginWelcomeCopy> {
   const pub = toPublicCompanySetup(setup);
   const brand = resolvePublicBrand(setup);
   const productName = brandConfig.productName;
+
+  if (isGenericPublicLogin()) {
+    return {
+      staff: {
+        welcomeTitle: `Welcome to ${productName}`,
+        welcomeSubtitle: 'Sign in to manage your organization on Stride.',
+        emailLoginEnabled: pub.staff.emailLoginEnabled,
+      },
+      ess: {
+        welcomeTitle: `Welcome to ${productName}`,
+        welcomeSubtitle: 'Sign in to your employee portal.',
+        portalTitle: pub.ess.portalTitle || 'Employee portal',
+        emailLoginEnabled: pub.ess.emailLoginEnabled,
+      },
+    };
+  }
 
   return {
     staff: {

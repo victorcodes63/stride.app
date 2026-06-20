@@ -35,8 +35,53 @@ export function getMarketingSiteUrl(): string {
   return `https://${MARKETING_CANONICAL_DOMAIN}`;
 }
 
-/** Public sales inbox for marketing site CTAs (forwards to team until getstride.co.ke mail is live). */
+function isLocalDevHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '[::1]' ||
+    normalized.endsWith('.localhost')
+  );
+}
+
+/** Staff login — same host when marketing + app share a deploy; app subdomain when split. */
+export function getMarketingLoginUrl(): string {
+  if (process.env.NODE_ENV === 'development') {
+    return MARKETING_ROUTES.login;
+  }
+
+  try {
+    const siteUrl = getMarketingSiteUrl();
+    const siteHost = new URL(siteUrl).host;
+
+    // Local dev runs marketing + dashboard on one Next server.
+    if (isLocalDevHost(siteHost)) {
+      return MARKETING_ROUTES.login;
+    }
+
+    const appHost = new URL(MARKETING_APP_ORIGIN).host;
+    if (appHost !== siteHost) {
+      return `${MARKETING_APP_ORIGIN.replace(/\/$/, '')}/dashboard/login`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return MARKETING_ROUTES.login;
+}
+
+/**
+ * Public sales inbox — footer, contact page mailto links, and book-demo CTAs.
+ * TODO(launch): Confirm hello@getstride.co.ke is live and monitored before shipping.
+ * Update MARKETING_SALES_EMAIL and any legacy hello@raventechgroup.com references together.
+ */
 export const MARKETING_SALES_EMAIL = 'hello@getstride.co.ke';
+
+/**
+ * TODO(launch): Replace with the confirmed Stride or Raven Tech Group LinkedIn company page URL.
+ * Placeholder only — do not ship without verifying the page exists.
+ */
+export const MARKETING_LINKEDIN_URL = 'https://linkedin.com/company/raventechgroup';
 
 /** Sales-led CTAs — no public self-service signup until provisioning exists. */
 export const MARKETING_CTAS = {
@@ -97,7 +142,7 @@ export const MARKETING_DASHBOARD_HERO = {
   height: 591,
   /** Crop height from top — sidebar, module banner, and “At a glance” row only. */
   visibleHeight: 352,
-  alt: 'Stride HR and payroll dashboard for Amani Medical Centre',
+  alt: 'Stride HR and payroll dashboard — organization overview',
 } as const;
 
 export const MARKETING_DEMO_STEPS = [
@@ -147,6 +192,7 @@ export const MARKETING_HERO_SHADER = {
   filmGrain: { strength: 0.035 },
 } as const;
 
+/** @deprecated Placeholder names — do not use as social proof. Prefer INDUSTRY_VERTICALS for sector focus. */
 export const TRUST_CLIENTS = [
   'Nyati SACCO',
   'SwiftFreight',
@@ -191,6 +237,198 @@ export const CORE_MODULES = [
     name: 'Admin',
     description:
       'Asset registers, fleet, facilities and board resolutions — the operational layer most platforms skip.',
+  },
+] as const;
+
+/** Rich module detail for /platform — prospective-client depth beyond homepage cards. */
+export const PLATFORM_MODULES = [
+  {
+    num: '01',
+    name: 'HR & Payroll',
+    headline: 'Pay people correctly. Stay compliant.',
+    description:
+      'The module most teams start with — because every business has people to pay. Built for Kenyan statutory rules, not adapted from a US payroll template.',
+    features: [
+      'Payroll runs, payslips and P9 exports',
+      'Leave, attendance and onboarding workflows',
+      'Employee self-service (ESS) portal',
+      'KRA PAYE, NSSF, SHIF and statutory deductions',
+      'Recruitment & ATS when you need to hire',
+    ],
+  },
+  {
+    num: '02',
+    name: 'Finance',
+    headline: 'One ledger for how money actually moves.',
+    description:
+      'Accounts, budgets, approvals and collections on the same chart of accounts that payroll posts to — so HR and finance are never reconciling two different truths.',
+    features: [
+      'General ledger, budgets and cost centres',
+      'Approval chains for payments and journals',
+      'M-Pesa bulk disbursements and reconciliation',
+      'Invoicing, receipts and aged debtors',
+      'Management reports tied to live payroll data',
+    ],
+  },
+  {
+    num: '03',
+    name: 'Procurement',
+    headline: 'Structured spend from request to payment.',
+    description:
+      'Purchase requests, vendor records and LPOs with audit trails — so procurement is governed, not a chain of emails and PDFs.',
+    features: [
+      'Purchase requests and multi-level approvals',
+      'Vendor register and rate cards',
+      'LPO generation and goods received notes',
+      'Spend tracking by department and project',
+      'Three-way match into finance when goods are received',
+    ],
+  },
+  {
+    num: '04',
+    name: 'Legal & Documents',
+    headline: 'Contracts and obligations you will not miss.',
+    description:
+      'Registers for contracts, licences and compliance documents — with renewal reminders and approval workflows before anything expires quietly.',
+    features: [
+      'Contract and licence registers',
+      'Renewal alerts and obligation tracking',
+      'Document templates and e-sign workflows',
+      'Board resolutions and governance records',
+      'Audit trail on sensitive document access',
+    ],
+  },
+  {
+    num: '05',
+    name: 'Projects',
+    headline: 'Deliverables tied to real people and budgets.',
+    description:
+      'Project plans, task assignment and budget burn against the same employee and cost-centre data HR and finance already use.',
+    features: [
+      'Project workspaces and milestone tracking',
+      'Task assignment to team members',
+      'Budget vs actual against finance ledger',
+      'Time and deliverable reporting',
+      'Client billing hooks into invoicing',
+    ],
+  },
+  {
+    num: '06',
+    name: 'Admin',
+    headline: 'The operational layer most platforms skip.',
+    description:
+      'Assets, fleet registers, facilities and internal admin workflows — the work that keeps the business running but rarely gets its own system.',
+    features: [
+      'Fixed asset and equipment registers',
+      'Fleet and facility management basics',
+      'Internal requests and service desk',
+      'Policy acknowledgements and staff comms',
+      'Foundation for vertical packs like logistics',
+    ],
+  },
+] as const;
+
+export const PLATFORM_PAGE = {
+  hero: {
+    eyebrow: 'The platform',
+    titleLines: ['Everything your business', 'runs on.'] as const,
+    description:
+      'Stride is a horizontal operations platform — not just HR software. Payroll is the wedge every business needs, but finance, procurement, documents, projects and admin share the same org chart, employee records and approval flows.',
+    highlights: [
+      'Six core modules on one login and one data layer',
+      'Kenyan payroll, M-Pesa disbursements and statutory filing built in',
+      'Enable modules as you grow — no forced bundles or shelfware',
+    ],
+  },
+  audience: {
+    badge: 'Who it is for',
+    title: 'Built for teams that have outgrown spreadsheets.',
+    body: 'If payroll lives in Excel, approvals happen on WhatsApp and finance reconciles at month-end, Stride replaces the patchwork — without an eighteen-month ERP rollout.',
+  },
+  connected: {
+    badge: 'One data layer',
+    title: 'Modules that actually talk to each other.',
+    body: 'Employee records, org structure and approvals are shared — so a trip settlement, purchase order or payslip never needs to be re-keyed in another system.',
+  },
+  compliance: {
+    badge: 'East Africa native',
+    title: 'Compliance is not an add-on.',
+    body: 'Statutory logic, disbursement rails and data protection are designed for how Kenyan businesses operate — not retrofitted from a global template.',
+  },
+} as const;
+
+export const PLATFORM_AUDIENCE = [
+  {
+    title: '15–300 staff',
+    body: 'Growing SMEs and mid-market operators who need structure without enterprise complexity or per-seat pricing that scales out of control.',
+  },
+  {
+    title: 'Multi-department teams',
+    body: 'HR, finance and operations leaders who need one source of truth — not three systems that never reconcile at month-end.',
+  },
+  {
+    title: 'Regulated organisations',
+    body: 'SACCOs, fintechs, logistics firms and consultancies with statutory obligations, audit trails and multi-entity structures.',
+  },
+] as const;
+
+export const PLATFORM_WORKFLOWS = [
+  {
+    title: 'Hire to pay',
+    flow: 'Recruit → onboard → payroll run → M-Pesa disbursement → ledger',
+    body: 'New hires move from offer letter to first payslip on shared employee records — no duplicate profiles across HR and finance.',
+  },
+  {
+    title: 'Request to pay',
+    flow: 'Purchase request → approval → LPO → GRN → vendor payment',
+    body: 'Procurement approvals feed the finance ledger when goods are received, with a full audit trail from who asked to who paid.',
+  },
+  {
+    title: 'Trip to invoice',
+    flow: 'Order → dispatch → POD → settlement → customer invoice',
+    body: 'With the Logistics vertical, completed trips flow into billing and collections on the same finance module as payroll.',
+  },
+] as const;
+
+export const PLATFORM_COMPLIANCE = [
+  { label: 'KRA PAYE', detail: 'PAYE calculations, payslips, P9s and filing-ready exports' },
+  { label: 'NSSF & SHIF', detail: 'Statutory deductions calculated and reported each pay run' },
+  { label: 'M-Pesa', detail: 'Bulk salary disbursements with reconciliation against payroll' },
+  { label: 'Multi-entity', detail: 'Separate legal entities, currencies and configs in one account' },
+  { label: 'ODPC-ready', detail: 'Audit trails, access controls and data export on exit' },
+  { label: 'Kenya & Uganda', detail: 'Payroll and statutory configs for cross-border operators' },
+] as const;
+
+export const PLATFORM_FAQ = [
+  {
+    question: 'How is Stride different from other HR platforms?',
+    answer:
+      "Most HR platforms either focus narrowly on payroll or are foreign tools retrofitted for Kenya. Stride is built from the ground up for East Africa — M-Pesa, KRA, NSSF and SHIF aren't add-ons — and grows beyond HR into finance, procurement, projects and industry-specific modules like fleet management, all on one login.",
+  },
+  {
+    question: 'Can we start with one module and add more later?',
+    answer:
+      'Absolutely. Most teams begin with HR and Finance, then turn on Procurement, Projects or vertical packs when they are ready. One login, one data layer throughout — no re-implementation when you expand.',
+  },
+  {
+    question: 'Which modules are included in each pricing tier?',
+    answer:
+      'Starter includes two core modules for up to 25 staff. Growth adds more modules and headcount. Enterprise is the full platform with bespoke rollout for regulated and multi-entity organisations. See pricing for current bands in Kenyan shillings.',
+  },
+  {
+    question: 'Do you support M-Pesa for salary disbursements?',
+    answer:
+      'M-Pesa bulk disbursements and reconciliation are first-class — designed for how Kenyan businesses actually pay people, with matching back to payroll runs.',
+  },
+  {
+    question: 'Do you support multi-entity or cross-border operations?',
+    answer:
+      'Yes. Stride supports multi-entity structures out of the box — separate legal entities, currencies and statutory configurations (including Kenya and Uganda) from a single account, with consolidated and entity-level reporting.',
+  },
+  {
+    question: 'What industry verticals are available today?',
+    answer:
+      'Logistics & Cargo is live now — fleet, trips, POD and settlement on the core. SACCOs, Healthcare, Energy and Construction are on the roadmap; join the waitlist for your sector while using the horizontal core today.',
   },
 ] as const;
 
@@ -316,6 +554,11 @@ export const FAQ_ITEMS = [
       'Yes. KRA PAYE, NSSF, SHIF and statutory deductions are built in from day one — not bolted on as an afterthought. Payslips, P9s and filing exports are included.',
   },
   {
+    question: 'How is Stride different from other HR platforms?',
+    answer:
+      "Most HR platforms either focus narrowly on payroll or are foreign tools retrofitted for Kenya. Stride is built from the ground up for East Africa — M-Pesa, KRA, NSSF and SHIF aren't add-ons — and grows beyond HR into finance, procurement, projects and industry-specific modules like fleet management, all on one login. Pricing is banded by organisation size, not per seat, so it fits a 12-person consultancy and a 300-staff SACCO alike.",
+  },
+  {
     question: 'Can we start with one module and add more later?',
     answer:
       'Absolutely. Most teams begin with HR and Finance, then turn on Procurement, Projects or vertical packs when they are ready. One login, one data layer throughout.',
@@ -334,6 +577,16 @@ export const FAQ_ITEMS = [
     question: 'Where is our data stored? Is it secure?',
     answer:
       'Data is hosted on modern cloud infrastructure with encryption in transit and at rest. We follow Kenya Data Protection Act (ODPC) principles and provide audit trails for sensitive actions.',
+  },
+  {
+    question: 'What happens to our data if we leave?',
+    answer:
+      'Your data is yours. If you ever decide to leave, we provide a full export of your records — employees, payroll history, financial data — in standard formats, with no lock-in penalty or hidden fees.',
+  },
+  {
+    question: 'Do you support multi-entity or cross-border operations?',
+    answer:
+      'Yes. Stride supports multi-entity structures out of the box — manage separate legal entities, currencies and statutory configurations (including Kenya and Uganda) from a single account, with consolidated and entity-level reporting.',
   },
   {
     question: 'Do you support my industry?',
@@ -359,3 +612,60 @@ export const HOW_IT_WORKS_STEPS = [
     body: 'Guided onboarding, data import and local support from a team that knows your market — not a queue in another timezone.',
   },
 ] as const;
+
+/** /about — company story, principles and proof. Reuses facts from the rest of this config. */
+export const ABOUT_PAGE = {
+  hero: {
+    eyebrow: 'About Stride',
+    titleLines: ['Built in East Africa,', 'for East Africa.'] as const,
+    titleAccent: 'for East Africa.',
+    description:
+      'Stride is the operations platform from Raven Tech Group — payroll, finance and sector workflows on one login, in Kenyan shillings, with compliance from day one.',
+    highlights: [
+      'Horizontal core with vertical packs — not separate systems to integrate',
+      'Built for Kenyan statutory, M-Pesa and multi-entity reality',
+      'Honest roadmap — we ship what works and label what is coming soon',
+    ],
+  },
+  story: {
+    badge: 'Why we built it',
+    title: 'Global ERPs were never built for here.',
+    paragraphs: [
+      'Most global platforms were designed for other markets and adapted for Kenya — M-Pesa bolted on, statutory rules approximated, support queued in another timezone. Stride flips that: a horizontal core every business needs, with vertical packs that add industry depth without a separate integration project.',
+      'Our team builds and deploys Stride for SACCOs, fintechs, HR consultancies and logistics operators — organisations that outgrew spreadsheets but cannot afford eighteen-month ERP rollouts.',
+    ] as const,
+  },
+  principles: {
+    badge: 'How we work',
+    title: 'Three principles we do not compromise on.',
+  },
+  stats: [
+    { value: '6', label: 'Core modules on one login' },
+    { value: '100%', label: 'Kenyan statutory coverage — KRA, NSSF, SHIF' },
+    { value: 'Days', label: 'To go live, not months' },
+    { value: '2', label: 'Countries supported — Kenya & Uganda' },
+  ] as const,
+  closing: {
+    title: 'See Stride in action',
+    description: 'Book a walkthrough of the core modules and the logistics vertical.',
+  },
+} as const;
+
+/** Shared with the old About page; now surfaced as v3 principle cards. */
+export const ABOUT_PRINCIPLES = [
+  {
+    title: 'Built here, not ported',
+    body: 'M-Pesa disbursements, KRA compliance, NSSF and SHIF logic, and multi-entity structures are first-class — not retrofitted from a global template.',
+  },
+  {
+    title: 'Horizontal first, vertical when it matters',
+    body: 'Every business runs on the same core: HR, finance, procurement, documents, projects and admin. Industry packs add the specialised 20% on top.',
+  },
+  {
+    title: 'Honest about the roadmap',
+    body: 'We ship what works. Verticals marked coming soon are on the roadmap — we do not pretend features exist when they do not.',
+  },
+] as const;
+
+/** Raven Tech Group — parent company link used in the About footer note. */
+export const RAVEN_TECH_URL = 'https://raventechgroup.com';

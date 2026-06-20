@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore, type ReactNode } from 'react';
-import { StrideWordmarkLockup } from '@/components/marketing/StrideMark';
-import { DashboardThemeToggle } from '@/components/dashboard/DashboardThemeToggle';
+import { type ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { StrideLogo } from '@/components/marketing/StrideMark';
 import { brandConfig } from '@/lib/brand.config';
+import { getMarketingSiteUrl } from '@/lib/marketing-config';
 import { usePublicBrand } from '@/components/BrandProvider';
+import '@/components/marketing/contact/book-demo.css';
 
 type AuthSplitShellProps = {
   eyebrow: string;
@@ -14,33 +16,6 @@ type AuthSplitShellProps = {
   children: ReactNode;
   footer?: ReactNode;
 };
-
-function useHydrated() {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
-
-/** Decorative brand panel — ribbon animates only after hydration to avoid SSR/client drift. */
-function AuthBrandBackground() {
-  const hydrated = useHydrated();
-
-  return (
-    <div className="auth-split-shader pointer-events-none absolute inset-0" aria-hidden>
-      {hydrated ? (
-        <div className="auth-split-ribbon">
-          <div className="auth-split-ribbon-sweep auth-split-ribbon-sweep--primary" />
-          <div className="auth-split-ribbon-sweep auth-split-ribbon-sweep--secondary" />
-          <div className="auth-split-ribbon-sweep auth-split-ribbon-sweep--accent" />
-        </div>
-      ) : null}
-      <div className="auth-split-brand-overlay" />
-      <div className="auth-split-vignette" />
-    </div>
-  );
-}
 
 export function AuthSplitShell({
   eyebrow,
@@ -51,65 +26,77 @@ export function AuthSplitShell({
 }: AuthSplitShellProps) {
   const { privacyPolicyUrl, termsUrl } = usePublicBrand();
   const year = new Date().getFullYear();
+  const marketingHome = getMarketingSiteUrl();
 
   return (
-    <div className="flex min-h-screen flex-col font-pub lg:flex-row">
-      <div className="auth-split-brand relative flex flex-col justify-between overflow-hidden px-7 py-8 sm:px-10 lg:min-h-screen lg:w-[min(100%,28rem)] lg:flex-shrink-0 lg:px-12 lg:py-11 xl:w-[32rem]">
-        <AuthBrandBackground />
+    <main className="flex min-h-[100dvh] w-full max-w-[100vw] flex-col gap-2 overflow-x-clip bg-[var(--sc-ink)] p-2 selection:bg-[var(--sc-coral)]/25 sm:gap-3 sm:p-3 lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden lg:p-4">
+      <section className="bd-demo-panel relative flex min-h-[min(320px,42vh)] flex-col overflow-hidden rounded-[20px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:rounded-[28px] lg:min-h-0">
+        <div
+          className="pointer-events-none absolute -right-[10%] top-[5%] h-[55%] w-[55%] rounded-full opacity-30 blur-[80px] bd-demo-drift-a"
+          style={{ background: 'radial-gradient(circle, var(--sc-coral) 0%, transparent 68%)' }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -left-[8%] bottom-[10%] h-[45%] w-[45%] rounded-full opacity-20 blur-[70px] bd-demo-drift-b"
+          style={{ background: 'radial-gradient(circle, var(--sc-coral-deep) 0%, transparent 70%)' }}
+          aria-hidden
+        />
 
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex" aria-label="Stride home">
-            <StrideWordmarkLockup theme="on-ink" markClassName="h-9" wordClassName="text-[1.75rem]" />
-          </Link>
-        </div>
+        <Link
+          href={marketingHome}
+          className="relative z-10 p-8 pb-0 xl:p-10 xl:pb-0"
+          aria-label="Stride home"
+        >
+          <StrideLogo heightClass="h-7 sm:h-8" className="brightness-0 invert" />
+        </Link>
 
-        <div className="relative z-10 mt-12 lg:mt-0">
-          <p className="auth-split-eyebrow text-[0.6875rem] font-semibold uppercase tracking-[0.1em]">
-            {eyebrow}
-          </p>
-          <h1 className="mt-4 max-w-[22rem] text-balance text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.03em] lg:text-[2rem]">
-            {title}
-          </h1>
-          <p className="auth-split-subtitle mt-4 max-w-[22rem] text-pretty text-[0.875rem] leading-[1.65]">
-            {subtitle}
-          </p>
-        </div>
+        <div className="bd-demo-copy relative z-10 flex flex-1 flex-col justify-end p-8 pt-10 xl:p-10 xl:pb-12">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sc-coral)]">
+              {eyebrow}
+            </p>
+            <h1 className="max-w-[22rem] text-[clamp(1.75rem,3.5vw,2.375rem)] font-normal leading-[1.08] tracking-tight">
+              {title}
+            </h1>
+            <p className="max-w-[30ch] text-[14px] leading-relaxed">{subtitle}</p>
+          </div>
 
-        <footer className="auth-split-footer relative z-10 mt-12 hidden lg:mt-0 lg:block">
-          <p className="max-w-[20rem] text-[0.75rem] leading-relaxed text-white/45" suppressHydrationWarning>
-            © {year}{' '}
-            <span className="text-white/70">{brandConfig.productName}</span>
-          </p>
-          <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem]">
-            <Link href="/careers" className="transition-colors">
-              Careers
-            </Link>
-            <Link href={privacyPolicyUrl || '/privacy'} className="transition-colors">
-              Privacy
-            </Link>
-            <Link href={termsUrl || '/terms'} className="transition-colors">
-              Terms
-            </Link>
-          </nav>
-        </footer>
-      </div>
+          <footer className="bd-demo-tagline mt-10 hidden lg:block">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em]" suppressHydrationWarning>
+              © {year} {brandConfig.productName}
+            </p>
+            <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[#fbf8f4]/50">
+              <Link href="/careers" className="transition-colors hover:text-[#fbf8f4]">
+                Careers
+              </Link>
+              <Link href={privacyPolicyUrl || '/privacy'} className="transition-colors hover:text-[#fbf8f4]">
+                Privacy
+              </Link>
+              <Link href={termsUrl || '/terms'} className="transition-colors hover:text-[#fbf8f4]">
+                Terms
+              </Link>
+            </nav>
+          </footer>
+        </div>
+      </section>
 
-      <div className="auth-split-form relative flex flex-1 flex-col">
-        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
-          <DashboardThemeToggle />
-        </div>
-        <div className="auth-split-form-bg pointer-events-none absolute inset-0" aria-hidden>
-          <div className="auth-split-form-mesh" />
-          <div className="auth-split-form-glow" />
-        </div>
-        <div className="relative z-10 flex flex-1 flex-col">
-          <div className="flex flex-1 items-center justify-center px-5 py-12 sm:px-10 lg:px-16">
-            <div className="w-full max-w-[380px]">{children}</div>
+      <section className="relative flex min-h-0 flex-col overflow-y-auto rounded-[20px] bg-[var(--sc-ink)] sm:rounded-[28px] lg:overflow-hidden">
+        <Link
+          href={marketingHome}
+          className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-[#fbf8f4]/70 transition-colors hover:border-white/20 hover:text-[#fbf8f4] sm:right-8 sm:top-8"
+          aria-label="Back to Stride homepage"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </Link>
+
+        <div className="auth-studio-form bd-demo-form relative z-10 flex flex-1 flex-col">
+          <div className="flex flex-1 items-center justify-center px-5 py-14 sm:px-10 lg:px-14 lg:py-10 xl:px-20">
+            <div className="w-full max-w-md">{children}</div>
           </div>
           {footer}
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 
@@ -123,10 +110,10 @@ export function LoginCard({
   className?: string;
 }) {
   return (
-    <div className={`auth-login-card w-full overflow-hidden rounded-xl ${className}`.trim()}>
-      <div className="px-7 pb-7 pt-8">{children}</div>
+    <div className={`w-full space-y-6 ${className}`.trim()}>
+      {children}
       {footer ? (
-        <div className="dash-auth-footer border-t px-7 py-3.5">{footer}</div>
+        <div className="border-t border-white/10 pt-4 text-[0.8125rem] text-[#fbf8f4]/55">{footer}</div>
       ) : null}
     </div>
   );
