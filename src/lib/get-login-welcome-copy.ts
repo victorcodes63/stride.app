@@ -28,12 +28,13 @@ export async function getLoginWelcomeCopy(): Promise<LoginWelcomeCopy> {
   const pub = toPublicCompanySetup(setup);
   const brand = resolvePublicBrand(setup);
   const productName = brandConfig.productName;
+  const genericStaffSubtitle = 'Sign in to manage your company or organization on Stride.';
 
   if (isGenericPublicLogin()) {
     return {
       staff: {
         welcomeTitle: `Welcome to ${productName}`,
-        welcomeSubtitle: 'Sign in to manage your organization on Stride.',
+        welcomeSubtitle: genericStaffSubtitle,
         emailLoginEnabled: pub.staff.emailLoginEnabled,
       },
       ess: {
@@ -48,9 +49,7 @@ export async function getLoginWelcomeCopy(): Promise<LoginWelcomeCopy> {
   return {
     staff: {
       welcomeTitle: `Welcome to ${productName}`,
-      welcomeSubtitle:
-        pub.staff.welcomeSubtitle.trim() ||
-        'Sign in to manage HR, payroll, and operations on Stride.',
+      welcomeSubtitle: genericStaffSubtitle,
       emailLoginEnabled: pub.staff.emailLoginEnabled,
     },
     ess: {

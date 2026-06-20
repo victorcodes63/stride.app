@@ -49,8 +49,9 @@
   pointer-events: none;
 }
 
-.bd-demo-copy h1 {
-  color: #fbf8f4;
+.bd-demo-copy h1,
+.public-app .bd-demo-panel .bd-demo-copy :where(h1, h2, h3, h4) {
+  color: #fbf8f4 !important;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
 }
 

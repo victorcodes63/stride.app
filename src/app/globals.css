@@ -710,7 +710,7 @@ html.dark .ess-app {
 
 html.dark body:has(.dashboard-canvas),
 html.dark body:has(.ess-app),
-html.dark body:has(.auth-split-form) {
+html.dark body:has(.auth-split-form, .auth-studio-form, .bd-demo-panel) {
   background: var(--brand-canvas);
   color: var(--dash-text);
 }

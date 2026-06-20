@@ -122,9 +122,9 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  <LoginCard
  footer={
  <p className="text-center text-[0.8125rem] dash-auth-muted">
- Employee?{' '}
+          Looking for employee self-service?{' '}
  <Link href="/ess/login" className="dash-auth-link">
- Sign in to employee portal
+            Open the ESS portal
  </Link>
  </p>
  }

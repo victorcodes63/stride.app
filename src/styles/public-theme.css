@@ -728,7 +728,7 @@
 }
 
 /* Dashboard appearance toggle must not break marketing/careers (auth pages excluded) */
-html.dark .public-app:not(:has(.auth-split-form)) {
+html.dark .public-app:not(:has(.auth-split-form, .auth-studio-form, .bd-demo-panel)) {
   --pub-surface: #fbf8f4;
   --pub-surface-muted: #f4efe8;
   --pub-surface-elevated: #fbf8f4;
@@ -740,7 +740,7 @@ html.dark .public-app:not(:has(.auth-split-form)) {
   color: var(--pub-ink-muted);
 }
 
-html.dark .public-app:not(.studio-craft-marketing):not(:has(.auth-split-form)) :where(h1, h2, h3, h4, h5, h6) {
+html.dark .public-app:not(.studio-craft-marketing):not(:has(.auth-split-form, .auth-studio-form, .bd-demo-panel)) :where(h1, h2, h3, h4, h5, h6) {
   color: var(--pub-ink);
 }
 
@@ -748,11 +748,11 @@ html.dark .public-app.studio-craft-marketing .sc-on-ink :where(h1, h2, h3, h4, h
   color: #fbf8f4;
 }
 
-html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink,
-html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink :where(h1, h2, h3, h4, h5, h6) {
+html.dark .public-app:not(:has(.auth-split-form, .auth-studio-form, .bd-demo-panel)) .pub-on-ink,
+html.dark .public-app:not(:has(.auth-split-form, .auth-studio-form, .bd-demo-panel)) .pub-on-ink :where(h1, h2, h3, h4, h5, h6) {
   color: #fbf8f4;
 }
 
-html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink {
+html.dark .public-app:not(:has(.auth-split-form, .auth-studio-form, .bd-demo-panel)) .pub-on-ink {
   color: rgba(240, 239, 233, 0.7);
 }

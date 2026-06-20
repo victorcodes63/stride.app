@@ -30,7 +30,7 @@ export function AuthSplitShell({
 
   return (
     <main className="flex min-h-[100dvh] w-full max-w-[100vw] flex-col gap-2 overflow-x-clip bg-[var(--sc-ink)] p-2 selection:bg-[var(--sc-coral)]/25 sm:gap-3 sm:p-3 lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden lg:p-4">
-      <section className="bd-demo-panel relative flex min-h-[min(320px,42vh)] flex-col overflow-hidden rounded-[20px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:rounded-[28px] lg:min-h-0">
+      <section className="bd-demo-panel pub-on-ink relative flex min-h-[min(320px,42vh)] flex-col overflow-hidden rounded-[20px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:rounded-[28px] lg:min-h-0">
         <div
           className="pointer-events-none absolute -right-[10%] top-[5%] h-[55%] w-[55%] rounded-full opacity-30 blur-[80px] bd-demo-drift-a"
           style={{ background: 'radial-gradient(circle, var(--sc-coral) 0%, transparent 68%)' }}
@@ -55,10 +55,10 @@ export function AuthSplitShell({
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sc-coral)]">
               {eyebrow}
             </p>
-            <h1 className="max-w-[22rem] text-[clamp(1.75rem,3.5vw,2.375rem)] font-normal leading-[1.08] tracking-tight">
+            <h1 className="max-w-[22rem] text-[clamp(1.75rem,3.5vw,2.375rem)] font-normal leading-[1.08] tracking-tight !text-[#fbf8f4]">
               {title}
             </h1>
-            <p className="max-w-[30ch] text-[14px] leading-relaxed">{subtitle}</p>
+            <p className="max-w-[30ch] text-[14px] leading-relaxed text-[#fbf8f4]/82">{subtitle}</p>
           </div>
 
           <footer className="bd-demo-tagline mt-10 hidden lg:block">
