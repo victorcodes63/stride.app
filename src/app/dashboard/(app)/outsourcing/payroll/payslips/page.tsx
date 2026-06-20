@@ -288,7 +288,7 @@ function PayslipsContent() {
  <div className={`mb-4 pb-3 ${printLayout === 'four' ? 'border-b border-neutral-400' : 'border-b border-primary-900'}`}>
  <div className="flex items-center justify-between gap-3">
  <BrandLogo variant="header" className="h-9 w-auto object-contain print:h-6" />
- <span className="text-sm font-medium text-neutral-600 print:text-xs text-right ml-auto">HRIS Demo</span>
+ <span className="text-sm font-medium text-neutral-600 print:text-xs text-right ml-auto">Stride</span>
  </div>
  </div>
 

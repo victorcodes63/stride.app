@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import PublicPageLayout from '@/components/public/PublicPageLayout';
 import JobApplicationForm from '@/components/ats/JobApplicationForm';
 import { JobListing } from '@/types/ats';
 import { useATS } from '@/lib/use-ats';
@@ -82,9 +81,9 @@ export default function JobApplicationPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen min-w-0 overflow-x-hidden">
-        <Navbar />
-        <div className="pt-[72px] pb-20">
+      <PublicPageLayout>
+        <main className="min-h-screen min-w-0 overflow-x-hidden bg-pub-surface">
+        <div className="pt-8 pb-20">
           <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
             <div className="max-w-2xl mx-auto">
               <div className="animate-pulse space-y-6">
@@ -98,16 +97,16 @@ export default function JobApplicationPage() {
             </div>
           </div>
         </div>
-        <Footer />
-      </main>
+        </main>
+      </PublicPageLayout>
     );
   }
 
   if (!job) {
     return (
-      <main className="min-h-screen min-w-0 overflow-x-hidden">
-        <Navbar />
-        <div className="pt-[72px] pb-20">
+      <PublicPageLayout>
+        <main className="min-h-screen min-w-0 overflow-x-hidden bg-pub-surface">
+        <div className="pt-8 pb-20">
           <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
             <div className="max-w-4xl mx-auto text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -127,15 +126,15 @@ export default function JobApplicationPage() {
             </div>
           </div>
         </div>
-        <Footer />
-      </main>
+        </main>
+      </PublicPageLayout>
     );
   }
 
   return (
-    <main className="min-h-screen min-w-0 overflow-x-hidden">
-      <Navbar />
-      <section className="bg-white pt-[72px] pb-16">
+    <PublicPageLayout>
+      <main className="min-h-screen min-w-0 overflow-x-hidden bg-pub-surface">
+      <section className="pb-16 pt-8">
         <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
           <Link
             href="/careers"
@@ -370,7 +369,7 @@ export default function JobApplicationPage() {
         />
       )}
 
-      <Footer />
-    </main>
+      </main>
+    </PublicPageLayout>
   );
 }

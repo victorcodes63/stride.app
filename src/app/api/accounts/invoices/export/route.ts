@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'HRIS Demo (Accounts)';
+    workbook.creator = 'Stride (Accounts)';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Invoices', {

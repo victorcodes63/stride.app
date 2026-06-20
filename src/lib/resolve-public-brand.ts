@@ -1,4 +1,5 @@
 import { brand, getPublicBrand, type PublicBrand } from '@/lib/brand';
+import { brandConfig } from '@/lib/brand.config';
 import { DEFAULT_BRAND_LOGO_SRC, isLegacyPlatformLogo, normalizeLogoSrc } from '@/lib/brand-constants';
 import {
   DEFAULT_PRIMARY_COLOR,
@@ -11,42 +12,67 @@ function pickString(dbValue: string | undefined, envValue: string): string {
   return dbValue?.trim() ? dbValue.trim() : envValue;
 }
 
-/** Merge DB company setup branding over env defaults (empty DB fields inherit env). */
+const STRIDE_LOGO = normalizeLogoSrc(DEFAULT_BRAND_LOGO_SRC);
+
+function resolveTenantLogo(setup: CompanySetupSettings, env: PublicBrand): string {
+  const candidate = normalizeLogoSrc(
+    pickString(setup.logoPngPath || setup.logoSrc, env.tenantLogoSrc || env.logoSrc),
+  );
+  if (
+    candidate &&
+    candidate !== STRIDE_LOGO &&
+    !isLegacyPlatformLogo(candidate) &&
+    !candidate.endsWith('platform-logo.png')
+  ) {
+    return candidate;
+  }
+  return STRIDE_LOGO;
+}
+
+/**
+ * Merge tenant company setup with platform defaults.
+ * Product identity (app name, public logo, wordmark) is always Stride — never tenant-overridable.
+ * Org name, tenant logo, payslip legal name, and careers copy come from company setup (dashboard).
+ */
 export function resolvePublicBrand(setup: CompanySetupSettings): PublicBrand {
   const env = getPublicBrand();
+  const orgName = pickString(setup.orgName, env.orgName);
+  const tenantLogoSrc = resolveTenantLogo(setup, env);
+  const productTagline = brandConfig.tagline;
+
   return {
-    orgName: pickString(setup.orgName, env.orgName),
-    appName: pickString(setup.appName, env.appName),
-    tagline: pickString(setup.tagline, env.tagline),
+    orgName,
+    appName: brandConfig.productName,
+    wordmark: brandConfig.productName,
+    tagline: productTagline,
     contactEmail: pickString(setup.contactEmail, env.contactEmail),
     contactPhone: pickString(setup.contactPhone, env.contactPhone),
     contactAddress: pickString(setup.contactAddress, env.contactAddress),
-    logoSrc: normalizeLogoSrc(pickString(setup.logoSrc, env.logoSrc)),
-    logoPngPath: normalizeLogoSrc(pickString(setup.logoPngPath, env.logoPngPath || env.logoSrc)),
-    wordmark: pickString(setup.wordmark, env.wordmark),
-    faviconSrc: normalizeLogoSrc(
-      pickString(setup.faviconSrc, setup.logoSrc?.trim() || env.logoSrc),
-    ),
+    logoSrc: STRIDE_LOGO,
+    logoPngPath: STRIDE_LOGO,
+    tenantLogoSrc,
+    faviconSrc: STRIDE_LOGO,
     primaryColor: sanitizeHexColor(setup.primaryColor, DEFAULT_PRIMARY_COLOR),
     secondaryColor: sanitizeHexColor(setup.secondaryColor, DEFAULT_SECONDARY_COLOR),
     privacyPolicyUrl: setup.privacyPolicyUrl?.trim() || '/privacy',
     termsUrl: setup.termsUrl?.trim() || '/terms',
     supportUrl: setup.supportUrl?.trim() || '',
-    emailFromName: pickString(setup.emailFromName, brand.appName ? `${brand.appName} HR` : 'HRIS HR'),
-    careersEmployerName: pickString(setup.careersEmployerName, env.orgName),
-    careersTagline: pickString(setup.careersTagline, env.tagline),
+    emailFromName: pickString(setup.emailFromName, `${brandConfig.productName} HR`),
+    careersEmployerName: pickString(setup.careersEmployerName, orgName),
+    careersTagline: pickString(setup.careersTagline, pickString(setup.tagline, productTagline)),
     careersHeroImageUrl: pickString(setup.careersHeroImageUrl, ''),
     essPortalTitle: pickString(setup.essPortalTitle, 'Employee Self Service'),
     staffPortalTitle: pickString(setup.staffPortalTitle, ''),
-    payslipLegalName: pickString(setup.payslipLegalName, env.orgName),
+    payslipLegalName: pickString(setup.payslipLegalName, orgName),
     documentFooterText: setup.documentFooterText?.trim() || '',
     publicFooterText: pickString(setup.publicFooterText, env.publicFooterText),
     defaultLandingPath: setup.defaultLandingPath?.trim() || '/dashboard',
     dashboardBannerEnabled: Boolean(setup.dashboardBannerEnabled),
     dashboardBannerText: setup.dashboardBannerText?.trim() || '',
-    dashboardBannerTone: setup.dashboardBannerTone === 'warning' || setup.dashboardBannerTone === 'success'
-      ? setup.dashboardBannerTone
-      : 'info',
+    dashboardBannerTone:
+      setup.dashboardBannerTone === 'warning' || setup.dashboardBannerTone === 'success'
+        ? setup.dashboardBannerTone
+        : 'info',
     dashboardTableZebraStriping: Boolean(setup.dashboardTableZebraStriping),
     hidePoweredBy: Boolean(setup.hidePoweredBy),
   };

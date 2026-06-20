@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: `${brand.orgName} — ${brand.tagline}`,
     start_url: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#1D2460',
+    background_color: '#FBF8F4',
+    theme_color: '#1A1714',
     icons: [
       {
         src: logoPath,

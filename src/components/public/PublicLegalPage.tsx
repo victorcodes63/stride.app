@@ -26,7 +26,7 @@ export function PublicLegalPage({
   children,
 }: PublicLegalPageProps) {
   return (
-    <main className="min-h-screen bg-white pt-[72px]">
+    <main className="min-h-screen bg-pub-surface pt-[72px]">
       <section className="border-b border-pub-border bg-pub-surface-muted">
         <div className="mx-auto max-w-[720px] px-5 py-14 sm:px-8 md:py-16">
           <p className="text-sm font-medium text-pub-primary">{eyebrow}</p>

@@ -4,7 +4,7 @@ import type { CSSProperties, ComponentType } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
 
 /** Matches tailwind `pub.*` tokens — keep in sync with tailwind.config.js */
-export const PUB_ICON_PRIMARY = '#0088FF';
+export const PUB_ICON_PRIMARY = '#FF5436';
 export const PUB_ICON_ACCENT = '#554D64';
 
 export type PubDuotoneIconProps = {

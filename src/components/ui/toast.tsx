@@ -82,14 +82,14 @@ export function ToastViewport() {
         return (
           <div
             key={item.id}
-            className={`pointer-events-auto flex items-center gap-3 rounded-md border border-neutral-200 border-l-4 bg-white p-3 shadow-md transition-all duration-200 ${styles.border}`}
+            className={`pointer-events-auto flex items-center gap-3 rounded-md border border-l-4 border-[var(--dash-border)] bg-[var(--dash-surface-solid)] p-3 shadow-md transition-all duration-200 ${styles.border}`}
           >
             {styles.icon}
-            <p className="flex-1 text-sm text-neutral-800">{item.message}</p>
+            <p className="flex-1 text-sm text-[var(--dash-text-strong)]">{item.message}</p>
             <button
               type="button"
               onClick={() => removeToast(item.id)}
-              className="rounded p-1 text-neutral-400 hover:bg-neutral-100"
+              className="rounded p-1 text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)]"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />

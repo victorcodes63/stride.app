@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { AlertTriangle, LayoutDashboard, Mail } from 'lucide-react';
 import { getModuleLabel, type ModuleKey } from '@/lib/modules';
+import { moduleUpgradeMessage, RAVEN_COMMERCIAL_CONTACT } from '@/lib/commercial-upgrade';
 import { DashboardPage } from '@/components/dashboard/DashboardPage';
 import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader';
 
@@ -13,6 +14,7 @@ function ModuleUnavailableContent() {
   const moduleKey = (searchParams.get('module') ?? 'core') as ModuleKey;
   const fromPath = searchParams.get('from') ?? '';
   const label = getModuleLabel(moduleKey);
+  const upgradeMessage = moduleUpgradeMessage(moduleKey);
 
   return (
     <DashboardPage>
@@ -33,17 +35,27 @@ function ModuleUnavailableContent() {
             </>
           }
         />
-        <p className="mt-4 text-sm text-neutral-600">
+        <p className="mt-4 text-sm text-neutral-700">{upgradeMessage}</p>
+        <p className="mt-3 text-sm text-neutral-600">
           Contact your system administrator if you believe you should have access. Modules are licensed per
           organisation instance.
         </p>
-        <Link
-          href="/dashboard"
-          className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700"
-        >
-          <LayoutDashboard className="h-4 w-4" />
-          Back to overview
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a
+            href={RAVEN_COMMERCIAL_CONTACT.upgradeUrl}
+            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            <Mail className="h-4 w-4" />
+            Contact sales to upgrade
+          </a>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Back to overview
+          </Link>
+        </div>
       </div>
     </DashboardPage>
   );

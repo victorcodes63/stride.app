@@ -6,6 +6,8 @@ import {
   moduleAccessDeniedPayload,
   moduleUnavailableRedirectUrl,
 } from '@/lib/module-access';
+import { enforceAccountAccess } from '@/lib/account-access-middleware';
+import { enforcePastDueReadOnly } from '@/lib/account-readonly-middleware';
 
 const STAFF_SESSION_COOKIE = 'staff_session';
 const ESS_SESSION_COOKIE = 'ess_session';
@@ -60,6 +62,12 @@ export function middleware(request: NextRequest) {
   const moduleBlock = enforceModuleLicense(request);
   if (moduleBlock) return moduleBlock;
 
+  const accountBlock = enforceAccountAccess(request);
+  if (accountBlock) return accountBlock;
+
+  const readOnlyBlock = enforcePastDueReadOnly(request);
+  if (readOnlyBlock) return readOnlyBlock;
+
   const isAuthPage = pathname.startsWith(LOGIN_PATH) || pathname.startsWith(FORGOT_PASSWORD_PATH);
   if (pathname.startsWith('/dashboard') && !isAuthPage) {
     const session = request.cookies.get(STAFF_SESSION_COOKIE);
@@ -81,7 +89,9 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set('x-pathname', pathname);
+  return response;
 }
 
 export const config = {

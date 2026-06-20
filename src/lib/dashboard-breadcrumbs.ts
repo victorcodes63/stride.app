@@ -61,6 +61,18 @@ const SEGMENT_LABELS: Record<string, string> = {
   users: 'System users',
   insights: 'Insights',
   accounts: 'Accounts',
+  procurement: 'Procurement',
+  'purchase-requests': 'Purchase requests',
+  lpos: 'LPO register',
+  spend: 'Spend',
+  legal: 'Legal',
+  obligations: 'Obligations',
+  projects: 'Projects',
+  board: 'Project board',
+  disbursements: 'Disbursements',
+  facilities: 'Facilities',
+  governance: 'Governance',
+  fleet: 'Fleet',
 };
 
 /** Routes not in the sidebar catalog but still reachable. */

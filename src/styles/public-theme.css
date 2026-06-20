@@ -4,36 +4,42 @@
  */
 
 .public-app {
-  --pub-primary: #0088ff;
-  --pub-primary-hover: #0078e0;
-  --pub-primary-pressed: #006ac7;
-  --pub-primary-subtle: #ebf5ff;
-  --pub-primary-muted: #b8deff;
+  --pub-primary: #ff5436;
+  --pub-primary-hover: #e63e22;
+  --pub-primary-pressed: #c9341b;
+  --pub-primary-subtle: #ffe9e4;
+  --pub-primary-muted: #ffcfc4;
 
-  --pub-ink: #0a2540;
-  --pub-ink-muted: #425466;
-  --pub-ink-subtle: #6b7f99;
+  --pub-ink: #1a1714;
+  --pub-ink-muted: #3d3833;
+  --pub-ink-subtle: #8a8076;
 
-  --pub-surface: #ffffff;
-  --pub-surface-muted: #f6f9fc;
-  --pub-surface-elevated: #ffffff;
-  --pub-border: #e3e8ee;
-  --pub-border-strong: #c1c9d2;
+  --pub-surface: #fbf8f4;
+  --pub-surface-muted: #f4efe8;
+  --pub-surface-elevated: #fbf8f4;
+  --pub-border: #e6ded4;
+  --pub-border-strong: #d8cdbf;
 
-  --pub-gradient-start: #ff6118;
-  --pub-gradient-mid: #ffe0ef;
-  --pub-gradient-end: #0088ff;
+  --pub-gradient-start: #ff5436;
+  --pub-gradient-mid: #ffe9e4;
+  --pub-gradient-end: #e63e22;
+
+  /* Public chrome always uses Stride coral — not tenant dashboard colours from root layout. */
+  --color-primary-400: var(--pub-primary-muted);
+  --color-primary-500: var(--pub-primary);
+  --color-primary-600: var(--pub-primary-hover);
+  --color-primary-700: var(--pub-primary-pressed);
 
   --pub-radius-sm: 6px;
   --pub-radius-md: 8px;
   --pub-radius-lg: 12px;
   --pub-radius-xl: 16px;
 
-  --pub-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --pub-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --pub-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --pub-shadow-sm: 0 1px 3px rgba(26, 23, 20, 0.04), 0 1px 2px rgba(26, 23, 20, 0.06);
+  --pub-shadow-md: 0 4px 6px -1px rgba(26, 23, 20, 0.08), 0 2px 4px -1px rgba(26, 23, 20, 0.04);
+  --pub-shadow-lg: 0 20px 25px -5px rgba(26, 23, 20, 0.1), 0 10px 10px -5px rgba(26, 23, 20, 0.04);
 
-  --pub-font-display: var(--font-figtree), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --pub-font-display: var(--font-bricolage), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --pub-text-base: 16px;
   --pub-line-base: 1.5;
 
@@ -50,13 +56,19 @@
   color: var(--pub-ink);
 }
 
-.public-app h1,
-.public-app h2,
-.public-app h3,
-.public-app h4 {
+.public-app :where(h1, h2, h3, h4) {
   color: var(--pub-ink);
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+/** Dark marketing bands — override default ink headings (e.g. Linear-style hero). */
+.public-app .pub-on-ink {
+  color: rgba(240, 239, 233, 0.7);
+}
+
+.public-app .pub-on-ink :where(h1, h2, h3, h4) {
+  color: #fbf8f4;
 }
 
 /* --- Typography utilities --- */
@@ -124,8 +136,8 @@
   border: none;
   border-radius: var(--pub-radius-sm);
   box-shadow:
-    0 0 0 1px rgba(0, 136, 255, 0.35),
-    0 2px 4px rgba(0, 136, 255, 0.18);
+    0 0 0 1px rgba(255, 84, 54, 0.35),
+    0 2px 4px rgba(255, 84, 54, 0.18);
   cursor: pointer;
   transition:
     background 150ms ease,
@@ -136,8 +148,8 @@
 .public-app .pub-btn-primary:hover {
   background: var(--pub-primary-hover);
   box-shadow:
-    0 0 0 1px rgba(0, 136, 255, 0.45),
-    0 4px 8px rgba(0, 136, 255, 0.22);
+    0 0 0 1px rgba(255, 84, 54, 0.45),
+    0 4px 8px rgba(255, 84, 54, 0.22);
 }
 
 .public-app .pub-btn-primary:active {
@@ -204,7 +216,7 @@
 .public-app .pub-input:focus {
   outline: none;
   border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 84, 54, 0.12);
 }
 
 /* --- Login-specific --- */
@@ -245,7 +257,7 @@
 .public-app .pub-login-input:focus {
   outline: none;
   border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 84, 54, 0.12);
 }
 
 .public-app .pub-login-oauth-btn {
@@ -279,7 +291,7 @@
 
 .public-app .pub-login-oauth-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 84, 54, 0.12);
 }
 
 /* --- Autofill --- */
@@ -307,15 +319,15 @@
   background:
     radial-gradient(ellipse 80% 60% at 10% 20%, rgba(255, 97, 24, 0.18) 0%, transparent 55%),
     radial-gradient(ellipse 70% 50% at 85% 15%, rgba(255, 224, 239, 0.45) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 70% at 70% 80%, rgba(0, 136, 255, 0.1) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 30% 70%, rgba(0, 136, 255, 0.06) 0%, transparent 50%);
+    radial-gradient(ellipse 60% 70% at 70% 80%, rgba(255, 84, 54, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 30% 70%, rgba(230, 62, 34, 0.06) 0%, transparent 50%);
   pointer-events: none;
 }
 
 /* --- Auth split login (staff / ESS / forgot password) --- */
 
 .public-app .auth-split-brand {
-  background: #0a2540;
+  background: #1a1714;
   color: rgba(255, 255, 255, 0.5);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -346,12 +358,12 @@
   transform: rotate(-34deg);
   background: linear-gradient(
     102deg,
-    rgba(255, 97, 24, 0.98) 0%,
-    rgba(255, 130, 95, 0.95) 14%,
-    rgba(255, 105, 180, 0.92) 34%,
-    rgba(186, 104, 255, 0.9) 56%,
-    rgba(99, 91, 255, 0.88) 74%,
-    rgba(0, 136, 255, 0.85) 100%
+    rgba(255, 84, 54, 0.98) 0%,
+    rgba(255, 120, 90, 0.95) 18%,
+    rgba(255, 180, 160, 0.92) 38%,
+    rgba(255, 233, 228, 0.9) 58%,
+    rgba(230, 62, 34, 0.88) 78%,
+    rgba(26, 23, 20, 0.85) 100%
   );
   filter: blur(52px) saturate(1.2);
   opacity: 0.78;
@@ -366,10 +378,10 @@
   transform: rotate(-20deg);
   background: linear-gradient(
     96deg,
-    rgba(255, 170, 90, 0.75) 0%,
-    rgba(244, 114, 182, 0.7) 38%,
-    rgba(139, 92, 246, 0.68) 72%,
-    rgba(59, 130, 246, 0.62) 100%
+    rgba(255, 180, 140, 0.75) 0%,
+    rgba(255, 120, 90, 0.7) 38%,
+    rgba(255, 84, 54, 0.68) 72%,
+    rgba(26, 23, 20, 0.62) 100%
   );
   filter: blur(64px) saturate(1.1);
   opacity: 0.5;
@@ -384,9 +396,9 @@
   transform: rotate(12deg);
   background: linear-gradient(
     118deg,
-    rgba(255, 220, 160, 0.55) 0%,
-    rgba(255, 120, 200, 0.5) 50%,
-    rgba(99, 91, 255, 0.45) 100%
+    rgba(255, 220, 200, 0.55) 0%,
+    rgba(255, 120, 90, 0.5) 50%,
+    rgba(230, 62, 34, 0.45) 100%
   );
   filter: blur(72px);
   opacity: 0.38;
@@ -398,17 +410,17 @@
   inset: 0;
   background: linear-gradient(
     185deg,
-    rgba(10, 37, 64, 0.12) 0%,
-    rgba(10, 37, 64, 0.42) 42%,
-    rgba(10, 37, 64, 0.88) 78%,
-    rgba(7, 26, 46, 0.96) 100%
+    rgba(26, 23, 20, 0.12) 0%,
+    rgba(26, 23, 20, 0.42) 42%,
+    rgba(26, 23, 20, 0.88) 78%,
+    rgba(20, 18, 16, 0.96) 100%
   );
 }
 
 .public-app .auth-split-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 90% 60% at 50% 0%, transparent 0%, rgba(7, 26, 46, 0.35) 100%);
+  background: radial-gradient(ellipse 90% 60% at 50% 0%, transparent 0%, rgba(20, 18, 16, 0.35) 100%);
   pointer-events: none;
 }
 
@@ -469,7 +481,7 @@
 }
 
 .public-app .auth-split-form {
-  background: linear-gradient(168deg, #fafbfc 0%, #f4f7fb 38%, #eef2f8 100%);
+  background: linear-gradient(168deg, #fbf8f4 0%, #f4efe8 38%, #ede6dc 100%);
 }
 
 .public-app .auth-split-form-bg {
@@ -481,16 +493,16 @@
   position: absolute;
   inset: -15% -10%;
   background:
-    radial-gradient(ellipse 65% 50% at 92% 6%, rgba(99, 91, 255, 0.11) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 45% at 8% 88%, rgba(0, 136, 255, 0.09) 0%, transparent 52%),
-    radial-gradient(ellipse 50% 40% at 48% 42%, rgba(255, 97, 24, 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse 40% 35% at 75% 72%, rgba(244, 114, 182, 0.06) 0%, transparent 50%);
+    radial-gradient(ellipse 65% 50% at 92% 6%, rgba(255, 84, 54, 0.11) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 45% at 8% 88%, rgba(230, 62, 34, 0.09) 0%, transparent 52%),
+    radial-gradient(ellipse 50% 40% at 48% 42%, rgba(255, 180, 160, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 35% at 75% 72%, rgba(255, 120, 90, 0.06) 0%, transparent 50%);
 }
 
 .public-app .auth-split-form-glow {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(10, 37, 64, 0.045) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(26, 23, 20, 0.045) 1px, transparent 1px);
   background-size: 1.35rem 1.35rem;
   mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, black 0%, transparent 72%);
   opacity: 0.65;
@@ -505,7 +517,7 @@
     0 0 0 1px rgba(255, 255, 255, 0.8) inset,
     0 2px 4px rgba(15, 23, 42, 0.02),
     0 8px 24px -4px rgba(15, 23, 42, 0.06),
-    0 24px 48px -12px rgba(99, 91, 255, 0.08);
+    0 24px 48px -12px rgba(255, 84, 54, 0.08);
 }
 
 /* --- Nav utilities --- */
@@ -535,22 +547,22 @@
   line-height: 1;
   white-space: nowrap;
   color: #fff;
-  background: var(--pub-primary, #0088ff);
+  background: var(--pub-primary, #ff5436);
   border: none;
   border-radius: var(--pub-radius-sm, 6px);
   box-shadow:
-    0 0 0 1px rgba(0, 136, 255, 0.35),
-    0 2px 4px rgba(0, 136, 255, 0.18);
+    0 0 0 1px rgba(255, 84, 54, 0.35),
+    0 2px 4px rgba(255, 84, 54, 0.18);
   transition: background 150ms ease, box-shadow 150ms ease;
   text-decoration: none;
 }
 
 .public-app .pub-nav-cta:hover,
 .pub-nav-cta:hover {
-  background: var(--pub-primary-hover, #0078e0);
+  background: var(--pub-primary-hover, #e63e22);
   box-shadow:
-    0 0 0 1px rgba(0, 136, 255, 0.45),
-    0 4px 8px rgba(0, 136, 255, 0.22);
+    0 0 0 1px rgba(255, 84, 54, 0.45),
+    0 4px 8px rgba(255, 84, 54, 0.22);
 }
 
 .public-app .pub-nav-cta svg,
@@ -618,7 +630,7 @@
 .public-app .pub-badge-new {
   background: var(--pub-primary-subtle);
   color: var(--pub-primary);
-  border-color: rgba(0, 136, 255, 0.22);
+  border-color: rgba(255, 84, 54, 0.22);
   font-weight: 600;
 }
 
@@ -659,7 +671,7 @@
   font-weight: 500;
   color: var(--pub-primary);
   background: var(--pub-primary-subtle);
-  border: 1px solid rgba(0, 136, 255, 0.15);
+  border: 1px solid rgba(255, 84, 54, 0.15);
   border-radius: 9999px;
   transition: background 120ms ease;
 }
@@ -687,7 +699,7 @@
 .public-app .pub-search-input:focus {
   outline: none;
   border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 84, 54, 0.12);
 }
 
 .public-app .pub-select {
@@ -706,5 +718,31 @@
 .public-app .pub-select:focus {
   outline: none;
   border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 84, 54, 0.12);
+}
+
+/* Dashboard appearance toggle must not break marketing/careers (auth pages excluded) */
+html.dark .public-app:not(:has(.auth-split-form)) {
+  --pub-surface: #fbf8f4;
+  --pub-surface-muted: #f4efe8;
+  --pub-surface-elevated: #fbf8f4;
+  --pub-ink: #1a1714;
+  --pub-ink-muted: #3d3833;
+  --pub-ink-subtle: #8a8076;
+  --pub-border: #e6ded4;
+  --pub-border-strong: #d8cdbf;
+  color: var(--pub-ink-muted);
+}
+
+html.dark .public-app:not(:has(.auth-split-form)) :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--pub-ink);
+}
+
+html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink,
+html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink :where(h1, h2, h3, h4, h5, h6) {
+  color: #fbf8f4;
+}
+
+html.dark .public-app:not(:has(.auth-split-form)) .pub-on-ink {
+  color: rgba(240, 239, 233, 0.7);
 }

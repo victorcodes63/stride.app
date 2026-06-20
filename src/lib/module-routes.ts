@@ -28,6 +28,13 @@ export const ROUTE_MODULE_BINDINGS: RouteModuleBinding[] = [
   { prefix: '/api/payroll', module: 'payroll' },
   { prefix: '/api/outsourcing/payroll', module: 'payroll' },
   { prefix: '/dashboard/payroll', module: 'payroll' },
+  { prefix: '/dashboard/people', module: 'core' },
+  { prefix: '/dashboard/operations', module: 'reports' },
+  { prefix: '/dashboard/procurement', module: 'procurement' },
+  { prefix: '/api/procurement', module: 'procurement' },
+  { prefix: '/dashboard/projects', module: 'core' },
+  { prefix: '/dashboard/legal', module: 'legal' },
+  { prefix: '/dashboard/payroll/disbursements', module: 'payroll' },
   { prefix: '/dashboard/accounts/payroll', module: 'payroll' },
 
   // —— Time & attendance ——
@@ -104,6 +111,8 @@ export const ROUTE_MODULE_BINDINGS: RouteModuleBinding[] = [
   // —— Asset manager ——
   { prefix: '/api/assets', module: 'assets' },
   { prefix: '/dashboard/assets', module: 'assets' },
+  { prefix: '/api/fleet', module: 'fleet' },
+  { prefix: '/dashboard/fleet', module: 'fleet' },
 
   // —— ESS (portal shell) ——
   { prefix: '/api/ess', module: 'ess' },
@@ -154,6 +163,7 @@ const SORTED_BINDINGS = [...ROUTE_MODULE_BINDINGS].sort(
 export const MODULE_GUARD_EXEMPT_PREFIXES = [
   '/api/auth',
   '/api/config',
+  '/api/webhooks',
   '/api/cron/contract-reminders',
   '/api/cron/credential-reminders',
   '/api/cron/onboarding-overdue',
@@ -204,14 +214,15 @@ export const NAV_SECTION_MODULES: Record<string, ModuleKey[]> = {
   'people-hr': ['core'],
   recruitment: ['ats'],
   'time-attendance': ['time', 'leave'],
-  'hse-compliance': ['hse'],
+  operations: ['fleet', 'assets', 'hse'],
+  'communications-insight': ['communications', 'reports'],
   payroll: ['payroll'],
   'employee-self-service': ['ess'],
   finance: ['accounts'],
-  communications: ['communications', 'documents'],
+  procurement: ['procurement'],
+  'legal-documents': ['legal', 'documents'],
+  projects: ['core'],
   development: ['training'],
-  reports: ['reports'],
-  assets: ['assets'],
   admin: ['core'],
 };
 
@@ -225,6 +236,20 @@ export const NAV_ITEM_MODULES: Record<string, ModuleKey> = {
   '/dashboard/biometric-devices': 'time',
   '/dashboard/announcements': 'communications',
   '/dashboard/company-documents': 'documents',
+  '/dashboard/legal': 'legal',
+  '/dashboard/legal/obligations': 'legal',
+  '/dashboard/procurement': 'procurement',
+  '/dashboard/procurement/purchase-requests': 'procurement',
+  '/dashboard/procurement/lpos': 'procurement',
+  '/dashboard/procurement/spend': 'procurement',
+  '/dashboard/projects': 'core',
+  '/dashboard/projects/board': 'core',
+  '/dashboard/projects/tasks': 'core',
+  '/dashboard/payroll/disbursements': 'payroll',
+  '/dashboard/admin/facilities': 'core',
+  '/dashboard/admin/governance': 'core',
+  '/dashboard/people/contracts': 'core',
+  '/dashboard/credentials': 'core',
   '/dashboard/training': 'training',
   '/dashboard/org-chart': 'training',
 };

@@ -32,7 +32,7 @@ export type HrisBankAccountDetails = {
 export function getInvoiceBankDetails(kind: InvoicePaymentBankKind): HrisBankAccountDetails {
   const base = {
     accountName:
-      process.env.HRIS_BANK_ACCOUNT_NAME?.trim() || 'HRIS Demo Limited',
+      process.env.HRIS_BANK_ACCOUNT_NAME?.trim() || 'Stride Limited',
     bank: process.env.HRIS_BANK_NAME?.trim() || 'Equity Bank',
     bankCode: process.env.HRIS_BANK_CODE?.trim() || '068',
     branchCode: process.env.HRIS_BRANCH_CODE?.trim() || '140',

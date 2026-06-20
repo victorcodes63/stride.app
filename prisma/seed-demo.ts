@@ -2100,6 +2100,77 @@ async function main() {
     }
   }
 
+  if (pack.id === 'hospital-healthcare' && hasModel('attendanceDaySummary')) {
+    const staff = await prisma.employee.findMany({
+      where: { outsourcingClientId: keClient.id },
+      select: { id: true, outsourcingClientId: true },
+      orderBy: { employeeNumber: 'asc' },
+    });
+    let idx = 0;
+    for (const employee of staff) {
+      const workDate = new Date(`${todayYmd}T00:00:00.000Z`);
+      const existing = await prismaCompat.attendanceDaySummary.findUnique({
+        where: { employeeId_workDate: { employeeId: employee.id, workDate } },
+      });
+      if (existing?.firstInAt) {
+        idx += 1;
+        continue;
+      }
+      if (idx % 6 === 5) {
+        idx += 1;
+        continue;
+      }
+
+      const hh = String(6 + (idx % 3)).padStart(2, '0');
+      const mm = String((idx * 7) % 60).padStart(2, '0');
+      const checkIn = atUtc(todayYmd, `${hh}:${mm}`);
+      const checkOut = atUtc(todayYmd, `${String(16 + (idx % 2)).padStart(2, '0')}:${mm}`);
+      const workedMinutes = Math.max(0, Math.round((checkOut.getTime() - checkIn.getTime()) / 60000));
+
+      await prisma.attendance.upsert({
+        where: { employeeId_date: { employeeId: employee.id, date: workDate } },
+        update: { checkIn, checkOut, notes: 'Clinical shift — demo seed' },
+        create: {
+          employeeId: employee.id,
+          date: workDate,
+          checkIn,
+          checkOut,
+          notes: 'Clinical shift — demo seed',
+        },
+      });
+
+      await prismaCompat.attendanceDaySummary.upsert({
+        where: { employeeId_workDate: { employeeId: employee.id, workDate } },
+        update: {
+          outsourcingClientId: employee.outsourcingClientId,
+          firstInAt: checkIn,
+          lastOutAt: checkOut,
+          minutesWorked: workedMinutes,
+          lateMinutes: idx % 11 === 0 ? 12 : 0,
+          overtimeMinutes: 0,
+          holidayOvertimeMinutes: 0,
+          publicHolidayName: null,
+          status: AttendanceSummaryStatus.reconciled,
+        },
+        create: {
+          employeeId: employee.id,
+          outsourcingClientId: employee.outsourcingClientId,
+          workDate,
+          firstInAt: checkIn,
+          lastOutAt: checkOut,
+          minutesWorked: workedMinutes,
+          lateMinutes: idx % 11 === 0 ? 12 : 0,
+          overtimeMinutes: 0,
+          holidayOvertimeMinutes: 0,
+          publicHolidayName: null,
+          status: AttendanceSummaryStatus.reconciled,
+        },
+      });
+      idx += 1;
+    }
+    console.log(`→ Hospital demo: seeded today attendance for ${idx} staff on ${todayYmd}`);
+  }
+
   const grace = employeeByEmail.get(roleEmails.grace);
   const aisha = employeeByEmail.get(roleEmails.aisha);
   if (grace && hasModel('attendanceException')) {
@@ -2287,6 +2358,17 @@ async function main() {
   await upsertLeaveApplication(kevin.id, annualLeaveType, daysFromToday(0), daysFromToday(4), LeaveStatus.approved, 'Annual leave approved');
   await upsertLeaveApplication(brian.id, sickLeaveType, daysFromToday(-1), daysFromToday(2), LeaveStatus.approved, 'Sick leave — medical certificate on file');
   await upsertLeaveApplication(aishaLeave.id, annualLeaveType, daysFromToday(7), daysFromToday(11), LeaveStatus.pending, 'Pending annual leave request');
+  const mosesLeave = employeeByEmail.get(roleEmails.moses);
+  if (mosesLeave) {
+    await upsertLeaveApplication(
+      mosesLeave.id,
+      sickLeaveType,
+      daysFromToday(5),
+      daysFromToday(7),
+      LeaveStatus.pending,
+      'Pending compassionate leave',
+    );
+  }
 
   const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
   const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;

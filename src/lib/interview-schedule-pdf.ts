@@ -1,6 +1,6 @@
 /**
  * Generate interview schedule PDF for download.
- * World-class layout with HRIS Demo branding.
+ * World-class layout with Stride branding.
  */
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
@@ -17,8 +17,8 @@ export interface InterviewSchedulePdfData {
 
 const LOGO_PATH = getLogoFileAbsolutePath();
 
-// Brand colors (HRIS Demo)
-const PRIMARY = rgb(11 / 255, 29 / 255, 57 / 255); // #0B1D39
+// Brand colors (Stride)
+const PRIMARY = rgb(26 / 255, 23 / 255, 20 / 255); // #1A1714 Stride ink
 const GRAY_800 = rgb(38 / 255, 38 / 255, 38 / 255);
 const GRAY_600 = rgb(82 / 255, 82 / 255, 82 / 255);
 const GRAY_400 = rgb(163 / 255, 163 / 255, 163 / 255);
@@ -342,7 +342,7 @@ export async function generateInterviewSchedulePdf(data: InterviewSchedulePdfDat
   });
 
   // Footer
-  const footer = 'HRIS Demo • Generated schedule. For official use.';
+  const footer = 'Stride • Generated schedule. For official use.';
   page.drawText(footer, {
     x: width / 2 - helvetica.widthOfTextAtSize(footer, 9) / 2,
     y: 36,

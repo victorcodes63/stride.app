@@ -10,6 +10,7 @@ import { EssOfflineBanner } from '@/components/ess/EssOfflineBanner';
 import { EssServiceWorkerRegister } from '@/components/ess/EssServiceWorkerRegister';
 import { EssEmptyState, EssListItem } from '@/components/ess/EssUi';
 import BrandLogo from '@/components/BrandLogo';
+import { DashboardThemeToggle } from '@/components/dashboard/DashboardThemeToggle';
 
 type EssShellBrand = {
   orgName: string;
@@ -63,6 +64,7 @@ function EssShellInner({ children, brand, themeStyle }: { children: ReactNode; b
             <BrandLogo variant="markSm" className="h-9 w-9 object-contain" />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <DashboardThemeToggle />
             <button
               type="button"
               onClick={() => {

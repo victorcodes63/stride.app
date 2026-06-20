@@ -1,0 +1,86 @@
+@keyframes sc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes sc-fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sc-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(64px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sc-animate-fade-up {
+  animation: sc-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sc-animate-fade-down {
+  animation: sc-fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sc-animate-hero-rise {
+  animation: sc-hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sc-hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sc-animate-hero-fade-in {
+  animation: sc-hero-fade-in 0.8s ease-out both;
+}
+
+.sc-hero-section {
+  --sc-hero-dashboard-crop: 352;
+}
+
+.sc-hero-dashboard-frame {
+  width: 100%;
+  aspect-ratio: 1024 / var(--sc-hero-dashboard-crop, 352);
+}
+
+@media (max-width: 640px) {
+  .sc-hero-section {
+    --sc-hero-dashboard-crop: 300;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-animate-fade-up,
+  .sc-animate-fade-down,
+  .sc-animate-hero-rise,
+  .sc-animate-hero-fade-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

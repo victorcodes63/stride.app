@@ -32,7 +32,7 @@ export function buildVerticalPackFromGeneric(config: VerticalPackConfig): DemoPa
     publicFooterText,
     departments,
     departmentMap,
-    productName = 'Imara',
+    productName = 'Stride',
     county = 'Nairobi',
     postalAddress = `${county}, Kenya`,
     unifiedDemoEmail = UNIFIED_ADMIN_EMAIL,

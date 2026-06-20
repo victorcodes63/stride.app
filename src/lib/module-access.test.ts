@@ -58,6 +58,26 @@ describe('module-access', () => {
     }
   });
 
+  it('blocks fleet API when MODULE_FLEET=false', () => {
+    const prev = {
+      MODULE_FLEET: process.env.MODULE_FLEET,
+      DEMO_MODE: process.env.DEMO_MODE,
+      NEXT_PUBLIC_DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE,
+    };
+    process.env.MODULE_FLEET = 'false';
+    delete process.env.DEMO_MODE;
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
+    try {
+      expect(isPathAllowedByModuleLicense('/dashboard/fleet')).toBe(false);
+      expect(getBlockedModuleForPath('/api/fleet/trips')).toBe('fleet');
+    } finally {
+      for (const [k, v] of Object.entries(prev)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
   it('blocks accounts when admin toggle is off even if licensed', () => {
     const prev = process.env.MODULE_ACCOUNTS;
     process.env.MODULE_ACCOUNTS = 'true';

@@ -6,7 +6,7 @@ import { PublicLegalPage } from '@/components/public/PublicLegalPage';
 import { usePublicBrand } from '@/components/BrandProvider';
 
 export default function TermsOfServicePage() {
-  const { orgName, contactEmail } = usePublicBrand();
+  const { contactEmail } = usePublicBrand();
 
   const sections = [
     {
@@ -40,14 +40,14 @@ export default function TermsOfServicePage() {
       <PublicLegalPage
         eyebrow="Terms of service"
         title="Terms of service"
-        description={`These terms govern your use of ${orgName}'s HR platform and consulting services. Please read them before engaging with our services.`}
+        description="These terms govern your use of the Stride operations platform and related services provided by Raven Tech Group."
         sections={sections}
       >
         <div>
           <h4>1. Service provision</h4>
           <p>
-            {orgName} will provide HR services as agreed in your service contract, which may include recruitment,
-            training, compliance, and other HR-related activities.
+            Raven Tech Group provides the Stride platform as agreed in your service contract, which may
+            include HR, payroll, finance, recruitment and other operational modules.
           </p>
         </div>
 

@@ -14,7 +14,7 @@ const base = buildVerticalPackFromGeneric({
   prefix: PREFIX,
   tagline: 'Fleet, warehouse, and dispatch operations — payroll and compliance for logistics teams.',
   publicFooterText:
-    'SwiftFreight East Africa Ltd runs on Imara — driver payroll, shift rota, and statutory compliance for cargo operations.',
+    'SwiftFreight East Africa Ltd runs on Stride — driver payroll, shift rota, and statutory compliance for cargo operations.',
   departments: [
     'Fleet & Drivers',
     'Warehouse',

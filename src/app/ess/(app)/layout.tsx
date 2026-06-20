@@ -4,7 +4,7 @@ import { brandThemeStyle } from '@/lib/brand-theme-style';
 
 export default async function EssAppLayout({ children }: { children: React.ReactNode }) {
   const publicBrand = await getResolvedPublicBrand();
-  const themeStyle = brandThemeStyle(publicBrand);
+  const themeStyle = brandThemeStyle();
 
   return (
     <EssShell

@@ -20,6 +20,17 @@ describe('modules', () => {
     }
   });
 
+  it('accounts module is always licensed (finance pillar)', () => {
+    const prev = process.env.MODULE_ACCOUNTS;
+    process.env.MODULE_ACCOUNTS = 'false';
+    try {
+      expect(isModuleLicensed('accounts')).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.MODULE_ACCOUNTS;
+      else process.env.MODULE_ACCOUNTS = prev;
+    }
+  });
+
   it('defaults optional modules to licensed when env unset', () => {
     const keys = ['MODULE_ATS', 'MODULE_PAYROLL', 'MODULE_HSE'] as const;
     const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
@@ -62,11 +73,12 @@ describe('modules', () => {
     expect(Object.keys(modules).length).toBeGreaterThanOrEqual(10);
   });
 
-  it('defaultModuleAdminFlags hides finance and assets for new deploys', () => {
+  it('defaultModuleAdminFlags enables HR and Finance for new deploys', () => {
     const flags = defaultModuleAdminFlags();
     expect(flags.core).toBe(true);
-    expect(flags.accounts).toBe(false);
+    expect(flags.accounts).toBe(true);
     expect(flags.assets).toBe(false);
+    expect(flags.fleet).toBe(false);
     expect(flags.leave).toBe(true);
   });
 
@@ -83,11 +95,11 @@ describe('modules', () => {
       const adminOn = allModulesAdminEnabled();
       expect(resolveEffectiveModules(adminOn).accounts).toBe(true);
 
-      const adminOff = { ...adminOn, accounts: false };
-      expect(resolveEffectiveModules(adminOff).accounts).toBe(false);
+      const adminOff = { ...adminOn, payroll: false };
+      expect(resolveEffectiveModules(adminOff).payroll).toBe(false);
 
       process.env.MODULE_ACCOUNTS = 'false';
-      expect(resolveEffectiveModules(adminOn).accounts).toBe(false);
+      expect(resolveEffectiveModules(adminOn).accounts).toBe(true);
     } finally {
       for (const [k, v] of Object.entries(prev)) {
         if (v === undefined) delete process.env[k];
@@ -96,12 +108,13 @@ describe('modules', () => {
     }
   });
 
-  it('hrEssentialsModuleAdminFlags hides extended modules', () => {
-    const current = allModulesAdminEnabled();
-    const preset = hrEssentialsModuleAdminFlags(current);
-    expect(preset.accounts).toBe(false);
-    expect(preset.assets).toBe(false);
-    expect(preset.ats).toBe(false);
-    expect(preset.leave).toBe(true);
+  it('subscription entitlements block unlicensed modules', () => {
+    const admin = allModulesAdminEnabled();
+    const effective = resolveEffectiveModules(admin, {
+      subscribedModules: { fleet: false, accounts: true },
+      verticalEnginesAllowed: false,
+    });
+    expect(effective.fleet).toBe(false);
+    expect(effective.accounts).toBe(true);
   });
 });

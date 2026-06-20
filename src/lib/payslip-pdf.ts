@@ -41,8 +41,8 @@ function formatAmount(val: string | number): string {
 }
 
 // Brand colors
-const PRIMARY = rgb(4 / 255, 61 / 255, 74 / 255);       // #043d4a
-const SECONDARY = rgb(222 / 255, 141 / 255, 0 / 255);  // #de8d00 orange accent
+const PRIMARY = rgb(26 / 255, 23 / 255, 20 / 255);       // #1A1714 Stride ink
+const SECONDARY = rgb(255 / 255, 84 / 255, 54 / 255);  // #FF5436 Stride coral
 const GRAY_600 = rgb(82 / 255, 82 / 255, 82 / 255);
 const GRAY_500 = rgb(115 / 255, 115 / 255, 115 / 255);
 const LIGHT_BG = rgb(249 / 255, 250 / 255, 251 / 255); // #f9fafb

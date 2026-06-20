@@ -1,7 +1,9 @@
 import { cookies } from 'next/headers';
 import { loadCompanySetupSettings, toPublicCompanySetup } from '@/lib/company-setup';
+import { brandConfig } from '@/lib/brand.config';
 import { HRIS_ENTITY_COOKIE } from '@/lib/entity-constants';
 import { parseDemoEntitySlug } from '@/lib/demo-entity-slug';
+import { resolvePublicBrand } from '@/lib/resolve-public-brand';
 
 export type LoginWelcomeCopy = {
   staff: {
@@ -23,15 +25,21 @@ export async function getLoginWelcomeCopy(): Promise<LoginWelcomeCopy> {
   const { contextId } = parseDemoEntitySlug(entitySlug);
   const setup = await loadCompanySetupSettings(contextId);
   const pub = toPublicCompanySetup(setup);
+  const brand = resolvePublicBrand(setup);
+  const productName = brandConfig.productName;
+
   return {
     staff: {
-      welcomeTitle: pub.staff.welcomeTitle,
-      welcomeSubtitle: pub.staff.welcomeSubtitle,
+      welcomeTitle: `Welcome to ${productName}`,
+      welcomeSubtitle:
+        pub.staff.welcomeSubtitle.trim() ||
+        'Sign in to manage HR, payroll, and operations on Stride.',
       emailLoginEnabled: pub.staff.emailLoginEnabled,
     },
     ess: {
-      welcomeTitle: pub.ess.welcomeTitle,
-      welcomeSubtitle: pub.ess.welcomeSubtitle,
+      welcomeTitle: `Welcome to ${productName}`,
+      welcomeSubtitle:
+        pub.ess.welcomeSubtitle.trim() || `Sign in to ${brand.essPortalTitle}`,
       portalTitle: pub.ess.portalTitle,
       emailLoginEnabled: pub.ess.emailLoginEnabled,
     },

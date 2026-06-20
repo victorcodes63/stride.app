@@ -187,8 +187,8 @@ export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 
 
   const isTopbar = variant === 'topbar';
   const triggerClass = isTopbar
-    ? 'flex h-9 max-w-[11rem] items-center gap-1.5 rounded-lg border border-neutral-200/90 bg-neutral-50/50 px-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 sm:max-w-[13rem] lg:max-w-[15rem] lg:px-2.5'
-    : 'flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-sm font-medium text-neutral-700 shadow-sm';
+    ? 'dash-select-trigger flex h-9 max-w-[11rem] items-center gap-1.5 rounded-lg border px-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 sm:max-w-[13rem] lg:max-w-[15rem] lg:px-2.5'
+    : 'dash-select-trigger flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium shadow-sm transition-colors';
 
   return (
     <div className="relative">
@@ -234,11 +234,11 @@ export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 
         <>
           <div className="fixed inset-0 z-10 bg-black/5" aria-hidden onClick={() => setOpen(false)} />
           <div
-            className="absolute right-0 top-full mt-1.5 z-20 w-64 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
+            className="dash-popover absolute right-0 top-full z-20 mt-1.5 w-64 overflow-hidden rounded-xl border"
             role="listbox"
             aria-label="Switch entity"
           >
-            <div className="px-3 py-2 border-b border-neutral-100">
+            <div className="dash-popover-header border-b px-3 py-2">
               <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">
                 Switch company context
               </p>
@@ -254,8 +254,10 @@ export function EntitySwitcher({ variant = 'default' }: { variant?: 'default' | 
                   setActiveEntity(entity);
                   setOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-3 text-left hover:bg-neutral-50 transition-colors ${
-                  activeEntity.id === entity.id ? 'bg-primary-50' : ''
+                className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--dash-hover)] ${
+                  activeEntity.id === entity.id
+                    ? 'bg-[color-mix(in_srgb,var(--brand-primary)_10%,var(--dash-surface-solid))]'
+                    : ''
                 }`}
               >
                 <span

@@ -17,6 +17,12 @@ import {
   assertEmployeeProfileCompleteness,
   normalizeEmployeeSearchPreset,
 } from '@/lib/hr-core-employee';
+import {
+  checkSeatLimitForNewEmployee,
+  countBillableEmployees,
+  reportSeatUsageToControlPlane,
+  seatLimitExceededPayload,
+} from '@/lib/seat-limit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -142,6 +148,12 @@ export async function POST(request: NextRequest) {
     const lastName = strField(body, 'lastName') ?? '';
     const emailRaw = strField(body, 'email');
     const clientId = await resolvePrimaryWorkspaceClientId(prisma, requestedClientId, request);
+
+    const seatCheck = await checkSeatLimitForNewEmployee(clientId, request);
+    if (!seatCheck.ok) {
+      return NextResponse.json(seatLimitExceededPayload(seatCheck.check), { status: 403 });
+    }
+
     if (!firstName || !lastName) {
       return NextResponse.json({ error: 'firstName and lastName are required.' }, { status: 400 });
     }
@@ -305,6 +317,9 @@ export async function POST(request: NextRequest) {
     await startWorkflowForEmployee({ employeeId: employee.id, type: 'ONBOARDING' }).catch((error) =>
       console.error('[onboarding] Failed to auto-start onboarding:', error),
     );
+
+    const activeCount = await countBillableEmployees(clientId);
+    void reportSeatUsageToControlPlane(activeCount);
     return NextResponse.json({
       id: employee.id,
       employeeNumber: employee.employeeNumber,

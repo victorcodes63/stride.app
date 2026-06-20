@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import BudgetsContent from './BudgetsContent';
 
 export const metadata: Metadata = {
- title: 'Budgets | HRIS Demo (Finance)',
+ title: 'Budgets | Stride (Finance)',
 };
 
 export default function BudgetsPage() {

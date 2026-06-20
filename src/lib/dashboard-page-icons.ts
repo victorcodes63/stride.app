@@ -31,9 +31,11 @@ const EXTRA_PAGE_ICON_ROUTES: Record<string, LucideIcon> = {
   '/dashboard/staff': UserCog,
   '/dashboard/clients': Building2,
   '/dashboard/insights': BookOpen,
+  '/dashboard/people': Users,
   '/dashboard/people/tasks': ListTodo,
+  '/dashboard/operations': LayoutGrid,
   '/dashboard/people/performance': BarChart2,
-  '/dashboard/admin/ess-portal-users': UserCog,
+  '/dashboard/admin/company-setup': Building2,
   '/dashboard/module-unavailable': AlertTriangle,
   '/dashboard/accounts/payroll': Banknote,
 };

@@ -8,23 +8,24 @@ import {
   Bell,
   X,
   ChevronDown,
-  Plus,
-  CalendarCheck,
-  FileSignature,
-  UserCog,
   LogOut,
   User,
   HelpCircle,
   Menu,
+  Palette,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 import { DashboardBreadcrumbs } from './DashboardBreadcrumbs';
+import { DashboardModuleSwitcher } from './DashboardModuleSwitcher';
+import { DashboardThemeToggle } from '@/components/dashboard/DashboardThemeToggle';
 import { EntitySwitcher } from '@/components/EntitySwitcher';
 import type { UserSummary } from '@/types/dashboard';
 import type { ModuleKey } from '@/lib/modules';
 import { resolveDashboardBreadcrumbs } from '@/lib/dashboard-breadcrumbs';
 import { ALL_MODULES_ENABLED } from '@/lib/dashboard-nav-catalog';
 import { DASHBOARD_SHELL_GUTTER } from '@/lib/dashboard-layout';
+import { useDashboardDomain } from '@/contexts/dashboard-domain';
+import { getDomainQuickActions } from '@/lib/dashboard-domain-quick-actions';
 
 type NotificationItem = {
   id: string;
@@ -48,18 +49,8 @@ function formatNotifTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-const QUICK_ACTIONS_BASE = [
-  { label: 'Add employee', href: '/dashboard/employees/new', icon: UserCog },
-  { label: 'Schedule rota shift', href: '/dashboard/rota', icon: CalendarCheck },
-  { label: 'Create contract', href: '/dashboard/people/contracts', icon: FileSignature },
-];
-
-const QUICK_ACTIONS_ADMIN = [
-  { label: 'Add staff member', href: '/dashboard/users/staff', icon: UserCog },
-] as const;
-
 const iconBtnClass =
-  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30';
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg dash-icon-btn transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30';
 
 interface DashboardTopbarProps {
   currentUser: UserSummary | null;
@@ -92,6 +83,7 @@ export default function DashboardTopbar({
 }: DashboardTopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { activeDomain } = useDashboardDomain();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -175,13 +167,15 @@ export default function DashboardTopbar({
   const displayName = currentUser?.name || 'Staff User';
   const displayEmail = currentUser?.email || 'staff@example.com';
   const initials = getInitials(displayName);
-  const quickActions =
-    currentUser?.role === 'admin'
-      ? [...QUICK_ACTIONS_BASE, ...QUICK_ACTIONS_ADMIN]
-      : QUICK_ACTIONS_BASE;
+
+  const domainActions = useMemo(
+    () => getDomainQuickActions(activeDomain.id, currentUser, enabledModules),
+    [activeDomain.id, currentUser, enabledModules],
+  );
+  const PrimaryIcon = domainActions.primary.icon;
 
   return (
-    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 border-b border-white/50 bg-white/75 shadow-sm shadow-neutral-900/[0.03] backdrop-blur-xl">
+    <header className="print:hidden sticky top-0 z-30 flex-shrink-0 border-b dash-topbar">
       <div className={`flex h-14 items-center gap-2 sm:gap-3 ${contentGutterClass}`}>
         {/* Left: menu + breadcrumbs — only when sidebar is collapsed */}
         {!sidebarOpen ? (
@@ -216,7 +210,7 @@ export default function DashboardTopbar({
             placeholder={sidebarOpen ? 'Search employees, payroll, departments…' : 'Search…'}
             onFocus={() => setPaletteOpen(true)}
             readOnly
-            className="h-9 w-full cursor-pointer rounded-lg border border-neutral-200/90 bg-neutral-50/80 pl-9 pr-14 text-sm text-ink placeholder:text-neutral-400 transition-colors hover:border-neutral-300 hover:bg-white focus:border-primary-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            className="h-9 w-full cursor-pointer rounded-lg border pl-9 pr-14 text-sm transition-colors dash-search-input focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             aria-label="Search"
           />
           <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-neutral-400 sm:inline-flex">
@@ -226,44 +220,86 @@ export default function DashboardTopbar({
 
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} initialQuery="" />
 
+        <DashboardModuleSwitcher />
+
         {/* Right actions */}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
           <EntitySwitcher variant="topbar" />
 
           <TopbarDivider />
 
-          <div className="relative" ref={quickActionsRef}>
+          <DashboardThemeToggle />
+
+          <TopbarDivider />
+
+          <div className="relative flex items-stretch" ref={quickActionsRef}>
+            <Link
+              href={domainActions.primary.href}
+              className="flex h-9 items-center gap-1.5 rounded-l-lg border border-primary-600 bg-primary-600 px-2.5 text-sm font-semibold text-white transition-colors hover:border-primary-700 hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 sm:gap-2 sm:px-3"
+              title={domainActions.primary.description ?? domainActions.primary.label}
+            >
+              <PrimaryIcon className="h-4 w-4 shrink-0" strokeWidth={2} />
+              <span className="hidden max-w-[9rem] truncate md:inline">{domainActions.primary.label}</span>
+              <span className="md:hidden">New</span>
+            </Link>
             <button
               type="button"
               onClick={() => setQuickActionsOpen((prev) => !prev)}
-              className="flex h-9 items-center gap-1.5 rounded-lg border border-neutral-200/90 bg-white px-2 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 sm:px-2.5"
-              aria-label="Quick actions"
+              className="flex h-9 items-center rounded-r-lg border border-l-0 border-primary-600 bg-primary-600 px-1.5 text-white transition-colors hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+              aria-label={`More ${activeDomain.shortLabel} actions`}
               aria-expanded={quickActionsOpen}
             >
-              <Plus className="h-4 w-4 text-primary-600" strokeWidth={2} />
-              <span className="hidden md:inline">New</span>
               <ChevronDown
-                className={`hidden h-3.5 w-3.5 text-neutral-400 sm:block ${quickActionsOpen ? 'rotate-180' : ''} transition-transform`}
+                className={`h-4 w-4 transition-transform ${quickActionsOpen ? 'rotate-180' : ''}`}
               />
             </button>
             {quickActionsOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
-                <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                  Quick actions
-                </p>
-                {quickActions.map(({ label, href, icon: Icon }) => (
-                  <Link
-                    key={href + label}
-                    href={href}
-                    onClick={() => setQuickActionsOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-primary-700"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-100">
-                      <Icon className="h-3.5 w-3.5 text-neutral-600" />
-                    </span>
-                    {label}
-                  </Link>
-                ))}
+              <div className="dash-popover absolute right-0 top-full z-20 mt-1.5 w-64 overflow-hidden rounded-xl border py-1">
+                <div className="dash-popover-header border-b px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                    {activeDomain.shortLabel}
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    Common actions in this module
+                  </p>
+                </div>
+                <Link
+                  href={domainActions.primary.href}
+                  onClick={() => setQuickActionsOpen(false)}
+                  className="flex items-center gap-3 border-b border-[var(--dash-border-subtle)] bg-[color-mix(in_srgb,var(--brand-primary)_6%,var(--dash-surface-solid))] px-3 py-2.5 text-sm font-medium text-[var(--swatch-coral-fg)] transition-colors hover:bg-[color-mix(in_srgb,var(--brand-primary)_10%,var(--dash-surface-solid))]"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary-100">
+                    <PrimaryIcon className="h-3.5 w-3.5 text-primary-700" />
+                  </span>
+                  <span>
+                    {domainActions.primary.label}
+                    {domainActions.primary.description ? (
+                      <span className="mt-0.5 block text-[11px] font-normal text-neutral-500">
+                        {domainActions.primary.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </Link>
+                {domainActions.more.length > 0 ? (
+                  <>
+                    <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                      More actions
+                    </p>
+                    {domainActions.more.map(({ label, href, icon: Icon }) => (
+                      <Link
+                        key={href + label}
+                        href={href}
+                        onClick={() => setQuickActionsOpen(false)}
+                        className="dash-popover-item flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--dash-text)] transition-colors hover:text-[var(--brand-primary)]"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-100">
+                          <Icon className="h-3.5 w-3.5 text-neutral-600" />
+                        </span>
+                        {label}
+                      </Link>
+                    ))}
+                  </>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -301,9 +337,9 @@ export default function DashboardTopbar({
               ) : null}
             </button>
             {notificationsOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-1.5 w-80 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
-                <div className="flex items-center justify-between border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-ink">Notifications</h3>
+              <div className="dash-popover absolute right-0 top-full z-20 mt-1.5 w-80 overflow-hidden rounded-xl border">
+                <div className="dash-popover-header flex items-center justify-between border-b px-4 py-3">
+                  <h3 className="text-sm font-semibold text-[var(--dash-text-strong)]">Notifications</h3>
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen(false)}
@@ -341,7 +377,7 @@ export default function DashboardTopbar({
                             <button
                               type="button"
                               onClick={() => void markReadAndGo()}
-                              className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50 ${n.unread ? 'bg-primary-50/60' : ''}`}
+                              className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--dash-hover)] ${n.unread ? 'bg-[color-mix(in_srgb,var(--brand-primary)_8%,var(--dash-surface-solid))]' : ''}`}
                             >
                               <span className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-ink">{n.title}</p>
@@ -356,7 +392,7 @@ export default function DashboardTopbar({
                   )}
                 </div>
                 {notifications.length > 0 ? (
-                  <div className="border-t border-neutral-100 bg-neutral-50/80 px-4 py-2">
+                  <div className="dash-popover-header border-t px-4 py-2">
                     <button
                       type="button"
                       onClick={async () => {
@@ -398,23 +434,31 @@ export default function DashboardTopbar({
               <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 text-neutral-400 lg:block" />
             </button>
             {userMenuOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
-                <div className="border-b border-neutral-100 px-4 py-3">
-                  <p className="text-sm font-medium text-ink">{displayName}</p>
+              <div className="dash-popover absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-xl border py-1">
+                <div className="dash-popover-header border-b px-4 py-3">
+                  <p className="text-sm font-medium text-[var(--dash-text-strong)]">{displayName}</p>
                   <p className="truncate text-xs text-neutral-500">{displayEmail}</p>
                 </div>
                 <Link
+                  href="/dashboard/settings#appearance"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="dash-popover-item flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--dash-text)] transition-colors hover:text-[var(--brand-primary)]"
+                >
+                  <Palette className="h-4 w-4 text-[var(--dash-text-muted)]" strokeWidth={1.75} />
+                  Appearance
+                </Link>
+                <Link
                   href="/dashboard"
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-primary-700"
+                  className="dash-popover-item flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--dash-text)] transition-colors hover:text-[var(--brand-primary)]"
                 >
-                  <User className="h-4 w-4 text-neutral-500" />
+                  <User className="h-4 w-4 text-[var(--dash-text-muted)]" />
                   Dashboard home
                 </Link>
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-danger/10 hover:text-danger"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[var(--dash-text)] transition-colors hover:bg-danger/10 hover:text-danger"
                 >
                   <LogOut className="h-4 w-4 text-neutral-500" />
                   Sign out
@@ -426,7 +470,7 @@ export default function DashboardTopbar({
       </div>
 
       {!sidebarOpen && breadcrumbs.length > 0 ? (
-        <div className={`border-t border-neutral-100 py-2 md:hidden ${contentGutterClass}`}>
+        <div className={`border-t border-[var(--dash-border-subtle)] py-2 md:hidden ${contentGutterClass}`}>
           <DashboardBreadcrumbs crumbs={breadcrumbs} />
         </div>
       ) : null}

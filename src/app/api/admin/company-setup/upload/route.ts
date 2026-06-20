@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminActor } from '@/lib/admin-security';
+import { companySetupAccessDeniedResponse } from '@/lib/company-setup-access';
 import { logAuditEvent } from '@/lib/audit-events';
 import { BrandingUploadError, uploadBrandingImage } from '@/lib/branding-upload';
 import {
@@ -23,6 +24,8 @@ type UploadKind = keyof typeof FIELD_MAP;
 export async function POST(request: NextRequest) {
   const { error, actor } = await requireAdminActor(request);
   if (error) return error;
+  const tierDenied = companySetupAccessDeniedResponse();
+  if (tierDenied) return tierDenied;
 
   try {
     const form = await request.formData();

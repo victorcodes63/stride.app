@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next';
 
-const baseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim()?.replace(/\/$/, '') ||
-  'https://www.example.com';
+import { getMarketingSiteUrl } from '@/lib/marketing-config';
+
+const baseUrl = getMarketingSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {

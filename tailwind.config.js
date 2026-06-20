@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,31 +9,31 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        /** Accent blue — CTAs, charts, links (platform mark ~#0088FF) */
+        /** Stride coral — CTAs, charts, links */
         primary: {
-          50: 'var(--color-primary-50, #F0F8FF)',
-          100: 'var(--color-primary-100, #E0F1FF)',
-          200: 'var(--color-primary-200, #B8DEFF)',
-          300: 'var(--color-primary-300, #85C6FF)',
-          400: 'var(--color-primary-400, #47A9FF)',
-          500: 'var(--color-primary-500, #0D9488)',
-          600: 'var(--color-primary-600, #007DEB)',
-          700: 'var(--color-primary-700, #0070D1)',
-          800: 'var(--color-primary-800, #005CAD)',
-          900: 'var(--color-primary-900, #004785)',
+          50: 'var(--color-primary-50, #FFF5F2)',
+          100: 'var(--color-primary-100, #FFE9E4)',
+          200: 'var(--color-primary-200, #FFCFC4)',
+          300: 'var(--color-primary-300, #FFA894)',
+          400: 'var(--color-primary-400, #FF7A5C)',
+          500: 'var(--color-primary-500, #FF5436)',
+          600: 'var(--color-primary-600, #E63E22)',
+          700: 'var(--color-primary-700, #C9341B)',
+          800: 'var(--color-primary-800, #A32A16)',
+          900: 'var(--color-primary-900, #7D2010)',
         },
-        /** Navy — structural brand, nav active, headings ink */
+        /** Ink — structural brand, nav active, headings */
         secondary: {
-          50: 'var(--color-secondary-50, #E8EAF4)',
-          100: 'var(--color-secondary-100, #C5CBE5)',
-          200: 'var(--color-secondary-200, #9BA6D0)',
-          300: 'var(--color-secondary-300, #7180BB)',
-          400: 'var(--color-secondary-400, #475AA6)',
-          500: 'var(--color-secondary-500, #0F172A)',
-          600: 'var(--color-secondary-600, #181F52)',
-          700: 'var(--color-secondary-700, #141A44)',
-          800: 'var(--color-secondary-800, #101536)',
-          900: 'var(--color-secondary-900, #0C1028)',
+          50: 'var(--color-secondary-50, #F4EFE8)',
+          100: 'var(--color-secondary-100, #E6DED4)',
+          200: 'var(--color-secondary-200, #D8CDBF)',
+          300: 'var(--color-secondary-300, #B8ADA0)',
+          400: 'var(--color-secondary-400, #8A8076)',
+          500: 'var(--color-secondary-500, #1A1714)',
+          600: 'var(--color-secondary-600, #141210)',
+          700: 'var(--color-secondary-700, #0F0D0C)',
+          800: 'var(--color-secondary-800, #0A0908)',
+          900: 'var(--color-secondary-900, #050504)',
         },
         neutral: {
           50: '#F8FAFC',
@@ -49,26 +50,28 @@ module.exports = {
         success: '#15803D',
         warning: '#B45309',
         danger: '#B91C1C',
-        ink: '#0F172A',
-        /** Public marketing surface — derived from platform logo palette */
+        ink: '#1A1714',
+        'brand-gray': '#242220',
+        /** Public marketing surface — Stride palette */
         pub: {
-          primary: '#0D9488',
-          'primary-hover': '#0078E0',
-          'primary-subtle': '#EBF5FF',
-          'primary-muted': '#B8DEFF',
-          ink: '#0A2540',
-          'ink-muted': '#425466',
-          'ink-subtle': '#6B7F99',
-          surface: '#FFFFFF',
-          'surface-muted': '#F6F9FC',
-          border: '#E3E8EE',
-          'border-strong': '#C1C9D2',
+          primary: '#FF5436',
+          'primary-hover': '#E63E22',
+          'primary-subtle': '#FFE9E4',
+          'primary-muted': '#FFCFC4',
+          ink: '#1A1714',
+          'ink-muted': '#3D3833',
+          'ink-subtle': '#8A8076',
+          surface: '#FBF8F4',
+          'surface-muted': '#F4EFE8',
+          border: '#E6DED4',
+          'border-strong': '#D8CDBF',
         },
       },
       fontFamily: {
-        sans: ['var(--font-figtree)', 'system-ui', 'sans-serif'],
-        heading: ['var(--font-figtree)', 'system-ui', 'sans-serif'],
-        pub: ['var(--font-figtree)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-bricolage)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-bricolage)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+        pub: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-ibm-plex-mono)', 'ui-monospace', 'monospace'],
       },
       animation: {
@@ -106,9 +109,9 @@ module.exports = {
         },
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(15, 23, 42, 0.04)',
-        medium: '0 4px 12px rgba(15, 23, 42, 0.06)',
-        large: '0 12px 32px rgba(15, 23, 42, 0.10)',
+        soft: '0 1px 2px rgba(26, 23, 20, 0.04)',
+        medium: '0 4px 12px rgba(26, 23, 20, 0.06)',
+        large: '0 12px 32px rgba(26, 23, 20, 0.10)',
       },
     },
   },

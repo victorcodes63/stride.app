@@ -32,7 +32,7 @@ export function DashboardFilterBar({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+            className="dash-filter-clear inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
             Clear filters
@@ -45,4 +45,4 @@ export function DashboardFilterBar({
 
 /** Standard select styling for filter bars and table toolbars. */
 export const dashboardFilterSelectClass =
-  'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary-500/30';
+  'dash-filter-select rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30';

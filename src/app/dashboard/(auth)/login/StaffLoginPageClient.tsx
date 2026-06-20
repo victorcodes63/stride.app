@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { brandConfig } from '@/lib/brand.config';
 import { usePublicBrand } from '@/components/BrandProvider';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { getMetadataTitle } from '@/lib/brand';
@@ -26,7 +27,7 @@ type StaffLoginContentProps = {
 };
 
 export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: StaffLoginContentProps) {
- const { orgName, contactAddress, privacyPolicyUrl, termsUrl, defaultLandingPath } = usePublicBrand();
+ const { privacyPolicyUrl, termsUrl, defaultLandingPath } = usePublicBrand();
  const router = useRouter();
  const demoAdminEmail = loginConfig.showDemoHint ? loginConfig.staffDemoRows[0]?.email ?? '' : '';
  const demoPasswordValue = loginConfig.showDemoHint ? loginConfig.demoPassword : '';
@@ -106,30 +107,29 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  welcomeTitle={welcomeCopy.welcomeTitle}
  welcomeSubtitle={welcomeCopy.welcomeSubtitle}
  footer={
- <footer className="border-t border-[#e3e8ee] bg-white px-5 py-4 text-center lg:hidden">
- <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-[#6b7f99]">
- <Link href="/careers" className="hover:text-[#0a2540]">Careers</Link>
- <Link href={privacyPolicyUrl || '/privacy'} className="hover:text-[#0a2540]">Privacy</Link>
- <Link href={termsUrl || '/terms'} className="hover:text-[#0a2540]">Terms</Link>
+ <footer className="dash-auth-footer border-t px-5 py-4 text-center lg:hidden">
+ <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs dash-auth-muted">
+ <Link href="/careers" className="hover:text-[var(--dash-text-strong)]">Careers</Link>
+ <Link href={privacyPolicyUrl || '/privacy'} className="hover:text-[var(--dash-text-strong)]">Privacy</Link>
+ <Link href={termsUrl || '/terms'} className="hover:text-[var(--dash-text-strong)]">Terms</Link>
  </nav>
- <p className="mx-auto mt-2 max-w-xs text-pretty text-xs leading-relaxed text-[#6b7f99]" suppressHydrationWarning>
- © {new Date().getFullYear()} {orgName}
- {contactAddress ? ` · ${contactAddress}` : ''}
+ <p className="mx-auto mt-2 max-w-xs text-pretty text-xs leading-relaxed dash-auth-muted" suppressHydrationWarning>
+ © {new Date().getFullYear()} {brandConfig.productName}
  </p>
  </footer>
  }
  >
  <LoginCard
  footer={
- <p className="text-center text-[0.8125rem] text-[#6b7f99]">
+ <p className="text-center text-[0.8125rem] dash-auth-muted">
  Employee?{' '}
- <Link href="/ess/login" className="font-medium text-[#635bff] hover:text-[#4b45c6]">
+ <Link href="/ess/login" className="dash-auth-link">
  Sign in to employee portal
  </Link>
  </p>
  }
  >
- <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-[#0a2540]">
+ <h2 className="dash-auth-title">
  Sign in to your account
  </h2>
 
@@ -146,7 +146,7 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  className={`space-y-4 ${error ? 'mt-4' : 'mt-6'}`}
  >
  <div>
- <label htmlFor="email" className="mb-1.5 block text-[0.8125rem] font-medium text-[#0a2540]">
+ <label htmlFor="email" className="mb-1.5 block dash-auth-label">
  Email
  </label>
  <input
@@ -156,7 +156,7 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  value={email}
  onChange={(e) => setEmail(e.target.value)}
  required
- className="h-10 w-full rounded-md border border-[#d5dae1] bg-white px-3 text-sm text-[#0a2540] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all placeholder:text-[#9ca8b7] hover:border-[#b4bcc6] focus:border-[#635bff] focus:outline-none focus:ring-2 focus:ring-[#635bff]/12"
+ className="dash-auth-input"
  placeholder={loginConfig.emailPlaceholder}
  />
  </div>
@@ -164,12 +164,12 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  {!mfaChallenge ? (
  <div>
  <div className="mb-1.5 flex items-center justify-between">
- <label htmlFor="password" className="text-[0.8125rem] font-medium text-[#0a2540]">
+ <label htmlFor="password" className="dash-auth-label">
  Password
  </label>
  <Link
  href="/dashboard/forgot-password"
- className="text-[0.8125rem] font-medium text-[#635bff] hover:text-[#4b45c6]"
+ className="dash-auth-link text-[0.8125rem]"
  >
  Forgot?
  </Link>
@@ -182,13 +182,13 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  value={password}
  onChange={(e) => setPassword(e.target.value)}
  required
- className="h-10 w-full rounded-md border border-[#d5dae1] bg-white px-3 pr-9 text-sm text-[#0a2540] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all placeholder:text-[#9ca8b7] hover:border-[#b4bcc6] focus:border-[#635bff] focus:outline-none focus:ring-2 focus:ring-[#635bff]/12"
+ className="dash-auth-input pr-9"
  placeholder="••••••••"
  />
  <button
  type="button"
  onClick={() => setShowPassword((s) => !s)}
- className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#9ca8b7] transition-colors hover:text-[#425466]"
+ className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 dash-auth-muted transition-colors hover:text-[var(--dash-text-strong)]"
  aria-label={showPassword ? 'Hide password' : 'Show password'}
  >
  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -197,7 +197,7 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  </div>
  ) : (
  <div>
- <label htmlFor="mfaCode" className="mb-1.5 block text-[0.8125rem] font-medium text-[#0a2540]">
+ <label htmlFor="mfaCode" className="mb-1.5 block dash-auth-label">
  Authentication code
  </label>
  <input
@@ -208,7 +208,7 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  value={mfaCode}
  onChange={(e) => setMfaCode(e.target.value)}
  required
- className="h-10 w-full rounded-md border border-[#d5dae1] bg-white px-3 text-sm text-[#0a2540] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all placeholder:text-[#9ca8b7] hover:border-[#b4bcc6] focus:border-[#635bff] focus:outline-none focus:ring-2 focus:ring-[#635bff]/12"
+ className="dash-auth-input"
  placeholder="123456"
  />
  </div>
@@ -220,19 +220,16 @@ export function StaffLoginContent({ loginConfig, initialError, welcomeCopy }: St
  type="checkbox"
  checked={rememberMe}
  onChange={(e) => setRememberMe(e.target.checked)}
- className="h-3.5 w-3.5 rounded border-[#d5dae1] text-[#635bff] focus:ring-2 focus:ring-[#635bff]/20 focus:ring-offset-0"
+ className="dash-auth-checkbox focus:ring-2 focus:ring-[var(--dash-focus-ring)] focus:ring-offset-0"
  />
- <span className="text-[0.8125rem] text-[#425466]">Remember me</span>
+ <span className="text-[0.8125rem] dash-auth-body">Remember me</span>
  </label>
  )}
 
  <button
  type="submit"
  disabled={loading}
- className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#635bff] text-sm font-semibold text-white transition-all hover:bg-[#4b45c6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
- style={{
- boxShadow: '0 0 0 1px rgba(99,91,255,0.5), 0 2px 5px rgba(99,91,255,0.2)',
- }}
+ className="dash-auth-submit"
  >
  {loading ? (
  <span className="block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

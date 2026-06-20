@@ -50,7 +50,7 @@ type VerticalContent = {
 const VERTICAL_CONTENT: Record<string, VerticalContent> = {
   'imara-sacco': {
     training: [
-      { title: 'SASRA compliance & member data protection', category: 'Compliance', provider: 'Imara Academy', status: TrainingStatus.in_progress, durationHours: 6, isOnline: true },
+      { title: 'SASRA compliance & member data protection', category: 'Compliance', provider: 'Stride Academy', status: TrainingStatus.in_progress, durationHours: 6, isOnline: true },
       { title: 'Front-office service excellence', category: 'Customer service', provider: 'Kenya Institute of Management', status: TrainingStatus.scheduled, durationHours: 8 },
       { title: 'M-Pesa reconciliation for SACCOs', category: 'Finance', provider: 'Internal Finance', status: TrainingStatus.completed, durationHours: 4, isOnline: true },
     ],
@@ -68,7 +68,7 @@ const VERTICAL_CONTENT: Record<string, VerticalContent> = {
     training: [
       { title: 'Fuel retail HSE & forecourt safety', category: 'HSE', provider: 'Energy Safety Institute', status: TrainingStatus.in_progress, durationHours: 5, isOnline: true },
       { title: 'Cash & stock reconciliation at station level', category: 'Operations', provider: 'Internal Ops', status: TrainingStatus.scheduled, durationHours: 6 },
-      { title: 'Customer incident response (fuel retail)', category: 'Compliance', provider: 'Imara Academy', status: TrainingStatus.completed, durationHours: 3, isOnline: true },
+      { title: 'Customer incident response (fuel retail)', category: 'Compliance', provider: 'Stride Academy', status: TrainingStatus.completed, durationHours: 3, isOnline: true },
     ],
     announcements: [
       { title: 'Wet-stock variance review — Q2', body: 'Regional managers to confirm dip readings and POS reconciliations for all Nairobi stations by Friday.', priority: AnnouncementPriority.high, isPinned: true },
@@ -84,7 +84,7 @@ const VERTICAL_CONTENT: Record<string, VerticalContent> = {
     training: [
       { title: 'Driver safety & defensive driving', category: 'HSE', provider: 'Fleet Safety Kenya', status: TrainingStatus.in_progress, durationHours: 8 },
       { title: 'Warehouse inventory & dispatch controls', category: 'Operations', provider: 'Internal Logistics', status: TrainingStatus.scheduled, durationHours: 6, isOnline: true },
-      { title: 'Dangerous goods awareness (ADR basics)', category: 'Compliance', provider: 'Imara Academy', status: TrainingStatus.completed, durationHours: 4, isOnline: true },
+      { title: 'Dangerous goods awareness (ADR basics)', category: 'Compliance', provider: 'Stride Academy', status: TrainingStatus.completed, durationHours: 4, isOnline: true },
     ],
     announcements: [
       { title: 'Peak season rota — dispatch & drivers', body: 'Operations has published the June peak-season shift pattern. Confirm coverage with your line manager.', priority: AnnouncementPriority.high, isPinned: true },
@@ -116,7 +116,7 @@ const VERTICAL_CONTENT: Record<string, VerticalContent> = {
     training: [
       { title: 'IATA billing & ticketing fundamentals', category: 'Operations', provider: 'Aviation Training Partners', status: TrainingStatus.in_progress, durationHours: 12 },
       { title: 'Corporate travel account management', category: 'Sales', provider: 'Horizon Travels Academy', status: TrainingStatus.scheduled, durationHours: 6, isOnline: true },
-      { title: 'Travel fraud & payment security', category: 'Compliance', provider: 'Imara Academy', status: TrainingStatus.completed, durationHours: 3, isOnline: true },
+      { title: 'Travel fraud & payment security', category: 'Compliance', provider: 'Stride Academy', status: TrainingStatus.completed, durationHours: 3, isOnline: true },
     ],
     announcements: [
       { title: 'Summer charter promotions — sales playbook', body: 'Marketing has released destination bundles and commission structures for the peak travel season.', priority: AnnouncementPriority.high, isPinned: true },

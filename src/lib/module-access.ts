@@ -5,8 +5,10 @@ import {
   getModuleLabel,
   resolveEffectiveModules,
   type ModuleKey,
+  type SubscriptionEntitlements,
 } from '@/lib/modules';
 import { parseModuleAdminFlagsCookie } from '@/lib/module-cookie';
+import { parseEntitlementsCookie } from '@/lib/entitlements-cookie';
 import { isModuleGuardExempt, resolveModuleForPath } from '@/lib/module-routes';
 
 export type ModuleAccessDenied = {
@@ -30,8 +32,25 @@ export function getAdminFlagsFromRequest(request: NextRequest): Record<ModuleKey
   return parseModuleAdminFlagsCookie(cookie) ?? allModulesAdminEnabled();
 }
 
+export function getSubscriptionFromRequest(
+  request: NextRequest,
+): SubscriptionEntitlements | undefined {
+  const cookie = parseEntitlementsCookie(
+    request.cookies.get('hris_entitlements')?.value,
+  );
+  if (!cookie) return undefined;
+  return {
+    subscribedModules: cookie.modules,
+    accountStatus: cookie.accountStatus,
+    verticalEnginesAllowed: cookie.verticalEnginesAllowed,
+  };
+}
+
 export function getEffectiveModulesFromRequest(request: NextRequest): Record<ModuleKey, boolean> {
-  return resolveEffectiveModules(getAdminFlagsFromRequest(request));
+  return resolveEffectiveModules(
+    getAdminFlagsFromRequest(request),
+    getSubscriptionFromRequest(request),
+  );
 }
 
 export function isPathAllowedByModuleLicense(

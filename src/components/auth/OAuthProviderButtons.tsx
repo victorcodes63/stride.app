@@ -112,8 +112,7 @@ export function OAuthProviderButtons({
           key={provider.key}
           type="button"
           onClick={() => handleSignIn(provider)}
-          className="inline-flex h-10 w-full items-center justify-center gap-2.5 rounded-md border border-[#e3e8ee] bg-white px-4 text-sm font-medium text-[#0a2540] transition-all hover:border-[#c1c9d2] hover:bg-[#f7f8fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/20"
-          style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+          className="dash-auth-oauth-btn"
           aria-label={`Continue with ${provider.label}`}
         >
           {provider.key === 'microsoft' ? <MicrosoftIcon /> : <GoogleIcon />}
@@ -128,10 +127,10 @@ export function OAuthEmailDivider() {
   return (
     <div className="relative my-6">
       <div className="absolute inset-0 flex items-center" aria-hidden="true">
-        <div className="w-full border-t border-[#e3e8ee]" />
+        <div className="dash-auth-divider-line w-full border-t" />
       </div>
       <div className="relative flex justify-center">
-        <span className="bg-white px-3 text-xs font-medium uppercase tracking-widest text-[#6b7f99]">
+        <span className="dash-auth-divider-label px-3 text-xs font-medium uppercase tracking-widest">
           or
         </span>
       </div>

@@ -44,6 +44,19 @@ function countCredentialStatuses(
   return { expiring, expired };
 }
 
+function isMissingTableError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2021';
+}
+
+async function safeCount(query: () => Promise<number>): Promise<number> {
+  try {
+    return await query();
+  } catch (error) {
+    if (isMissingTableError(error)) return 0;
+    throw error;
+  }
+}
+
 async function countScopedCredentials(employeeScope: { outsourcingClientId: string }) {
   const now = new Date();
   const horizon = new Date(now);
@@ -125,6 +138,12 @@ export async function GET(request: NextRequest) {
       pinnedHrefs,
       notificationRows,
       unreadNotifications,
+      accountsClientRow,
+      invoicesOutstanding,
+      vendorBillsOutstanding,
+      activeFleetTrips,
+      openFleetIncidents,
+      pendingPurchaseRequests,
     ] = await Promise.all([
       metricsOnly ? Promise.resolve(null) : userRowToSummary(fullUser!),
       licensed('core')
@@ -234,6 +253,59 @@ export async function GET(request: NextRequest) {
       prisma.staffNotification.count({
         where: { userId: staffUser.id, readAt: null, ...whereExcludeSeedStaffNotifications() },
       }),
+      licensed('accounts')
+        ? prisma.accountsClient.findFirst({
+            where: { outsourcingClientId: clientId },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      licensed('accounts')
+        ? safeCount(() =>
+            prisma.accountsInvoice.count({
+              where: {
+                status: { in: ['unpaid', 'partial'] },
+                client: { outsourcingClientId: clientId },
+              },
+            }),
+          )
+        : Promise.resolve(0),
+      licensed('accounts')
+        ? safeCount(() =>
+            prisma.accountsVendorBill.count({
+              where: { status: { in: ['unpaid', 'partial'] } },
+            }),
+          )
+        : Promise.resolve(0),
+      licensed('fleet')
+        ? safeCount(() =>
+            prisma.fleetTrip.count({
+              where: {
+                outsourcingClientId: clientId,
+                status: { in: ['allocated', 'compliance_check', 'loaded', 'in_transit'] },
+              },
+            }),
+          )
+        : Promise.resolve(0),
+      licensed('fleet')
+        ? safeCount(() =>
+            prisma.fleetIncident.count({
+              where: {
+                outsourcingClientId: clientId,
+                status: { in: ['open', 'investigating'] },
+              },
+            }),
+          )
+        : Promise.resolve(0),
+      licensed('core')
+        ? safeCount(() =>
+            prisma.purchaseRequest.count({
+              where: {
+                outsourcingClientId: clientId,
+                status: 'submitted',
+              },
+            }),
+          )
+        : Promise.resolve(0),
     ]);
 
     const grossTotal = Number(payrollAgg?._sum.grossPay ?? 0);
@@ -289,6 +361,14 @@ export async function GET(request: NextRequest) {
         createdAt: n.createdAt.toISOString(),
       })),
       unreadNotifications,
+      crossModule: {
+        invoicesOutstanding,
+        vendorBillsOutstanding,
+        activeFleetTrips,
+        openFleetIncidents,
+        pendingPurchaseRequests,
+        hasFinanceClient: Boolean(accountsClientRow),
+      },
     });
   } catch (error) {
     await reportApiError({

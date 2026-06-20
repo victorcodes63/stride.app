@@ -1,9 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import BrandLogo from '@/components/BrandLogo';
 import Link from 'next/link';
-import { usePublicBrand } from '@/components/BrandProvider';
+import { StrideWordmarkLockup } from '@/components/marketing/StrideMark';
 
 type PublicDocumentShellProps = {
   title: string;
@@ -13,15 +12,12 @@ type PublicDocumentShellProps = {
 
 /** Token / standalone public flows (interview respond, etc.) */
 export function PublicDocumentShell({ title, description, children }: PublicDocumentShellProps) {
-  const { orgName } = usePublicBrand();
-
   return (
     <div className="flex min-h-screen flex-col bg-pub-surface-muted font-pub">
-      <header className="border-b border-pub-border bg-white px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-[520px] items-center gap-3">
-          <Link href="/careers" className="inline-flex items-center gap-3">
-            <BrandLogo variant="markSm" priority />
-            <span className="text-sm font-medium text-pub-ink">{orgName}</span>
+      <header className="border-b border-white/10 bg-pub-ink px-5 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-[520px] items-center">
+          <Link href="/" className="inline-flex" aria-label="Stride home">
+            <StrideWordmarkLockup theme="on-ink" markClassName="h-6" wordClassName="text-lg" />
           </Link>
         </div>
       </header>

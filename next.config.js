@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['shaders'],
   async redirects() {
     return [
+      {
+        source: '/v3',
+        destination: '/',
+        permanent: true,
+      },
       {
         source: '/dashboard/accounts/contracts',
         destination: '/dashboard/people/contracts',

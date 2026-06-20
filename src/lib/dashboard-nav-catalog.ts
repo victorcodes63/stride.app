@@ -20,6 +20,8 @@ import {
   BarChart2,
   Shield,
   ShieldAlert,
+  ShieldCheck,
+  AlertTriangle,
   UserCog,
   KeyRound,
   History,
@@ -39,6 +41,10 @@ import {
   GraduationCap,
   Network,
   FolderOpen,
+  Truck,
+  Route,
+  ShoppingCart,
+  Gavel,
 } from 'lucide-react';
 import type { UserRole } from '@/types/dashboard';
 import { isDashboardNavItemVisible, isNavSectionVisible, type EnabledModulesMap } from '@/lib/nav-modules';
@@ -60,6 +66,8 @@ export type DashboardNavBuildOptions = {
   currentUserRole: UserRole | null;
   hasAccountsAccess: boolean;
   canViewSystemAnalytics: boolean;
+  /** When false, hides Company setup from admin nav (Starter tier). */
+  canAccessCompanySetup?: boolean;
   enabledModules?: EnabledModulesMap;
 };
 
@@ -78,8 +86,6 @@ const primarySections: DashboardNavSection[] = [
       { href: '/dashboard/employees', label: 'Employees', icon: Users },
       { href: '/dashboard/departments', label: 'Departments', icon: Building2 },
       { href: '/dashboard/onboarding', label: 'Onboarding', icon: ListTodo },
-      { href: '/dashboard/people/contracts', label: 'Contracts', icon: FileSignature },
-      { href: '/dashboard/credentials', label: 'Credentials', icon: BadgeCheck },
       { href: '/dashboard/performance', label: 'Performance', icon: BarChart2 },
       { href: '/dashboard/disciplinary', label: 'Disciplinary', icon: Shield },
     ],
@@ -109,13 +115,6 @@ const primarySections: DashboardNavSection[] = [
   },
 ];
 
-const hseComplianceSection: DashboardNavSection = {
-  id: 'hse-compliance',
-  label: 'HSE & Compliance',
-  icon: ShieldAlert,
-  items: [{ href: '/dashboard/hse', label: 'Incidents', icon: ShieldAlert }],
-};
-
 const payrollSection: DashboardNavSection = {
   id: 'payroll',
   label: 'Payroll',
@@ -124,17 +123,71 @@ const payrollSection: DashboardNavSection = {
     { href: '/dashboard/payroll', label: 'Payroll runs', icon: Banknote },
     { href: '/dashboard/payroll/payslips', label: 'Payslips', icon: Receipt },
     { href: '/dashboard/payroll/statutory', label: 'Statutory', icon: Landmark },
+    { href: '/dashboard/payroll/disbursements', label: 'M-Pesa & disbursements', icon: Smartphone },
   ],
 };
 
-const assetsSection: DashboardNavSection = {
-  id: 'assets',
-  label: 'Asset Manager',
-  icon: Package,
+const procurementSection: DashboardNavSection = {
+  id: 'procurement',
+  label: 'Procurement',
+  icon: ShoppingCart,
   items: [
-    { href: '/dashboard/assets', label: 'All assets', icon: Package },
-    { href: '/dashboard/assets?assigned=1', label: 'Assignments', icon: ClipboardList },
+    { href: '/dashboard/procurement', label: 'Overview', icon: LayoutGrid },
+    { href: '/dashboard/procurement/purchase-requests', label: 'Purchase requests', icon: ClipboardList },
+    { href: '/dashboard/procurement/lpos', label: 'LPO register', icon: FileSignature },
+    { href: '/dashboard/procurement/spend', label: 'Spend dashboard', icon: Scale },
   ],
+};
+
+const legalDocumentsSection: DashboardNavSection = {
+  id: 'legal-documents',
+  label: 'Legal & Documents',
+  icon: Gavel,
+  items: [
+    { href: '/dashboard/legal', label: 'Compliance hub', icon: Gavel },
+    { href: '/dashboard/people/contracts', label: 'Contracts', icon: FileSignature },
+    { href: '/dashboard/credentials', label: 'Credentials', icon: BadgeCheck },
+    { href: '/dashboard/company-documents', label: 'Company policies', icon: FolderOpen },
+    { href: '/dashboard/legal/obligations', label: 'Obligations register', icon: Scale },
+  ],
+};
+
+const projectsSection: DashboardNavSection = {
+  id: 'projects',
+  label: 'Projects',
+  icon: Briefcase,
+  items: [
+    { href: '/dashboard/projects', label: 'Overview', icon: LayoutGrid },
+    { href: '/dashboard/projects/board', label: 'Project board', icon: Briefcase },
+    { href: '/dashboard/projects/tasks', label: 'Tasks & deliverables', icon: ListTodo },
+  ],
+};
+
+const fleetNavItems: DashboardNavItem[] = [
+  { href: '/dashboard/fleet', label: 'Fleet', icon: Truck },
+  { href: '/dashboard/fleet/trips', label: 'Trip board', icon: Route },
+  { href: '/dashboard/fleet/compliance', label: 'Compliance', icon: ShieldCheck },
+  { href: '/dashboard/fleet/settlements', label: 'Settlements', icon: ClipboardList },
+  { href: '/dashboard/fleet/billing', label: 'Billing', icon: Receipt },
+  { href: '/dashboard/fleet/incidents', label: 'Incidents', icon: AlertTriangle },
+  { href: '/dashboard/fleet/vehicles', label: 'Vehicles', icon: Truck },
+];
+
+const assetsNavItems: DashboardNavItem[] = [
+  { href: '/dashboard/assets', label: 'All assets', icon: Package },
+  { href: '/dashboard/assets?assigned=1', label: 'Assignments', icon: ClipboardList },
+];
+
+const hseNavItems: DashboardNavItem[] = [
+  { href: '/dashboard/hse', label: 'Incidents', icon: ShieldAlert },
+];
+
+/** Fleet, assets, and HSE — grouped for Admin & Operations sidebar. */
+const operationsSection: DashboardNavSection = {
+  id: 'operations',
+  label: 'Operations',
+  icon: Truck,
+  items: [...fleetNavItems, ...assetsNavItems, ...hseNavItems],
 };
 
 const essSelfServiceSection: DashboardNavSection = {
@@ -150,13 +203,15 @@ const essSelfServiceSection: DashboardNavSection = {
 
 const adminSection: DashboardNavSection = {
   id: 'admin',
-  label: 'Admin',
+  label: 'Administration',
   icon: Shield,
   items: [
     { href: '/dashboard/admin/company-setup', label: 'Company setup', icon: Building2 },
     { href: '/dashboard/users/staff', label: 'System users', icon: Shield },
     { href: '/dashboard/admin/roles-permissions', label: 'Roles & permissions', icon: KeyRound },
     { href: '/dashboard/admin/holidays', label: 'Public holidays', icon: CalendarDays },
+    { href: '/dashboard/admin/facilities', label: 'Facilities', icon: Building2 },
+    { href: '/dashboard/admin/governance', label: 'Board & governance', icon: Landmark },
     { href: '/dashboard/admin/audit-log', label: 'Audit log', icon: History },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ],
@@ -182,16 +237,6 @@ const financeSection: DashboardNavSection = {
   ],
 };
 
-const communicationsSection: DashboardNavSection = {
-  id: 'communications',
-  label: 'Communications',
-  icon: Megaphone,
-  items: [
-    { href: '/dashboard/announcements', label: 'Announcements', icon: Megaphone },
-    { href: '/dashboard/company-documents', label: 'Company documents', icon: FolderOpen },
-  ],
-};
-
 const developmentSection: DashboardNavSection = {
   id: 'development',
   label: 'Development',
@@ -202,20 +247,24 @@ const developmentSection: DashboardNavSection = {
   ],
 };
 
-function buildReportsSection(canViewSystemAnalytics: boolean): DashboardNavSection {
+function buildCommunicationsInsightSection(canViewSystemAnalytics: boolean): DashboardNavSection {
   const items: DashboardNavItem[] = [
+    { href: '/dashboard/announcements', label: 'Announcements', icon: Megaphone },
     { href: '/dashboard/reports', label: 'All reports', icon: BarChart3 },
   ];
   if (canViewSystemAnalytics) {
     items.push({ href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 });
   }
   return {
-    id: 'reports',
-    label: 'Reports',
-    icon: BarChart3,
+    id: 'communications-insight',
+    label: 'Communications & reports',
+    icon: Megaphone,
     items,
   };
 }
+
+/** Roadmap sections — always visible so partial/planned modules stay discoverable. */
+const ROADMAP_NAV_SECTION_IDS = new Set(['procurement', 'projects', 'legal-documents']);
 
 function filterSections(
   sections: DashboardNavSection[],
@@ -224,6 +273,7 @@ function filterSections(
 ): DashboardNavSection[] {
   return sections
     .filter((section) => {
+      if (ROADMAP_NAV_SECTION_IDS.has(section.id)) return true;
       if (section.id === 'finance' && !options.hasAccountsAccess) return false;
       if (section.id === 'admin') {
         return (
@@ -238,6 +288,9 @@ function filterSections(
       ...section,
       items: section.items.filter((item) => {
         if (item.href === '/dashboard/analytics') return options.canViewSystemAnalytics;
+        if (item.href === '/dashboard/admin/company-setup') {
+          return options.canAccessCompanySetup === true;
+        }
         return isDashboardNavItemVisible(item.href, section.id, enabled);
       }),
     }))
@@ -250,14 +303,15 @@ export function buildDashboardNavSections(options: DashboardNavBuildOptions): Da
   const chunks: DashboardNavSection[] = [
     ...primarySections,
     payrollSection,
-    hseComplianceSection,
-    assetsSection,
     developmentSection,
-    communicationsSection,
     essSelfServiceSection,
-    buildReportsSection(options.canViewSystemAnalytics),
   ];
   if (options.hasAccountsAccess) chunks.push(financeSection);
+  chunks.push(procurementSection, legalDocumentsSection, projectsSection);
+  chunks.push(
+    operationsSection,
+    buildCommunicationsInsightSection(options.canViewSystemAnalytics),
+  );
   if (
     options.currentUserRole === 'admin' ||
     options.hasAccountsAccess ||
@@ -304,6 +358,7 @@ export const ALL_MODULES_ENABLED = {
   disciplinary: true,
   reports: true,
   assets: true,
+  fleet: true,
   ess: true,
   communications: true,
   training: true,
@@ -313,23 +368,25 @@ export const ALL_MODULES_ENABLED = {
 export const DASHBOARD_NAV_EXPANDABLE_SECTION_IDS = [
   ...primarySections.map((s) => s.id),
   payrollSection.id,
-  hseComplianceSection.id,
-  assetsSection.id,
   developmentSection.id,
-  communicationsSection.id,
   essSelfServiceSection.id,
-  'reports',
   financeSection.id,
+  procurementSection.id,
+  legalDocumentsSection.id,
+  projectsSection.id,
+  operationsSection.id,
+  'communications-insight',
   adminSection.id,
 ];
 
-/** Navigation groups with labeled headers for sidebar visual hierarchy. */
+/** Sidebar group headers — aligned with public marketing six core modules. */
 export const DASHBOARD_NAV_GROUPS = [
-  { label: 'Core HR', startSectionId: 'people-hr' },
-  { label: 'Operations', startSectionId: 'time-attendance' },
-  { label: 'Resources', startSectionId: 'assets' },
-  { label: 'Insights', startSectionId: 'employee-self-service' },
-  { label: 'Administration', startSectionId: 'finance' },
+  { label: '01 — HR & Payroll', startSectionId: 'people-hr' },
+  { label: '02 — Finance', startSectionId: 'finance' },
+  { label: '03 — Procurement', startSectionId: 'procurement' },
+  { label: '04 — Legal & Documents', startSectionId: 'legal-documents' },
+  { label: '05 — Projects', startSectionId: 'projects' },
+  { label: '06 — Admin & Operations', startSectionId: 'operations' },
 ] as const;
 
 /** @deprecated Use DASHBOARD_NAV_GROUPS */

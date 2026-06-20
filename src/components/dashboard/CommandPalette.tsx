@@ -146,13 +146,13 @@ export default function CommandPalette({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] px-4 bg-neutral-900/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[15vh] dash-modal-backdrop backdrop-blur-sm">
       <div
-        className="bg-white rounded-xl border border-neutral-200 shadow-xl w-full max-w-xl overflow-hidden"
+        className="dash-modal-panel w-full max-w-xl overflow-hidden rounded-xl border"
         role="dialog"
         aria-label="Search"
       >
-        <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3">
+        <div className="dash-modal-header flex items-center gap-2 border-b px-4 py-3">
           <Search className="w-5 h-5 text-neutral-400 shrink-0" />
           <input
             ref={inputRef}
@@ -160,7 +160,7 @@ export default function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search jobs, candidates, applications..."
-            className="flex-1 min-w-0 py-2 bg-transparent text-primary-900 placeholder-neutral-400 focus:outline-none text-sm"
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-[var(--dash-text-strong)] placeholder:text-[var(--dash-text-subtle)] focus:outline-none"
             aria-label="Search query"
           />
           <kbd className="hidden sm:inline text-xs text-neutral-400 border border-neutral-200 rounded px-1.5 py-0.5">
@@ -208,10 +208,10 @@ export default function CommandPalette({
                         const pos = selectableIndexes.indexOf(i);
                         if (pos >= 0) setSelectedIndex(pos);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
                         isSelected
-                          ? 'bg-primary-50 text-primary-900'
-                          : 'text-neutral-700 hover:bg-neutral-50'
+                          ? 'bg-[color-mix(in_srgb,var(--brand-primary)_10%,var(--dash-surface-solid))] text-[var(--dash-text-strong)]'
+                          : 'text-[var(--dash-text)] hover:bg-[var(--dash-hover)]'
                       }`}
                     >
                       <Icon className="w-4 h-4 text-neutral-400 shrink-0" />
@@ -231,7 +231,7 @@ export default function CommandPalette({
           )}
         </div>
 
-        <div className="border-t border-neutral-100 px-4 py-2 flex items-center justify-between text-xs text-neutral-400">
+        <div className="dash-modal-footer flex items-center justify-between border-t px-4 py-2 text-xs">
           <span>
             <kbd className="border border-neutral-200 rounded px-1">↑</kbd>
             <kbd className="border border-neutral-200 rounded px-1 ml-1">↓</kbd> navigate

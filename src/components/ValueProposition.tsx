@@ -134,7 +134,7 @@ const ValueProposition = () => {
     {
       year: '2017',
       title: 'Company Founded',
-      description: 'HRIS Demo established with a vision to transform HR in Kenya',
+      description: 'Stride established with a vision to transform HR in Kenya',
       icon: Target
     },
     {
@@ -250,7 +250,7 @@ const ValueProposition = () => {
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary-900 to-secondary-500 text-white rounded-full text-sm font-semibold mb-6 shadow-lg"
           >
             <Award className="w-4 h-4 mr-2" />
-            Why 500+ Companies Choose HRIS Demo
+            Why 500+ Companies Choose Stride
           </motion.div>
           
           <h2 className="text-4xl md:text-5xl font-heading font-bold text-primary-900 mb-6">

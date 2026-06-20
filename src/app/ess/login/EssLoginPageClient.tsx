@@ -128,7 +128,7 @@ export function EssLoginForm({
       <div
         className="relative overflow-hidden px-6 pb-10 pt-[max(env(safe-area-inset-top,0px),2.5rem)]"
         style={{
-          background: 'linear-gradient(145deg, #1d2460 0%, #171d4f 60%, #0f1338 100%)',
+          background: 'linear-gradient(145deg, #1A1714 0%, #141210 60%, #0A0908 100%)',
         }}
       >
         {/* Decorative orbs */}
@@ -216,7 +216,7 @@ export function EssLoginForm({
                   disabled={loading}
                   className="relative flex h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-full text-[0.9375rem] font-bold text-white transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
-                    background: 'linear-gradient(135deg, #1d2460, #171d4f)',
+                    background: 'linear-gradient(135deg, #1A1714, #141210)',
                     boxShadow: '0 10px 28px rgba(29,36,96,0.28)',
                   }}
                 >
@@ -277,7 +277,7 @@ export function EssLoginForm({
         <div className="mt-auto pt-8 text-center">
           <p className="text-[0.8125rem] text-slate-500">
             HR staff?{' '}
-            <Link href="/dashboard/login" className="font-semibold text-[#1d2460] underline-offset-2 hover:underline">
+            <Link href="/dashboard/login" className="font-semibold text-[#1A1714] underline-offset-2 hover:underline">
               Staff dashboard
             </Link>
           </p>

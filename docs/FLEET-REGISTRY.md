@@ -1,12 +1,18 @@
 # Fleet registry
 
+**Source of truth:** Stride Control Plane (`control-plane`) — not a spreadsheet.
+
+- **Import:** `/fleet` CSV import upserts customers by slug
+- **Export:** `GET /api/fleet-registry/export` (authenticated) or download from Fleet page
+- **Health:** cron `GET /api/cron/fleet-health` polls each instance `/api/config/deployment`
+
 Track every **dedicated client deployment** from a single operational view. This is not product multi-tenancy — it is internal ops visibility over separate instances.
 
 ---
 
 ## Registry template
 
-Copy to Notion, Google Sheets, or `fleet-registry.csv`:
+Legacy spreadsheet columns are preserved for exports. Copy to Notion or Google Sheets only if needed for offline review:
 
 | Client | Status | Production URL | Vercel project | Neon project | Git tag / version | Last deploy | Modules disabled | Admin contact | Notes |
 |--------|--------|----------------|----------------|--------------|-------------------|-------------|------------------|---------------|-------|
@@ -38,8 +44,8 @@ For each **Live** client:
 ## Adding a new client
 
 1. Complete [`CLIENT-PROVISIONING.md`](./CLIENT-PROVISIONING.md)
-2. Add row to this registry
-3. Record module flags and pricing tier agreed in commercial notes
+2. Use Control Plane **Provision wizard** (`/provision`) and Fleet import
+3. Record module flags and pricing tier in commercial notes (customer detail)
 
 ---
 

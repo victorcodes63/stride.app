@@ -1,14 +1,28 @@
-import { redirect } from 'next/navigation';
-import { isDemoMode, isPublicDemoMode } from '@/lib/deployment-config';
-import { isModuleLicensed } from '@/lib/modules';
+import type { Metadata } from 'next';
 
-/** Public entry: demo lands on staff login; production ATS-first sites go to careers. */
+import { StudioCraftHomePage } from '@/components/marketing/v3/StudioCraftHomePage';
+import { StudioCraftShell } from '@/components/marketing/v3/StudioCraftShell';
+
+export const metadata: Metadata = {
+  title: 'Stride — Move your business forward',
+  description:
+    'HR, finance, procurement, legal, projects and admin on one platform built for East African businesses. M-Pesa native. Compliance first.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Stride — Move your business forward',
+    description:
+      'HR, finance, procurement, legal, projects and admin on one platform built for East African businesses.',
+    url: '/',
+    type: 'website',
+  },
+};
+
 export default function Home() {
-  if (isDemoMode() || isPublicDemoMode()) {
-    redirect('/dashboard/login');
-  }
-  if (isModuleLicensed('ats')) {
-    redirect('/careers');
-  }
-  redirect('/dashboard/login');
+  return (
+    <StudioCraftShell>
+      <main>
+        <StudioCraftHomePage />
+      </main>
+    </StudioCraftShell>
+  );
 }

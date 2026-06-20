@@ -19,6 +19,8 @@ export type DashboardPageHeaderBadge = {
   icon?: LucideIcon;
   /** Shown before the label (e.g. entity flag emoji). */
   prefix?: ReactNode;
+  /** Skip the default pill wrapper (e.g. custom badge component). */
+  bare?: boolean;
 };
 
 export type DashboardPageHeaderAction = {
@@ -70,8 +72,8 @@ function HeaderActions({
           const className =
             variant === 'hero'
               ? isPrimary
-                ? 'inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-secondary-800 shadow-md transition hover:bg-primary-50'
-                : 'inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/15'
+                ? 'dash-hero-cta-primary'
+                : 'dash-hero-cta-secondary'
               : isPrimary
                 ? 'btn-primary inline-flex items-center gap-2'
                 : 'btn-secondary inline-flex items-center gap-2';
@@ -98,6 +100,9 @@ function HeaderBadges({ badges, variant }: { badges: DashboardPageHeaderBadge[];
       <div className="flex flex-wrap items-center gap-2">
         {badges.map((badge, index) => {
           const Icon = badge.icon;
+          if (badge.bare) {
+            return <span key={index}>{badge.label}</span>;
+          }
           return (
             <span
               key={index}
@@ -165,16 +170,16 @@ export function DashboardPageHeader({
     return (
       <section
         className={cn(
-          'dashboard-page-header-hero relative overflow-hidden rounded-2xl border border-secondary-700/20 bg-gradient-to-br from-secondary-800 via-secondary-700 to-primary-800 p-5 shadow-lg shadow-secondary-900/20 sm:p-6',
+          'dashboard-page-header-hero relative overflow-hidden rounded-2xl border p-5 shadow-lg sm:p-6',
           className,
         )}
       >
         <div
-          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl"
+          className="dashboard-page-header-hero-glow-tr pointer-events-none absolute -right-10 -top-12 h-56 w-56 rounded-full blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-primary-300/10 blur-3xl"
+          className="dashboard-page-header-hero-glow-bl pointer-events-none absolute -bottom-16 left-1/4 h-44 w-44 rounded-full blur-3xl"
           aria-hidden
         />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

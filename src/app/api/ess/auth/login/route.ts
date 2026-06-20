@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getEssSessionMaxAgeSeconds } from '@/lib/ess-session';
 import { logAuditEvent } from '@/lib/audit-events';
+import { assertAccountLoginAllowed } from '@/lib/account-login-guard';
 
 const ESS_SESSION_COOKIE = 'ess_session';
 const COOKIE_MAX_AGE = getEssSessionMaxAgeSeconds();
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest) {
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
   }
+
+  const accountBlocked = await assertAccountLoginAllowed(email);
+  if (accountBlocked) return accountBlocked;
 
   const user = await prisma.essPortalUser.findUnique({ where: { email } });
   if (!user) {

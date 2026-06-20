@@ -4,10 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AuthSplitShell, LoginCard } from '@/components/auth/AuthSplitShell';
-import { usePublicBrand } from '@/components/BrandProvider';
 
 export default function ForgotPasswordPage() {
- const { orgName } = usePublicBrand();
  const [email, setEmail] = useState('');
  const [submitted, setSubmitted] = useState(false);
  const [error, setError] = useState('');
@@ -31,13 +29,13 @@ export default function ForgotPasswordPage() {
  <AuthSplitShell
  eyebrow="Staff dashboard"
  title="Reset your password"
- subtitle={`Enter your work email and we'll send reset instructions for your ${orgName} account.`}
+ subtitle="Enter your work email and we'll send reset instructions for your Stride staff account."
  >
  <LoginCard>
- <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-[#0a2540]">
+ <h2 className="dash-auth-title">
  Forgot your password?
  </h2>
- <p className="mt-1.5 text-[0.8125rem] text-[#425466]">
+ <p className="mt-1.5 text-[0.8125rem] dash-auth-body">
  Enter your work email and we&apos;ll send you a link to reset your password.
  </p>
 
@@ -56,7 +54,7 @@ export default function ForgotPasswordPage() {
  ) : null}
 
  <div>
- <label htmlFor="email" className="mb-1.5 block text-[0.8125rem] font-medium text-[#0a2540]">
+ <label htmlFor="email" className="mb-1.5 block dash-auth-label">
  Email
  </label>
  <input
@@ -66,7 +64,7 @@ export default function ForgotPasswordPage() {
  value={email}
  onChange={(e) => setEmail(e.target.value)}
  required
- className="h-10 w-full rounded-md border border-[#d5dae1] bg-white px-3 text-sm text-[#0a2540] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all placeholder:text-[#9ca8b7] hover:border-[#b4bcc6] focus:border-[#635bff] focus:outline-none focus:ring-2 focus:ring-[#635bff]/12"
+ className="dash-auth-input"
  placeholder="you@company.com"
  />
  </div>
@@ -74,18 +72,15 @@ export default function ForgotPasswordPage() {
  <button
  type="submit"
  disabled={loading}
- className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#635bff] text-sm font-semibold text-white transition-all hover:bg-[#4b45c6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/40 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-50"
- style={{
- boxShadow: '0 0 0 1px rgba(99,91,255,0.5), 0 2px 5px rgba(99,91,255,0.2)',
- }}
+ className="dash-auth-submit"
  >
  {loading ? 'Sending…' : 'Send reset link'}
  </button>
  </form>
  )}
 
- <p className="mt-5 text-center text-[0.8125rem] text-[#425466]">
- <Link href="/dashboard/login" className="font-medium text-[#635bff] hover:text-[#4b45c6]">
+ <p className="mt-5 text-center text-[0.8125rem] dash-auth-body">
+ <Link href="/dashboard/login" className="dash-auth-link">
  ← Back to sign in
  </Link>
  </p>

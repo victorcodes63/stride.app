@@ -5,13 +5,13 @@ const SACCO_TAGLINE =
 
 export const imaraSaccoPack = buildVerticalPackFromGeneric({
   id: 'imara-sacco',
-  label: 'Imara — SACCO beachhead demo',
+  label: 'Stride — SACCO beachhead demo',
   orgName: 'Nyati SACCO Society Ltd',
   emailDomain: 'nyati.imara.co.ke',
   prefix: 'NYT',
   tagline: SACCO_TAGLINE,
   publicFooterText:
-    'Nyati SACCO Society Ltd runs on Imara — M-Pesa-native payroll, SASRA-ready compliance, and workforce operations in one platform.',
+    'Nyati SACCO Society Ltd runs on Stride — M-Pesa-native payroll, SASRA-ready compliance, and workforce operations in one platform.',
   departments: [
     'Member Services',
     'Credit & Loans',

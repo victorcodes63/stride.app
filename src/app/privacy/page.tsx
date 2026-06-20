@@ -6,7 +6,7 @@ import { PublicLegalPage } from '@/components/public/PublicLegalPage';
 import { usePublicBrand } from '@/components/BrandProvider';
 
 export default function PrivacyPolicyPage() {
-  const { orgName, contactEmail } = usePublicBrand();
+  const { contactEmail } = usePublicBrand();
 
   const sections = [
     {
@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
       <PublicLegalPage
         eyebrow="Privacy policy"
         title="Your privacy matters"
-        description={`${orgName} is committed to protecting your personal information. This policy explains how we collect, use, and safeguard your data.`}
+        description="Stride is committed to protecting personal information processed through our platform. This policy explains how we collect, use, and safeguard data when you use Stride services."
         sections={sections}
       >
         <div>

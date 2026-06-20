@@ -6,6 +6,7 @@ import { reportApiError } from '@/lib/monitoring';
 import { logAuditEvent } from '@/lib/audit-events';
 import { getStaffAllowedDomains, isStaffEmailDomainAllowed } from '@/lib/staff-allowed-domains';
 import { createAuthChallengeToken } from '@/lib/auth-challenge';
+import { assertAccountLoginAllowed } from '@/lib/account-login-guard';
 
 const STAFF_SESSION_COOKIE = 'staff_session';
 const COOKIE_MAX_AGE = getStaffSessionMaxAgeSeconds();
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const accountBlocked = await assertAccountLoginAllowed(normalizedEmail);
+    if (accountBlocked) return accountBlocked;
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },

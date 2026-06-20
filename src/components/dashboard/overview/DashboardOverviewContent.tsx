@@ -8,12 +8,9 @@ import {
   BadgeCheck,
   Bell,
   Building2,
-  CalendarDays,
   ChevronRight,
   Clock,
-  Inbox,
   Pin,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { useEntity } from '@/components/EntitySwitcher';
@@ -26,18 +23,31 @@ import {
 } from '@/lib/dashboard-nav-catalog';
 import {
   buildAttentionItems,
+  buildCrossModuleKpis,
   buildDefaultShortcuts,
+  buildDomainSnapshots,
   getOverviewGreeting,
   getOverviewPrimaryAction,
   getOverviewRoleLabel,
   getOverviewSecondaryAction,
   getOverviewSubtitle,
+  groupAttentionByDomain,
+  pickTopAttentionAction,
   resolveOverviewPersona,
+  shouldExpandHrDetails,
   shouldShowPayrollBlock,
   type OverviewAttentionItem,
+  type OverviewCrossModuleMetrics,
   type OverviewShortcut,
 } from '@/lib/dashboard-overview-personalization';
+import { useDashboardModuleOrder } from '@/contexts/dashboard-module-order';
+import { OverviewModuleCommandCenter } from '@/components/dashboard/overview/OverviewModuleCommandCenter';
 import type { ModuleKey } from '@/lib/modules';
+import {
+  attentionSwatchClass,
+  DASHBOARD_KPI_CLASSES,
+  type DashboardKpiVariant,
+} from '@/lib/platform-swatches';
 import type { UserSummary } from '@/types/dashboard';
 
 type AttendanceRow = {
@@ -107,45 +117,15 @@ function formatRelativeTime(iso: string) {
 }
 
 function attentionToneClass(tone: OverviewAttentionItem['tone']) {
-  switch (tone) {
-    case 'amber':
-      return 'border-amber-300/50 bg-gradient-to-r from-amber-50 to-amber-50/40 text-amber-950 shadow-sm shadow-amber-100/50';
-    case 'rose':
-      return 'border-rose-300/50 bg-gradient-to-r from-rose-50 to-rose-50/40 text-rose-950 shadow-sm shadow-rose-100/50';
-    case 'sky':
-      return 'border-sky-300/50 bg-gradient-to-r from-sky-50 to-sky-50/40 text-sky-950 shadow-sm shadow-sky-100/50';
-    default:
-      return 'border-neutral-200/80 bg-gradient-to-r from-neutral-50 to-white text-neutral-800';
+  if (tone === 'amber' || tone === 'rose' || tone === 'sky') {
+    return attentionSwatchClass(tone);
   }
+  return attentionSwatchClass('neutral');
 }
 
-type KpiVariant = 'primary' | 'emerald' | 'amber' | 'violet';
+type KpiVariant = DashboardKpiVariant;
 
-const KPI_STYLES: Record<
-  KpiVariant,
-  { card: string; icon: string; value: string }
-> = {
-  primary: {
-    card: 'border-primary-200/60 bg-gradient-to-br from-white via-white to-primary-50/80 hover:border-primary-300/70 hover:shadow-primary-100/40',
-    icon: 'bg-primary-500/15 text-primary-700 ring-1 ring-primary-500/20',
-    value: 'text-secondary-800',
-  },
-  emerald: {
-    card: 'border-emerald-200/60 bg-gradient-to-br from-white via-white to-emerald-50/70 hover:border-emerald-300/70 hover:shadow-emerald-100/40',
-    icon: 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/20',
-    value: 'text-emerald-900',
-  },
-  amber: {
-    card: 'border-amber-200/60 bg-gradient-to-br from-white via-white to-amber-50/70 hover:border-amber-300/70 hover:shadow-amber-100/40',
-    icon: 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/20',
-    value: 'text-amber-900',
-  },
-  violet: {
-    card: 'border-violet-200/60 bg-gradient-to-br from-white via-white to-violet-50/70 hover:border-violet-300/70 hover:shadow-violet-100/40',
-    icon: 'bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/20',
-    value: 'text-violet-900',
-  },
-};
+const KPI_STYLES = DASHBOARD_KPI_CLASSES;
 
 function OverviewPanel({
   title,
@@ -235,13 +215,13 @@ function KpiCard({
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${styles.icon}`}>
+        <div className="dash-icon-well flex h-10 w-10 items-center justify-center rounded-xl">
           <Icon className="h-4 w-4" strokeWidth={1.75} />
         </div>
         {href ? <ArrowUpRight className="h-4 w-4 text-neutral-300 transition group-hover:text-primary-500" aria-hidden /> : null}
       </div>
       <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold leading-none tracking-tight tabular-nums ${styles.value}`}>{value}</p>
+      <p className={`dash-overview-kpi-value mt-1 text-3xl font-semibold leading-none tracking-tight tabular-nums ${styles.value}`}>{value}</p>
       <p className="mt-2 text-xs leading-relaxed text-neutral-500">{note}</p>
     </>
   );
@@ -264,19 +244,19 @@ function ShortcutTile({ item, pinned = false }: { item: OverviewShortcut; pinned
   return (
     <Link
       href={item.href}
-      className="group flex items-start gap-3 rounded-xl border border-white/80 bg-white/70 p-3.5 shadow-sm transition hover:border-primary-200/80 hover:bg-primary-50/60 hover:shadow-md"
+      className="dash-workspace-link flex items-start gap-3 rounded-xl border p-3.5 shadow-sm"
     >
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 text-primary-700 ring-1 ring-primary-200/50 transition group-hover:from-primary-200 group-hover:to-primary-100">
+      <span className="dash-icon-well flex h-9 w-9 items-center justify-center rounded-xl">
         <Icon className="h-4 w-4" strokeWidth={1.75} />
-      </div>
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-semibold text-ink group-hover:text-primary-900">{item.label}</p>
-          {pinned ? <Pin className="h-3 w-3 flex-shrink-0 text-primary-500" aria-label="Pinned" /> : null}
+          <p className="truncate text-sm font-semibold text-ink">{item.label}</p>
+          {pinned ? <Pin className="dash-shortcut-pin h-3 w-3 flex-shrink-0" aria-label="Pinned" /> : null}
         </div>
         <p className="mt-0.5 truncate text-xs text-neutral-500">{item.desc}</p>
       </div>
-      <ChevronRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-neutral-300 transition group-hover:text-primary-500" />
+      <ChevronRight className="dash-workspace-chevron h-4 w-4" />
     </Link>
   );
 }
@@ -299,11 +279,11 @@ function OverviewMetricsSkeleton() {
 
 export default function DashboardOverviewContent() {
   const { user: sessionUser, modules: sessionModules } = useDashboardSession();
+  const { orderedDomains } = useDashboardModuleOrder();
   const { activeEntity, loading: entityLoading } = useEntity();
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [totalStaff, setTotalStaff] = useState(0);
   const [onDuty, setOnDuty] = useState(0);
-  const [onLeave, setOnLeave] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [openAttendanceExceptions, setOpenAttendanceExceptions] = useState(0);
@@ -317,6 +297,14 @@ export default function DashboardOverviewContent() {
   const [pinnedHrefs, setPinnedHrefs] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [crossModule, setCrossModule] = useState<OverviewCrossModuleMetrics>({
+    invoicesOutstanding: 0,
+    vendorBillsOutstanding: 0,
+    activeFleetTrips: 0,
+    openFleetIncidents: 0,
+    pendingPurchaseRequests: 0,
+  });
+  const [hrDetailsOpen, setHrDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (entityLoading) return;
@@ -333,7 +321,6 @@ export default function DashboardOverviewContent() {
         const data = (await res.json()) as {
           totalStaff?: number;
           onDuty?: number;
-          onLeave?: number;
           pendingApprovals?: number;
           attendanceRows?: AttendanceRow[];
           openAttendanceExceptions?: number;
@@ -349,11 +336,11 @@ export default function DashboardOverviewContent() {
           pinnedHrefs?: string[];
           notifications?: NotificationRow[];
           unreadNotifications?: number;
+          crossModule?: OverviewCrossModuleMetrics;
         };
 
         setTotalStaff(data.totalStaff ?? 0);
         setOnDuty(data.onDuty ?? 0);
-        setOnLeave(data.onLeave ?? 0);
         setPendingApprovals(data.pendingApprovals ?? 0);
         setAttendanceRows(Array.isArray(data.attendanceRows) ? data.attendanceRows : []);
         setOpenAttendanceExceptions(data.openAttendanceExceptions ?? 0);
@@ -367,6 +354,13 @@ export default function DashboardOverviewContent() {
         setPinnedHrefs(Array.isArray(data.pinnedHrefs) ? data.pinnedHrefs : []);
         setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
         setUnreadNotifications(data.unreadNotifications ?? 0);
+        setCrossModule({
+          invoicesOutstanding: data.crossModule?.invoicesOutstanding ?? 0,
+          vendorBillsOutstanding: data.crossModule?.vendorBillsOutstanding ?? 0,
+          activeFleetTrips: data.crossModule?.activeFleetTrips ?? 0,
+          openFleetIncidents: data.crossModule?.openFleetIncidents ?? 0,
+          pendingPurchaseRequests: data.crossModule?.pendingPurchaseRequests ?? 0,
+        });
       } finally {
         if (!cancelled) setMetricsLoading(false);
       }
@@ -381,24 +375,27 @@ export default function DashboardOverviewContent() {
   const me = sessionUser;
   const modules = sessionModules;
   const persona = useMemo(() => resolveOverviewPersona(me), [me]);
-  const onDutyRate = useMemo(() => (totalStaff ? Math.round((onDuty / totalStaff) * 100) : 0), [onDuty, totalStaff]);
+
+  useEffect(() => {
+    setHrDetailsOpen(shouldExpandHrDetails(persona));
+  }, [persona]);
   const fx = useMemo(
     () => (amount: number) => formatMoney(amount, activeEntity.currency),
     [activeEntity.currency],
   );
-  const periodLabel = useMemo(
-    () => new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-    [],
-  );
-  const todayLabel = useMemo(
-    () =>
+  const [periodLabel, setPeriodLabel] = useState('');
+  const [todayLabel, setTodayLabel] = useState('');
+
+  useEffect(() => {
+    setPeriodLabel(new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+    setTodayLabel(
       new Date().toLocaleDateString(undefined, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
       }),
-    [],
-  );
+    );
+  }, []);
 
   const navSections = useMemo(
     () =>
@@ -449,6 +446,7 @@ export default function DashboardOverviewContent() {
         credentialsExpired,
         myOnboardingCount: myOnboardingTasks.length,
         unreadNotifications,
+        crossModule,
         persona,
         modules,
       }),
@@ -459,15 +457,41 @@ export default function DashboardOverviewContent() {
       credentialsExpired,
       myOnboardingTasks.length,
       unreadNotifications,
+      crossModule,
       persona,
       modules,
     ],
   );
 
-  const primaryAction = useMemo(
-    () => getOverviewPrimaryAction(me, persona, pendingApprovals),
-    [me, persona, pendingApprovals],
+  const domainSnapshots = useMemo(
+    () =>
+      buildDomainSnapshots({
+        totalStaff,
+        pendingLeave: pendingApprovals,
+        onDuty,
+        credentialsExpiring,
+        credentialsExpired,
+        crossModule,
+        modules,
+      }),
+    [
+      totalStaff,
+      pendingApprovals,
+      onDuty,
+      credentialsExpiring,
+      credentialsExpired,
+      crossModule,
+      modules,
+    ],
   );
+
+  const attentionByDomain = useMemo(() => groupAttentionByDomain(attentionItems), [attentionItems]);
+
+  const primaryAction = useMemo(() => {
+    const urgent = pickTopAttentionAction(attentionItems);
+    if (urgent) return urgent;
+    return getOverviewPrimaryAction(me, persona, pendingApprovals);
+  }, [attentionItems, me, persona, pendingApprovals]);
   const secondaryAction = useMemo(() => getOverviewSecondaryAction(me, persona), [me, persona]);
 
   const greeting = getOverviewGreeting(me?.name ?? 'there');
@@ -496,48 +520,23 @@ export default function DashboardOverviewContent() {
 
   const showPayroll = shouldShowPayrollBlock(persona, payrollDenied);
   const showAttendance = modules.time !== false;
-  const showLeaveKpis = modules.leave !== false;
+  const showHrSection = modules.core !== false || modules.time !== false || modules.payroll !== false;
+
+  const kpiCards = useMemo(
+    () =>
+      buildCrossModuleKpis({
+        totalStaff,
+        pendingLeave: pendingApprovals,
+        credentialsExpiring,
+        credentialsExpired,
+        crossModule,
+        persona,
+        modules,
+      }),
+    [totalStaff, pendingApprovals, credentialsExpiring, credentialsExpired, crossModule, persona, modules],
+  );
 
   if (!me) return <OverviewSkeleton />;
-
-  const kpiCards = [
-    {
-      label: 'Total staff',
-      value: totalStaff,
-      note: `${activeEntity.country} workforce`,
-      icon: Users,
-      href: '/dashboard/employees',
-      variant: 'primary' as KpiVariant,
-      show: modules.core !== false,
-    },
-    {
-      label: 'On duty today',
-      value: onDuty,
-      note: `${onDutyRate}% clocked in`,
-      icon: Clock,
-      href: '/dashboard/attendance',
-      variant: 'emerald' as KpiVariant,
-      show: showAttendance,
-    },
-    {
-      label: 'On leave',
-      value: onLeave,
-      note: 'Approved leave today',
-      icon: CalendarDays,
-      href: '/dashboard/staff-leave',
-      variant: 'amber' as KpiVariant,
-      show: showLeaveKpis,
-    },
-    {
-      label: 'Pending leave',
-      value: pendingApprovals,
-      note: me?.canApproveStaffLeave ? 'Needs your approval' : 'Awaiting approval',
-      icon: Inbox,
-      href: me?.canApproveStaffLeave ? '/dashboard/staff-leave?tab=approvals' : '/dashboard/staff-leave',
-      variant: 'violet' as KpiVariant,
-      show: showLeaveKpis && persona !== 'viewer',
-    },
-  ].filter((k) => k.show);
 
   return (
     <div className="page-shell">
@@ -555,41 +554,70 @@ export default function DashboardOverviewContent() {
         metaSuppressHydrationWarning
       />
 
+      <OverviewModuleCommandCenter
+        attentionByDomain={attentionByDomain}
+        domainSnapshots={domainSnapshots}
+      />
+
       {metricsLoading ? (
         <OverviewMetricsSkeleton />
       ) : (
         <>
-      {/* KPIs */}
-      {kpiCards.length > 0 ? (
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {kpiCards.map((tile) => (
-            <KpiCard key={tile.label} {...tile} />
-          ))}
-        </section>
-      ) : null}
-
       {/* Needs attention */}
       {attentionItems.length > 0 ? (
         <section className="dashboard-panel p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-secondary-800">Needs attention</h2>
+            <h2 className="text-sm font-semibold text-secondary-800">Needs attention now</h2>
             <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800">
               {attentionItems.length}
             </span>
           </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {attentionItems.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition hover:opacity-90 ${attentionToneClass(item.tone)}`}
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">{item.label}</p>
-                  <p className="mt-0.5 text-xs opacity-80">{item.detail}</p>
-                </div>
-                <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-60" />
-              </Link>
+          <div className="space-y-4">
+            {orderedDomains.filter((d) => (attentionByDomain[d.id]?.length ?? 0) > 0).map(
+              (domain) => {
+                const items = attentionByDomain[domain.id] ?? [];
+                const DomainIcon = domain.icon;
+                return (
+                  <div key={domain.id}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <DomainIcon className="h-3.5 w-3.5 text-neutral-500" strokeWidth={1.75} />
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                        {domain.shortLabel}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {items.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition hover:opacity-90 ${attentionToneClass(item.tone)}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium">{item.label}</p>
+                            <p className="mt-0.5 text-xs opacity-80">{item.detail}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-60" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              },
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Cross-module KPIs */}
+      {kpiCards.length > 0 ? (
+        <section>
+          <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
+            <h2 className="text-sm font-semibold text-secondary-800">Business snapshot</h2>
+            <p className="text-[11px] text-neutral-400">One signal per module</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {kpiCards.map((tile) => (
+              <KpiCard key={tile.domainId} {...tile} />
             ))}
           </div>
         </section>
@@ -598,6 +626,26 @@ export default function DashboardOverviewContent() {
       {/* Main grid */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <div className="space-y-6 xl:col-span-8">
+          {showHrSection ? (
+            <div className="dashboard-panel overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setHrDetailsOpen((open) => !open)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left sm:px-5"
+                aria-expanded={hrDetailsOpen}
+              >
+                <div>
+                  <h2 className="text-sm font-semibold text-secondary-800">HR & Payroll details</h2>
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    Attendance, payroll run, and onboarding — expand when you need people depth
+                  </p>
+                </div>
+                <ChevronRight
+                  className={`h-4 w-4 flex-shrink-0 text-neutral-400 transition-transform ${hrDetailsOpen ? 'rotate-90' : ''}`}
+                />
+              </button>
+              {hrDetailsOpen ? (
+                <div className="space-y-6 border-t border-neutral-100 px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
           {showAttendance ? (
             <OverviewPanelFlush
               title="Today's attendance"
@@ -744,12 +792,16 @@ export default function DashboardOverviewContent() {
               </div>
             </OverviewPanel>
           ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <aside className="space-y-6 xl:col-span-4">
-          <div className="dashboard-panel border-primary-200/40 bg-gradient-to-b from-primary-50/40 to-white/90 p-4">
+          <div className="dashboard-panel p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-secondary-800">Quick access</h2>
+              <h2 className="text-sm font-semibold text-secondary-800">Jump to a module</h2>
               {pinnedShortcuts.length > 0 ? (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
                   <Pin className="h-3 w-3" /> Pinned first

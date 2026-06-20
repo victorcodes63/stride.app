@@ -1,18 +1,18 @@
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import { MarketingFooter } from '@/components/marketing/MarketingFooter';
+import { MarketingNav } from '@/components/marketing/MarketingNav';
 
 type PublicPageLayoutProps = {
   children: React.ReactNode;
-  /** Skip footer on focused flows (e.g. minimal auth) */
   showFooter?: boolean;
 };
 
+/** Stride public chrome — dark ink nav/footer on careers, legal, and tenant-facing pages. */
 export default function PublicPageLayout({ children, showFooter = true }: PublicPageLayoutProps) {
   return (
     <>
-      <Navbar />
+      <MarketingNav />
       {children}
-      {showFooter ? <Footer /> : null}
+      {showFooter ? <MarketingFooter /> : null}
     </>
   );
 }

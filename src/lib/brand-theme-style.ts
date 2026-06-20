@@ -1,7 +1,15 @@
 import type { CSSProperties } from 'react';
-import { buildBrandThemeCssVars } from '@/lib/brand-theme';
-import type { PublicBrand } from '@/lib/brand';
+import {
+  buildBrandThemeCssVars,
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SECONDARY_COLOR,
+} from '@/lib/brand-theme';
 
-export function brandThemeStyle(brand: PublicBrand): CSSProperties {
-  return buildBrandThemeCssVars(brand.primaryColor, brand.secondaryColor) as CSSProperties;
+/**
+ * Platform shell theme — always Stride coral + ink.
+ * Tenant colours from company setup apply to documents and careers only.
+ * KPI swatch tokens live in dashboard-theme.css (light + .dark overrides).
+ */
+export function brandThemeStyle(): CSSProperties {
+  return buildBrandThemeCssVars(DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR) as CSSProperties;
 }

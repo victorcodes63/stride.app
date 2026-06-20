@@ -22,6 +22,7 @@ import {
  Wallet,
 } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader';
+import { DashboardStatCard, DashboardStatGrid } from '@/components/dashboard/DashboardStatGrid';
 
 type ClientRow = {
  id: string;
@@ -193,7 +194,7 @@ export default function AccountsOverviewContent() {
  value: stats.openInvoices,
  sub: 'Unpaid or partial',
  icon: Landmark,
- tone: 'indigo' as const,
+ tone: 'primary' as const,
  },
  {
  label: 'Paid invoices',
@@ -245,38 +246,18 @@ export default function AccountsOverviewContent() {
 
  {/* Snapshot */}
  <section className="space-y-4">
- <h2 className="text-lg font-bold text-neutral-900 pb-1 border-b border-neutral-200">Live snapshot</h2>
- <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
- {statCards.map((s, i) => {
- const Icon = s.icon;
- const iconBg =
- s.tone === 'indigo' ? 'bg-indigo-100/80 text-indigo-700' : 'bg-primary-100/80 text-primary-800';
- return (
- <motion.div
+ <h2 className="text-lg font-bold text-[var(--dash-text-strong)] pb-1 border-b border-[var(--dash-border)]">Live snapshot</h2>
+ <DashboardStatGrid columns={4}>
+ {statCards.map((s) => (
+ <DashboardStatCard
  key={s.label}
- initial={{ opacity: 0, y: 10 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: i * 0.04 }}
- className="relative overflow-hidden dashboard-surface p-4 sm:p-5 hover:border-neutral-300 transition-colors"
- >
- <div className={`inline-flex rounded-lg p-2 mb-3 ${iconBg}`}>
- <Icon className="w-4 h-4" strokeWidth={1.75} />
- </div>
- <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-1">
- {s.label}
- </p>
- <p
- className={`text-2xl sm:text-3xl font-bold tabular-nums ${
- s.tone === 'indigo' ? 'text-indigo-700' : 'text-primary-900'
- }`}
- >
- {s.value}
- </p>
- <p className="text-[11px] text-neutral-500 mt-1 leading-snug">{s.sub}</p>
- </motion.div>
- );
- })}
- </div>
+ label={s.label}
+ value={s.value}
+ hint={s.sub}
+ tone={s.tone}
+ />
+ ))}
+ </DashboardStatGrid>
  </section>
 
  {/* Modules — Quick entry style */}
@@ -303,13 +284,13 @@ export default function AccountsOverviewContent() {
  href={tile.href}
  className={`flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md h-full ${
  tile.highlight
- ? 'bg-primary-900 text-white border-primary-900 hover:bg-primary-800'
+ ? 'dash-feature-link'
  : 'bg-white border-neutral-200 hover:border-primary-300 hover:bg-primary-50/40'
  }`}
  >
  <div
  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
- tile.highlight ? 'bg-white/15' : 'bg-primary-50 text-primary-700'
+ tile.highlight ? 'dash-feature-link-icon' : 'bg-primary-50 text-primary-700'
  }`}
  >
  <Icon className={`w-5 h-5 ${tile.highlight ? 'text-white' : ''}`} />
@@ -321,7 +302,7 @@ export default function AccountsOverviewContent() {
  {tile.title}
  </p>
  <p
- className={`text-xs line-clamp-2 ${tile.highlight ? 'text-primary-100' : 'text-neutral-500'}`}
+ className={`text-xs line-clamp-2 ${tile.highlight ? 'dash-feature-link-desc' : 'text-neutral-500'}`}
  >
  {tile.desc}
  </p>

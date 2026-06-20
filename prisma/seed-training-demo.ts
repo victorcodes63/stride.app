@@ -10,7 +10,7 @@ const PROGRAMS = [
   {
     title: 'Workplace Health & Safety induction',
     category: 'Compliance',
-    provider: 'Imara Academy',
+    provider: 'Stride Academy',
     isOnline: true,
     durationHours: 4,
     status: TrainingStatus.in_progress,
@@ -49,7 +49,7 @@ async function main() {
       const program = await prisma.trainingProgram.create({
         data: {
           ...p,
-          description: `${p.title} — demo program for the Imara vertical showcase.`,
+          description: `${p.title} — demo program for the Stride vertical showcase.`,
           currency: 'KES',
           createdByUserId: admin.id,
           materials: {
@@ -86,7 +86,7 @@ async function main() {
     await prisma.announcement.createMany({
       data: [
         {
-          title: 'Welcome to your Imara demo workspace',
+          title: 'Welcome to your Stride demo workspace',
           body: 'This environment is pre-seeded for sector demos. Use the company switcher to explore SACCO, fuel retail, logistics, healthcare, and travel contexts.',
           status: AnnouncementStatus.published,
           priority: AnnouncementPriority.normal,

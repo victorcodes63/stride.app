@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 import { DASHBOARD_STAT_CARD_CLASS } from '@/lib/dashboard-layout';
+import {
+  DASHBOARD_STAT_TONE_CLASSES,
+  type DashboardStatTone,
+} from '@/lib/platform-swatches';
 
 function cn(...parts: (string | false | undefined)[]) {
   return parts.filter(Boolean).join(' ');
@@ -7,34 +11,7 @@ function cn(...parts: (string | false | undefined)[]) {
 
 type Columns = 2 | 3 | 4;
 
-export type DashboardStatTone = 'primary' | 'success' | 'warning' | 'violet' | 'sky';
-
-const TONE_STYLES: Record<
-  DashboardStatTone,
-  { bar: string; wash: string; value?: string }
-> = {
-  primary: {
-    bar: 'bg-primary-500',
-    wash: 'from-primary-50/80 to-white',
-  },
-  success: {
-    bar: 'bg-emerald-500',
-    wash: 'from-emerald-50/70 to-white',
-  },
-  warning: {
-    bar: 'bg-amber-500',
-    wash: 'from-amber-50/80 to-white',
-    value: 'text-amber-800',
-  },
-  violet: {
-    bar: 'bg-violet-500',
-    wash: 'from-violet-50/70 to-white',
-  },
-  sky: {
-    bar: 'bg-sky-500',
-    wash: 'from-sky-50/70 to-white',
-  },
-};
+export type { DashboardStatTone };
 
 const columnClass: Record<Columns, string> = {
   2: 'grid-cols-1 sm:grid-cols-2',
@@ -72,7 +49,7 @@ export function DashboardStatCard({
   tone?: DashboardStatTone;
   warn?: boolean;
 }) {
-  const styles = TONE_STYLES[tone];
+  const styles = DASHBOARD_STAT_TONE_CLASSES[tone] ?? DASHBOARD_STAT_TONE_CLASSES.primary;
 
   return (
     <div
@@ -88,14 +65,21 @@ export function DashboardStatCard({
         aria-hidden
       />
       <div className="relative pl-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
+        <p className="dash-stat-label text-[11px] font-semibold uppercase tracking-wider text-[var(--dash-text-muted)]">
+          {label}
+        </p>
         <div className="mt-1 flex items-end justify-between gap-2">
-          <p className={cn('text-2xl font-semibold tabular-nums', warn ? styles.value ?? 'text-amber-800' : 'text-ink')}>
+          <p
+            className={cn(
+              'dash-stat-value text-2xl font-semibold tabular-nums text-[var(--dash-text-strong)]',
+              warn && 'text-[var(--dash-text-strong)]',
+            )}
+          >
             {value}
           </p>
-          {trend ? <div className="text-xs text-neutral-500">{trend}</div> : null}
+          {trend ? <div className="text-xs text-[var(--dash-text-muted)]">{trend}</div> : null}
         </div>
-        {hint ? <p className="mt-1 text-xs text-neutral-500">{hint}</p> : null}
+        {hint ? <p className="dash-stat-hint mt-1 text-xs text-[var(--dash-text-subtle)]">{hint}</p> : null}
       </div>
     </div>
   );

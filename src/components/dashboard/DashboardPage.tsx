@@ -34,8 +34,10 @@ export function DashboardPageSection({
     <section className={cn('min-w-0 w-full', className)}>
       {title ? (
         <header className="mb-3">
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
-          {description ? <p className="mt-0.5 text-xs text-neutral-500">{description}</p> : null}
+          <h2 className="dash-section-title text-sm font-semibold text-[var(--dash-text-strong)]">{title}</h2>
+          {description ? (
+            <p className="dash-section-desc mt-0.5 text-xs text-[var(--dash-text-muted)]">{description}</p>
+          ) : null}
         </header>
       ) : null}
       {children}

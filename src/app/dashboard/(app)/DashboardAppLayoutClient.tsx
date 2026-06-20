@@ -5,13 +5,22 @@ import { useRouter, usePathname } from 'next/navigation';
 import DashboardNav, { readSidebarCollapsed, writeSidebarCollapsed } from '@/components/dashboard/DashboardNav';
 import DashboardTopbar from '@/components/dashboard/DashboardTopbar';
 import { DashboardSetupBanner } from '@/components/dashboard/DashboardSetupBanner';
+import { PastDueBanner } from '@/components/dashboard/PastDueBanner';
+import {
+  getPastDueGraceDays,
+  isPastDueBannerVisible,
+  isPastDueReadOnly,
+} from '@/lib/account-readonly';
 import { ChevronLeft, LogOut } from 'lucide-react';
 import type { UserSummary } from '@/types/dashboard';
 import { STAFF_USER_TYPE_LABELS } from '@/lib/staff-permissions';
 import { EntityProvider, type Entity } from '@/components/EntitySwitcher';
 import type { ModuleKey } from '@/lib/modules';
+import type { DeploymentTier } from '@/lib/deployment-tier';
 import { writeModuleAdminFlagsCookie } from '@/lib/module-cookie';
 import { DashboardSessionProvider } from '@/contexts/dashboard-session';
+import { DashboardDomainProvider } from '@/contexts/dashboard-domain';
+import { DashboardModuleOrderProvider } from '@/contexts/dashboard-module-order';
 import {
  DASHBOARD_MAIN_PADDING_BOTTOM,
  DASHBOARD_MAIN_PADDING_TOP,
@@ -26,6 +35,14 @@ type BootstrapPayload = {
  entities?: Entity[];
  defaultEntityId?: string;
  showEntitySwitcher?: boolean;
+ deployment?: {
+  canAccessCompanySetup?: boolean;
+ };
+ deploymentTier?: DeploymentTier;
+ entitlements?: {
+  accountStatus?: string;
+  pastDueSince?: string | null;
+ };
 };
 
 const ALL_MODULES_ON: Record<ModuleKey, boolean> = {
@@ -40,10 +57,13 @@ const ALL_MODULES_ON: Record<ModuleKey, boolean> = {
  disciplinary: true,
  reports: true,
  assets: true,
+ fleet: true,
  ess: true,
  communications: true,
  training: true,
  documents: true,
+ procurement: true,
+ legal: true,
 };
 
 const SIDEBAR_WIDTH = DASHBOARD_SIDEBAR_WIDTH;
@@ -58,17 +78,25 @@ function getUserRoleLabel(user: UserSummary | null): string {
 type DashboardAppLayoutClientProps = {
  children: ReactNode;
  sidebarBrand: ReactNode;
+ initialPathname: string;
 };
 
 export default function DashboardAppLayoutClient({
  children,
  sidebarBrand,
+ initialPathname,
 }: DashboardAppLayoutClientProps) {
  const router = useRouter();
  const pathname = usePathname();
  const [currentUser, setCurrentUser] = useState<UserSummary | null>(null);
  const [enabledModules, setEnabledModules] = useState<Record<ModuleKey, boolean>>(ALL_MODULES_ON);
+ const [deploymentTier, setDeploymentTier] = useState<DeploymentTier>('growth');
  const [entityBootstrap, setEntityBootstrap] = useState<BootstrapPayload | null>(null);
+ const [pastDueBanner, setPastDueBanner] = useState<{
+  visible: boolean;
+  graceDaysRemaining: number | null;
+ }>({ visible: false, graceDaysRemaining: null });
+ const [canAccessCompanySetup, setCanAccessCompanySetup] = useState(false);
  const [sidebarOpen, setSidebarOpen] = useState(true);
  const [hasMounted, setHasMounted] = useState(false);
  const [isMobileNav, setIsMobileNav] = useState(false);
@@ -93,8 +121,21 @@ export default function DashboardAppLayoutClient({
  if (!data) return;
  if (data.me) setCurrentUser(data.me);
  if (data.modules) setEnabledModules(data.modules);
+ if (data.deploymentTier) setDeploymentTier(data.deploymentTier);
  if (data.moduleAdminFlags) writeModuleAdminFlagsCookie(data.moduleAdminFlags);
+ setCanAccessCompanySetup(data.deployment?.canAccessCompanySetup === true);
  setEntityBootstrap(data);
+ if (data.entitlements) {
+  const { accountStatus, pastDueSince } = data.entitlements;
+  const visible = isPastDueBannerVisible(accountStatus);
+  let graceDaysRemaining: number | null = null;
+  if (visible && pastDueSince && !isPastDueReadOnly(accountStatus, pastDueSince)) {
+   const graceMs = getPastDueGraceDays() * 24 * 60 * 60 * 1000;
+   const elapsed = Date.now() - new Date(pastDueSince).getTime();
+   graceDaysRemaining = Math.max(0, Math.ceil((graceMs - elapsed) / (24 * 60 * 60 * 1000)));
+  }
+  setPastDueBanner({ visible, graceDaysRemaining });
+ }
  };
 
  const loadBootstrap = () => {
@@ -169,6 +210,8 @@ export default function DashboardAppLayoutClient({
  const showBackdrop = hasMounted && sidebarOpen && isMobileNav;
 
  return (
+ <DashboardDomainProvider initialPathname={initialPathname}>
+ <DashboardModuleOrderProvider enabledModules={enabledModules} deploymentTier={deploymentTier}>
  <EntityProvider
  initialConfig={
  entityBootstrap
@@ -184,7 +227,8 @@ export default function DashboardAppLayoutClient({
  {showBackdrop ? (
  <button
  type="button"
- className="print:hidden fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-[1px] transition-opacity"
+ className="print:hidden fixed inset-0 z-40 backdrop-blur-[1px] transition-opacity"
+ style={{ backgroundColor: 'var(--dash-backdrop)' }}
  aria-label="Close navigation menu"
  onClick={() => setSidebar(false)}
  />
@@ -194,7 +238,7 @@ export default function DashboardAppLayoutClient({
  <button
  type="button"
  onClick={toggleSidebar}
- className="print:hidden fixed top-1/2 z-[60] flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-600 shadow-soft transition-[left] duration-300 ease-out hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+ className="print:hidden fixed top-1/2 z-[60] flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border dash-collapse-btn shadow-soft transition-[left] duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
  style={{ left: SIDEBAR_WIDTH }}
  title="Close navigation menu"
  aria-expanded
@@ -205,7 +249,7 @@ export default function DashboardAppLayoutClient({
  ) : null}
 
  <aside
- className={`print:hidden fixed inset-y-0 left-0 z-50 flex flex-col border-r border-white/60 bg-white/90 shadow-[4px_0_24px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-transform duration-300 ease-out ${
+ className={`print:hidden fixed inset-y-0 left-0 z-50 flex flex-col border-r dash-sidebar transition-transform duration-300 ease-out ${
  hasMounted && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'
  } ${sidebarOpen && !isMobileNav ? 'lg:shadow-none' : 'shadow-large'}`}
  style={{ width: SIDEBAR_WIDTH }}
@@ -222,12 +266,13 @@ export default function DashboardAppLayoutClient({
  currentUserRole={currentUser?.role ?? null}
  hasAccountsAccess={currentUser?.hasAccountsAccess ?? false}
  canViewSystemAnalytics={currentUser?.canViewSystemAnalytics ?? false}
+ canAccessCompanySetup={canAccessCompanySetup}
  enabledModules={enabledModules}
  onNavigate={closeSidebarOnMobile}
  />
 
- <div className="mt-auto flex-shrink-0 border-t border-neutral-200/50 bg-gradient-to-t from-neutral-50/80 to-transparent p-2.5">
- <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/60 px-2 py-2 shadow-sm backdrop-blur-sm">
+ <div className="mt-auto flex-shrink-0 border-t p-2.5 dash-user-footer">
+ <div className="flex items-center gap-2.5 rounded-xl border px-2 py-2 shadow-sm backdrop-blur-sm dash-user-card">
  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700">
  <span className="text-xs font-bold text-white">{initials}</span>
  </div>
@@ -264,6 +309,9 @@ export default function DashboardAppLayoutClient({
  contentGutterClass={DASHBOARD_SHELL_GUTTER}
  />
  <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+ {pastDueBanner.visible ? (
+  <PastDueBanner graceDaysRemaining={pastDueBanner.graceDaysRemaining} />
+ ) : null}
  <div
  className={`w-full min-w-0 ${DASHBOARD_SHELL_GUTTER} ${DASHBOARD_MAIN_PADDING_TOP} ${DASHBOARD_MAIN_PADDING_BOTTOM}`}
  >
@@ -276,5 +324,7 @@ export default function DashboardAppLayoutClient({
  </div>
  </div>
  </EntityProvider>
+ </DashboardModuleOrderProvider>
+ </DashboardDomainProvider>
  );
 }

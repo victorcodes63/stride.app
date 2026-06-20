@@ -45,7 +45,7 @@ export function DemoLoginCredentialsHint({
     <div className="mt-6 flex flex-col items-center">
       <button
         type="button"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#c1c9d2] bg-white text-[#425466] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-[#635bff] hover:text-[#635bff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635bff]/30"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#c1c9d2] bg-white text-[#3D3833] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-[#FF5436] hover:text-[#FF5436] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5436]/30"
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={open ? 'Hide accounts' : 'Show accounts'}
@@ -59,14 +59,14 @@ export function DemoLoginCredentialsHint({
           id={panelId}
           className="mt-3 w-full rounded-lg border border-[#e3e8ee] bg-[#f6f9fc] px-3 py-3 text-left shadow-sm"
         >
-          <p className="mb-2 text-xs text-[#425466]">
+          <p className="mb-2 text-xs text-[#3D3833]">
             Password{' '}
-            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-[#0a2540]">
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-[#1A1714]">
               {demoPassword}
             </code>
           </p>
           <div className="overflow-x-auto rounded-md border border-[#e3e8ee] bg-white">
-            <table className="w-full min-w-[280px] text-left text-xs text-[#425466]">
+            <table className="w-full min-w-[280px] text-left text-xs text-[#3D3833]">
               <thead>
                 <tr className="border-b border-[#e3e8ee] bg-[#f6f9fc] text-[10px] font-semibold uppercase tracking-wide text-[#6b7f99]">
                   <th className="px-2.5 py-2">Role</th>
@@ -76,12 +76,12 @@ export function DemoLoginCredentialsHint({
               <tbody>
                 {rows.map((row) => (
                   <tr key={`${row.role}-${row.email}`} className="border-b border-[#e3e8ee] last:border-0">
-                    <td className="px-2.5 py-2 font-medium text-[#0a2540]">{row.role}</td>
-                    <td className="px-2.5 py-2 font-mono text-[11px] text-[#0a2540]">
+                    <td className="px-2.5 py-2 font-medium text-[#1A1714]">{row.role}</td>
+                    <td className="px-2.5 py-2 font-mono text-[11px] text-[#1A1714]">
                       {onSelectEmail && variant === 'staff' && row.role !== 'Employee portal' ? (
                         <button
                           type="button"
-                          className="text-left underline-offset-2 hover:text-[#635bff] hover:underline"
+                          className="text-left underline-offset-2 hover:text-[#FF5436] hover:underline"
                           onClick={() => onSelectEmail(row.email)}
                         >
                           {row.email}

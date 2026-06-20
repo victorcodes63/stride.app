@@ -8,7 +8,7 @@ export const travelAgencyPack = buildVerticalPackFromGeneric({
   prefix: 'HZT',
   tagline: 'Commission payroll, leave, and people ops for travel and tour operators.',
   publicFooterText:
-    'Horizon Travels Ltd runs on Imara — agent commissions, seasonal staffing, and payroll for travel businesses.',
+    'Horizon Travels Ltd runs on Stride — agent commissions, seasonal staffing, and payroll for travel businesses.',
   departments: [
     'Sales & Reservations',
     'Tour Operations',

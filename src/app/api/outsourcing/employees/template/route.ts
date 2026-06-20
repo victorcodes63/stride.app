@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     }
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'HRIS Demo';
+    workbook.creator = 'Stride';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet(isPayrollTemplate ? 'Payroll Input' : 'Employees', {

@@ -21,10 +21,13 @@ export type ModuleKey =
   | 'disciplinary'
   | 'reports'
   | 'assets'
+  | 'fleet'
   | 'ess'
   | 'communications'
   | 'training'
-  | 'documents';
+  | 'documents'
+  | 'procurement'
+  | 'legal';
 
 export type ModulePhase = 1 | 2 | 3;
 
@@ -109,10 +112,10 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     key: 'accounts',
     label: 'Finance',
     envVar: 'MODULE_ACCOUNTS',
-    description: 'Expenses, approvals, reimbursements, invoicing, and basic GL hooks.',
-    phase: 2,
-    billable: true,
-    canDisable: true,
+    description: 'Expenses, approvals, reimbursements, invoicing, and core GL hooks.',
+    phase: 1,
+    billable: false,
+    canDisable: false,
   },
   {
     key: 'disciplinary',
@@ -137,6 +140,15 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     label: 'Asset Manager',
     envVar: 'MODULE_ASSETS',
     description: 'Company asset registry, assignments, and lifecycle tracking.',
+    phase: 3,
+    billable: true,
+    canDisable: true,
+  },
+  {
+    key: 'fleet',
+    label: 'Fleet & Logistics',
+    envVar: 'MODULE_FLEET',
+    description: 'Transport orders, trip workflow, fleet register, and logistics operations.',
     phase: 3,
     billable: true,
     canDisable: true,
@@ -177,6 +189,24 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     billable: true,
     canDisable: true,
   },
+  {
+    key: 'procurement',
+    label: 'Procurement',
+    envVar: 'MODULE_PROCUREMENT',
+    description: 'Purchase requests, LPOs, vendor spend, and procurement workflows.',
+    phase: 2,
+    billable: true,
+    canDisable: true,
+  },
+  {
+    key: 'legal',
+    label: 'Legal & Compliance',
+    envVar: 'MODULE_LEGAL',
+    description: 'Contracts, credentials, obligations, and compliance tracking.',
+    phase: 2,
+    billable: true,
+    canDisable: true,
+  },
 ];
 
 /** Cookie synced from deployment config so middleware can enforce admin module toggles. */
@@ -195,8 +225,8 @@ export const MODULE_UI_GROUPS: ModuleUiGroup[] = [
   {
     id: 'core',
     label: 'Platform base',
-    description: 'Canonical people data — directory, org structure, documents, and ESS.',
-    keys: ['core'],
+    description: 'HR people data and Finance — included on every plan.',
+    keys: ['core', 'accounts'],
     locked: true,
   },
   {
@@ -208,14 +238,14 @@ export const MODULE_UI_GROUPS: ModuleUiGroup[] = [
   {
     id: 'workplace',
     label: 'Phase 2 — Workplace',
-    description: 'Communications, training, and company knowledge.',
-    keys: ['communications', 'training', 'documents'],
+    description: 'Communications, training, documents, procurement, and legal.',
+    keys: ['communications', 'training', 'documents', 'procurement', 'legal'],
   },
   {
     id: 'extended',
     label: 'Phase 2–3 — Expansion modules',
-    description: 'Talent, finance, safety, and assets — attach inside accounts you already own.',
-    keys: ['ats', 'hse', 'accounts', 'assets'],
+    description: 'Talent, safety, assets, and vertical engines.',
+    keys: ['ats', 'hse', 'assets', 'fleet'],
   },
 ];
 
@@ -243,12 +273,12 @@ export function allModulesAdminEnabled(): Record<ModuleKey, boolean> {
   );
 }
 
-/** Defaults for new deployments: HR-focused (Finance & Assets off). */
+/** Defaults for new deployments: HR + Finance on; vertical engines off. */
 export function defaultModuleAdminFlags(): Record<ModuleKey, boolean> {
   return MODULE_DEFINITIONS.reduce(
     (acc, def) => {
-      if (def.key === 'core') acc[def.key] = true;
-      else if (def.key === 'accounts' || def.key === 'assets') acc[def.key] = false;
+      if (def.key === 'core' || def.key === 'accounts') acc[def.key] = true;
+      else if (def.key === 'assets' || def.key === 'fleet') acc[def.key] = false;
       else acc[def.key] = true;
       return acc;
     },
@@ -256,15 +286,16 @@ export function defaultModuleAdminFlags(): Record<ModuleKey, boolean> {
   );
 }
 
-/** Preset: hide non-HR extended modules (Finance, Assets, Recruitment). */
+/** Preset: hide non-HR extended modules (Recruitment, vertical engines). */
 export function hrEssentialsModuleAdminFlags(
   current: Record<ModuleKey, boolean>,
 ): Record<ModuleKey, boolean> {
   return {
     ...current,
-    accounts: false,
+    accounts: true,
     assets: false,
     ats: false,
+    fleet: false,
   };
 }
 
@@ -273,7 +304,7 @@ export function sanitizeModuleAdminFlags(value: unknown): Record<ModuleKey, bool
   const raw = value as Record<string, unknown>;
   return MODULE_DEFINITIONS.reduce(
     (acc, def) => {
-      if (def.key === 'core') {
+      if (!def.canDisable) {
         acc[def.key] = true;
         return acc;
       }
@@ -303,14 +334,56 @@ export function listLicensedModules(): Record<ModuleKey, boolean> {
   );
 }
 
-/** Merge deployment license with Company Setup admin toggles. */
+export type SubscriptionEntitlements = {
+  /** Control-plane subscription modules. Undefined = no subscription sync (env-only). */
+  subscribedModules?: Partial<Record<ModuleKey, boolean>>;
+  accountStatus?: string;
+  verticalEnginesAllowed?: boolean;
+};
+
+function isAccountBlocked(status: string | undefined): boolean {
+  return status === 'suspended' || status === 'churned';
+}
+
+function isSubscribed(
+  key: ModuleKey,
+  subscribed: Partial<Record<ModuleKey, boolean>> | undefined,
+): boolean {
+  if (!subscribed) return true;
+  if (subscribed[key] === false) return false;
+  if (key === 'legal' && subscribed.documents === true) return true;
+  if (key === 'documents' && subscribed.legal === true) return true;
+  return subscribed[key] !== false;
+}
+
+/** Merge deployment license with Company Setup admin toggles and subscription entitlements. */
 export function resolveEffectiveModules(
   adminFlags: Record<ModuleKey, boolean>,
+  subscription?: SubscriptionEntitlements,
 ): Record<ModuleKey, boolean> {
   const licensed = listLicensedModules();
+  const blocked = isAccountBlocked(subscription?.accountStatus);
+
   return MODULE_DEFINITIONS.reduce(
     (acc, def) => {
-      acc[def.key] = licensed[def.key] && (def.key === 'core' ? true : adminFlags[def.key] !== false);
+      if (blocked) {
+        acc[def.key] = false;
+        return acc;
+      }
+
+      const envOk = licensed[def.key];
+      const entitled = isSubscribed(def.key, subscription?.subscribedModules);
+      const verticalOk =
+        def.key !== 'fleet' && def.key !== 'assets' && def.key !== 'hse'
+          ? true
+          : subscription?.verticalEnginesAllowed !== false;
+
+      const adminOk =
+        !def.canDisable || def.key === 'core' || def.key === 'accounts'
+          ? true
+          : adminFlags[def.key] !== false;
+
+      acc[def.key] = envOk && entitled && verticalOk && adminOk;
       return acc;
     },
     {} as Record<ModuleKey, boolean>,

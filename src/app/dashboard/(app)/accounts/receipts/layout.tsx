@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
- title: 'Receipts & allocations | HRIS Demo (Accounts)',
+ title: 'Receipts & allocations | Stride (Accounts)',
  description: 'Record client receipts and allocate to invoices',
 };
 

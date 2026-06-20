@@ -438,8 +438,8 @@ export const defaultATSConfig: ATSConfig = {
     resumeParsing: true,
   },
   branding: {
-    primaryColor: '#1D2460',
-    secondaryColor: '#0088FF',
+    primaryColor: '#1A1714',
+    secondaryColor: '#FF5436',
     logo: process.env.NEXT_PUBLIC_BRAND_LOGO || DEFAULT_BRAND_LOGO_SRC,
   },
 };

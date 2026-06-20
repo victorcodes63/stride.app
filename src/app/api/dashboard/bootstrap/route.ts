@@ -12,6 +12,15 @@ import {
 } from '@/lib/operating-entities';
 import { listLicensedModules, MODULE_DEFINITIONS, resolveEffectiveModules } from '@/lib/modules';
 import { moduleAdminFlagsSetCookieHeader } from '@/lib/module-cookie';
+import { entitlementsSetCookieHeader } from '@/lib/entitlements-cookie';
+import {
+  isControlPlaneSyncConfigured,
+  syncDeploymentEntitlements,
+} from '@/lib/entitlements-resolver';
+import { loadDeploymentEntitlements } from '@/lib/entitlements-store';
+import { isEntitlementsStale } from '@/lib/entitlements-types';
+import { planIdToTier } from '@/lib/entitlements-resolver';
+import { getDeploymentTier } from '@/lib/deployment-tier';
 import { unauthorizedResponse } from '@/lib/demo-route-access';
 import { requireStaffUser } from '@/lib/staff-api-auth';
 import { userRowToSummary } from '@/lib/user-summary-api';
@@ -40,7 +49,27 @@ export async function GET(request: NextRequest) {
 
     const licensed = listLicensedModules();
     const moduleAdminFlags = setup.moduleAdminFlags;
-    const modules = resolveEffectiveModules(moduleAdminFlags);
+
+    let entitlements = await loadDeploymentEntitlements();
+    if (
+      isControlPlaneSyncConfigured() &&
+      (!entitlements || isEntitlementsStale(entitlements.syncedAt))
+    ) {
+      entitlements = (await syncDeploymentEntitlements()) ?? entitlements;
+    }
+
+    const subscription = entitlements
+      ? {
+          subscribedModules: entitlements.modules,
+          accountStatus: entitlements.accountStatus,
+          verticalEnginesAllowed: entitlements.verticalEnginesAllowed,
+        }
+      : undefined;
+
+    const modules = resolveEffectiveModules(moduleAdminFlags, subscription);
+    const deploymentTier = entitlements
+      ? planIdToTier(entitlements.planId)
+      : getDeploymentTier();
     const entities = toPublicEntities(entitySettings);
 
     const response = NextResponse.json({
@@ -64,9 +93,23 @@ export async function GET(request: NextRequest) {
       showEntitySwitcher: shouldShowEntitySwitcher(entitySettings),
       multiEntityEnabled: entitySettings.multiEntityEnabled,
       multiEntityEnvEnabled: isMultiEntityEnvEnabled(),
+      deploymentTier,
+      entitlements: entitlements
+        ? {
+            planId: entitlements.planId,
+            accountStatus: entitlements.accountStatus,
+            pastDueSince: entitlements.pastDueSince ?? null,
+            horizontalQuota: entitlements.horizontalQuota,
+            verticalEnginesAllowed: entitlements.verticalEnginesAllowed,
+            syncedAt: entitlements.syncedAt,
+          }
+        : null,
     });
 
     response.headers.append('Set-Cookie', moduleAdminFlagsSetCookieHeader(moduleAdminFlags));
+    if (entitlements) {
+      response.headers.append('Set-Cookie', entitlementsSetCookieHeader(entitlements));
+    }
     return response;
   } catch (error) {
     await reportApiError({

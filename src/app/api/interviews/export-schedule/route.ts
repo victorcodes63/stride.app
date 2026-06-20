@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const pageTitle = `Interview Schedule – ${positionTitle} – HRIS Demo`;
+    const pageTitle = `Interview Schedule – ${positionTitle} – Stride`;
     const logoFullUrl = request.nextUrl.origin + LOGO_PATH;
     const html = `<!DOCTYPE html>
 <html lang="en">

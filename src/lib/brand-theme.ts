@@ -1,6 +1,6 @@
-/** Default brand theme colors — Imara palette. */
-export const DEFAULT_PRIMARY_COLOR = '#0D9488';
-export const DEFAULT_SECONDARY_COLOR = '#0F172A';
+/** Default brand theme colors — Stride palette. */
+export const DEFAULT_PRIMARY_COLOR = '#FF5436';
+export const DEFAULT_SECONDARY_COLOR = '#1A1714';
 
 const HEX = /^#([0-9a-fA-F]{6})$/;
 

@@ -8,7 +8,7 @@ import type { SystemSettingsPayload } from '@/types/dashboard';
 const SETTINGS_KEY = 'admin.platform.settings';
 
 const DEFAULT_SETTINGS: SystemSettingsPayload = {
-  companyName: 'HRIS Demo',
+  companyName: 'Stride',
   companyEmail: 'hr@example.com',
   defaultCurrency: 'KES',
   payrollCutoffDay: 25,

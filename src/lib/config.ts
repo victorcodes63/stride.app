@@ -21,8 +21,8 @@ export const ATS_CONFIG = {
   
   // Branding (defaults; override via NEXT_PUBLIC_* — see src/lib/brand.ts)
   BRANDING: {
-    PRIMARY_COLOR: '#1D2460',
-    SECONDARY_COLOR: '#0088FF',
+    PRIMARY_COLOR: '#FF5436',
+    SECONDARY_COLOR: '#1A1714',
     LOGO: process.env.NEXT_PUBLIC_BRAND_LOGO || DEFAULT_BRAND_LOGO_SRC,
     COMPANY_NAME: brand.appName,
     DOMAIN: 'example.com',

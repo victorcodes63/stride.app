@@ -31,6 +31,27 @@ export function isDashboardNavItemVisible(
     return enabled.time;
   }
 
+  if (sectionId === 'legal-documents') {
+    if (href.startsWith('/dashboard/company-documents')) return enabled.documents;
+    return enabled.core;
+  }
+
+  if (sectionId === 'operations') {
+    if (href.startsWith('/dashboard/fleet')) return enabled.fleet;
+    if (href.startsWith('/dashboard/assets')) return enabled.assets;
+    if (href.startsWith('/dashboard/hse')) return enabled.hse;
+    return false;
+  }
+
+  if (sectionId === 'communications-insight') {
+    if (href.startsWith('/dashboard/announcements')) return enabled.communications;
+    return enabled.reports;
+  }
+
+  if (sectionId === 'procurement' || sectionId === 'projects') {
+    return true;
+  }
+
   return sectionModules.some((module) => enabled[module]);
 }
 

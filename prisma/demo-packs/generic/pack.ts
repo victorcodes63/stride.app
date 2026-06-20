@@ -199,7 +199,7 @@ const employees = [
 
 export const genericPack: DemoPack = {
   id: 'generic',
-  label: 'Generic HRIS Demo',
+  label: 'Generic Stride demo',
   workspace: {
     name: 'Demo Corporation',
     contactName: 'Diana Namutebi',
@@ -509,7 +509,7 @@ export const genericPack: DemoPack = {
   },
   interviewBreakJobTitleIncludes: 'Operations Supervisor',
   companySetup: {
-    appName: 'HRIS Demo',
+    appName: 'Stride',
     orgName: 'Demo Corporation',
     tagline: 'Human resources, payroll, recruitment, and workforce operations in one place.',
     wordmark: 'Demo Corporation',

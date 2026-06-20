@@ -5,7 +5,7 @@ import { StaffLoginWithSearchParams } from './StaffLoginPageClient';
 
 function LoginFallback() {
  return (
- <div className="flex min-h-screen items-center justify-center bg-white font-pub">
+ <div className="flex min-h-screen items-center justify-center dash-auth-canvas font-pub">
  <div className="h-8 w-8 animate-spin rounded-full border-2 border-pub-border border-t-pub-primary" />
  </div>
  );

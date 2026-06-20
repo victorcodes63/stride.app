@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useSyncExternalStore, type ReactNode } from 'react';
-import BrandLogo from '@/components/BrandLogo';
+import { StrideWordmarkLockup } from '@/components/marketing/StrideMark';
+import { DashboardThemeToggle } from '@/components/dashboard/DashboardThemeToggle';
+import { brandConfig } from '@/lib/brand.config';
 import { usePublicBrand } from '@/components/BrandProvider';
 
 type AuthSplitShellProps = {
@@ -47,7 +49,7 @@ export function AuthSplitShell({
   children,
   footer,
 }: AuthSplitShellProps) {
-  const { orgName, privacyPolicyUrl, termsUrl } = usePublicBrand();
+  const { privacyPolicyUrl, termsUrl } = usePublicBrand();
   const year = new Date().getFullYear();
 
   return (
@@ -56,8 +58,8 @@ export function AuthSplitShell({
         <AuthBrandBackground />
 
         <div className="relative z-10">
-          <Link href="/careers" className="inline-flex">
-            <BrandLogo variant="authPanel" priority />
+          <Link href="/" className="inline-flex" aria-label="Stride home">
+            <StrideWordmarkLockup theme="on-ink" markClassName="h-9" wordClassName="text-[1.75rem]" />
           </Link>
         </div>
 
@@ -76,7 +78,7 @@ export function AuthSplitShell({
         <footer className="auth-split-footer relative z-10 mt-12 hidden lg:mt-0 lg:block">
           <p className="max-w-[20rem] text-[0.75rem] leading-relaxed text-white/45" suppressHydrationWarning>
             © {year}{' '}
-            <span className="text-white/70">{orgName}</span>
+            <span className="text-white/70">{brandConfig.productName}</span>
           </p>
           <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem]">
             <Link href="/careers" className="transition-colors">
@@ -93,6 +95,9 @@ export function AuthSplitShell({
       </div>
 
       <div className="auth-split-form relative flex flex-1 flex-col">
+        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <DashboardThemeToggle />
+        </div>
         <div className="auth-split-form-bg pointer-events-none absolute inset-0" aria-hidden>
           <div className="auth-split-form-mesh" />
           <div className="auth-split-form-glow" />
@@ -118,9 +123,11 @@ export function LoginCard({
   className?: string;
 }) {
   return (
-    <div className={`auth-login-card w-full overflow-hidden rounded-xl bg-white ${className}`.trim()}>
+    <div className={`auth-login-card w-full overflow-hidden rounded-xl ${className}`.trim()}>
       <div className="px-7 pb-7 pt-8">{children}</div>
-      {footer ? <div className="border-t border-[#e3e8ee]/90 bg-white/50 px-7 py-3.5">{footer}</div> : null}
+      {footer ? (
+        <div className="dash-auth-footer border-t px-7 py-3.5">{footer}</div>
+      ) : null}
     </div>
   );
 }

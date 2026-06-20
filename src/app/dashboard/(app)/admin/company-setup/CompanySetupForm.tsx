@@ -164,7 +164,7 @@ export function CompanySetupForm({ initialForm, defaults, resolvedBrand, provisi
  }
  }
 
- const logoPreview = form.logoSrc || resolvedBrand.logoSrc || DEFAULT_BRAND_LOGO_SRC;
+ const logoPreview = form.logoSrc || resolvedBrand.tenantLogoSrc || DEFAULT_BRAND_LOGO_SRC;
 
  return (
  <>
@@ -207,23 +207,23 @@ export function CompanySetupForm({ initialForm, defaults, resolvedBrand, provisi
  <CompanySetupModulesSection form={form} setForm={setForm} moduleCatalog={moduleCatalog} />
 
  <form onSubmit={save} className="space-y-6">
- <SectionCard title="Brand identity" description="Logo, names, and colours used across the dashboard, login, and emails." icon={Building2}>
+ <SectionCard title="Brand identity" description="Organisation name, logo, and colours for this workspace. Login and marketing always show Stride as the platform." icon={Building2}>
  <div className="flex flex-col lg:flex-row gap-6">
  <div className="flex items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 p-6 min-w-[200px]">
  {/* eslint-disable-next-line @next/next/no-img-element */}
  <img src={logoPreview} alt="Logo preview" className="max-h-16 max-w-[180px] object-contain" />
  </div>
  <div className="flex-1 grid sm:grid-cols-2 gap-4">
- <Field label="App name" hint="Browser tab and sidebar title">
- <input value={form.appName} onChange={(e) => setForm((f) => ({ ...f, appName: e.target.value }))} className={inputClass} placeholder={resolvedBrand.appName} />
+ <Field label="Platform name" hint="Fixed — public surfaces always show Stride">
+ <input value="Stride" readOnly disabled className={`${inputClass} cursor-not-allowed bg-neutral-50 text-neutral-500`} />
  </Field>
  <Field label="Organisation name">
  <input value={form.orgName} onChange={(e) => setForm((f) => ({ ...f, orgName: e.target.value }))} className={inputClass} placeholder={resolvedBrand.orgName} />
  </Field>
- <Field label="Tagline" hint="Login page and careers">
+ <Field label="Tagline" hint="Careers page and optional login subtitle">
  <input value={form.tagline} onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))} className={inputClass} placeholder={resolvedBrand.tagline} />
  </Field>
- <Field label="Wordmark" hint="Payslips and PDF headers">
+ <Field label="Wordmark" hint="Letterhead / PDF fallback text (org-specific)">
  <input value={form.wordmark} onChange={(e) => setForm((f) => ({ ...f, wordmark: e.target.value }))} className={inputClass} placeholder={resolvedBrand.wordmark} />
  </Field>
  <Field label="Primary colour">
@@ -250,11 +250,15 @@ export function CompanySetupForm({ initialForm, defaults, resolvedBrand, provisi
  </div>
  </SectionCard>
 
- <SectionCard title="Login experience" description="Welcome copy and sign-in methods." icon={MessageSquare}>
+ <SectionCard title="Login experience" description="Welcome title is always “Welcome to Stride”. Configure subtitles and sign-in methods below." icon={MessageSquare}>
  <div className="grid sm:grid-cols-2 gap-4">
- <Field label="Staff welcome title"><input value={form.staffLoginWelcomeTitle} onChange={(e) => setForm((f) => ({ ...f, staffLoginWelcomeTitle: e.target.value }))} className={inputClass} placeholder="Welcome back" /></Field>
+ <Field label="Staff welcome title" hint="Always “Welcome to Stride” on the login page">
+ <input value="Welcome to Stride" readOnly disabled className={`${inputClass} cursor-not-allowed bg-neutral-50 text-neutral-500`} />
+ </Field>
  <Field label="Staff welcome subtitle"><input value={form.staffLoginWelcomeSubtitle} onChange={(e) => setForm((f) => ({ ...f, staffLoginWelcomeSubtitle: e.target.value }))} className={inputClass} placeholder={resolvedBrand.tagline} /></Field>
- <Field label="ESS welcome title"><input value={form.essLoginWelcomeTitle} onChange={(e) => setForm((f) => ({ ...f, essLoginWelcomeTitle: e.target.value }))} className={inputClass} placeholder={form.essPortalTitle} /></Field>
+ <Field label="ESS welcome title" hint="Always “Welcome to Stride” on the ESS login page">
+ <input value="Welcome to Stride" readOnly disabled className={`${inputClass} cursor-not-allowed bg-neutral-50 text-neutral-500`} />
+ </Field>
  <Field label="ESS welcome subtitle"><input value={form.essLoginWelcomeSubtitle} onChange={(e) => setForm((f) => ({ ...f, essLoginWelcomeSubtitle: e.target.value }))} className={inputClass} /></Field>
  </div>
  </SectionCard>

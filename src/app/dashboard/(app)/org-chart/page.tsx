@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import OrgChartContent from './OrgChartContent';
 
 export const metadata: Metadata = {
- title: 'Org Chart | HRIS Demo Dashboard',
+ title: 'Org Chart | Stride Dashboard',
 };
 
 export default function OrgChartPage() {

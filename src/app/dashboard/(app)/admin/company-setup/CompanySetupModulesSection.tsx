@@ -15,6 +15,7 @@ export type ModuleCatalogEntry = {
  description: string;
  canDisable: boolean;
  licensed: boolean;
+ entitled: boolean;
  adminEnabled: boolean;
  enabled: boolean;
 };
@@ -30,11 +31,20 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  ModuleKey,
  boolean
  >;
- const visibleCount = moduleCatalog.filter((m) => m.licensed && form.moduleAdminFlags[m.key]).length;
- const licensedCount = moduleCatalog.filter((m) => m.licensed).length;
+ const entitledByKey = Object.fromEntries(moduleCatalog.map((m) => [m.key, m.entitled])) as Record<
+ ModuleKey,
+ boolean
+ >;
+ const canToggle = (key: ModuleKey) =>
+  (licensedByKey[key] ?? true) && (entitledByKey[key] ?? true);
+
+ const visibleCount = moduleCatalog.filter(
+  (m) => m.licensed && m.entitled && form.moduleAdminFlags[m.key],
+ ).length;
+ const licensedCount = moduleCatalog.filter((m) => m.licensed && m.entitled).length;
 
  const setModuleFlag = (key: ModuleKey, enabled: boolean) => {
- if (key === 'core') return;
+ if (key === 'core' || !canToggle(key)) return;
  setForm((f) => ({
  ...f,
  moduleAdminFlags: { ...f.moduleAdminFlags, [key]: enabled },
@@ -54,7 +64,7 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  moduleAdminFlags: Object.fromEntries(
  Object.keys(f.moduleAdminFlags).map((k) => {
  const key = k as ModuleKey;
- return [key, licensedByKey[key] ? true : f.moduleAdminFlags[key]];
+ return [key, canToggle(key) ? true : f.moduleAdminFlags[key]];
  }),
  ) as Record<ModuleKey, boolean>,
  }));
@@ -70,11 +80,10 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  </h2>
  <p className="mt-1 max-w-2xl text-sm text-neutral-600">
  Hide product areas your team does not use. Sidebar, quick actions, and direct links update
- after you save. Deployment license still applies — you cannot enable modules that are not
- licensed on this server.
+ after you save. You can only enable modules included in your subscription.
  </p>
  <p className="mt-2 text-xs text-neutral-500">
- {visibleCount} of {licensedCount} licensed modules visible
+ {visibleCount} of {licensedCount} entitled modules visible
  </p>
  </div>
  <div className="flex shrink-0 flex-wrap gap-2">
@@ -90,7 +99,7 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  onClick={enableAllLicensed}
  className="dashboard-surface rounded-lg px-3 py-2 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
  >
- Show all licensed
+ Show all entitled
  </button>
  </div>
  </div>
@@ -104,14 +113,16 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  {group.keys.map((key) => {
  const def = getModuleDefinition(key);
  const isLicensed = licensedByKey[key] ?? true;
+ const isEntitled = entitledByKey[key] ?? true;
  const isOn = form.moduleAdminFlags[key];
  const locked = group.locked || !def.canDisable;
+ const disabled = locked || !isLicensed || !isEntitled;
 
  return (
  <li key={key}>
  <label
  className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-3 transition-colors ${
- locked || !isLicensed
+ disabled
  ? 'cursor-not-allowed border-neutral-100 bg-neutral-50/80 opacity-80'
  : 'cursor-pointer border-neutral-200 hover:bg-neutral-50'
  }`}
@@ -129,11 +140,16 @@ export function CompanySetupModulesSection({ form, setForm, moduleCatalog }: Pro
  Not licensed
  </span>
  ) : null}
+ {!isEntitled && isLicensed ? (
+ <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+ Upgrade required
+ </span>
+ ) : null}
  </span>
  <input
  type="checkbox"
- checked={isLicensed && isOn}
- disabled={locked || !isLicensed}
+ checked={isLicensed && isEntitled && isOn}
+ disabled={disabled}
  onChange={(e) => setModuleFlag(key, e.target.checked)}
  className="mt-1 h-4 w-4 shrink-0 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
  aria-label={`Show ${def.label} module`}

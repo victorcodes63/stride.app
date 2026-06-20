@@ -700,7 +700,7 @@ export const petroleumRetailPack: DemoPack = {
   },
   interviewBreakJobTitleIncludes: 'Station Supervisor',
   companySetup: {
-    appName: 'HRIS Demo',
+    appName: 'Stride',
     orgName: 'Stabex International',
     tagline: 'Petroleum retail operations — forecourts, depots, and fleet across East Africa.',
     wordmark: 'Stabex International',

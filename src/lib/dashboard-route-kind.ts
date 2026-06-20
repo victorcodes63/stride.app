@@ -23,6 +23,11 @@ const EXTRA_MAIN_ROUTES = new Set([
   '/dashboard/outsourcing/clients',
   '/dashboard/people/tasks',
   '/dashboard/people/performance',
+  '/dashboard/people',
+  '/dashboard/operations',
+  '/dashboard/procurement',
+  '/dashboard/legal',
+  '/dashboard/projects',
   '/dashboard/module-unavailable',
 ]);
 
@@ -98,6 +103,7 @@ export function isMainDashboardPage(pathname: string): boolean {
     currentUserRole: 'admin',
     hasAccountsAccess: true,
     canViewSystemAnalytics: true,
+    canAccessCompanySetup: true,
     enabledModules: ALL_MODULES_ENABLED,
   });
   const { itemHref } = findBestNavMatch(path, sections);

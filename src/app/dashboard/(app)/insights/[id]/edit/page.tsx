@@ -29,7 +29,7 @@ export default function EditInsightPage() {
  const [title, setTitle] = useState('');
  const [excerpt, setExcerpt] = useState('');
  const [body, setBody] = useState('');
- const [author, setAuthor] = useState('HRIS Demo');
+ const [author, setAuthor] = useState('Stride');
  const [category, setCategory] = useState('Uncategorized');
  const [url, setUrl] = useState('');
  const [image, setImage] = useState('');
@@ -50,7 +50,7 @@ export default function EditInsightPage() {
  setTitle(data.title ?? '');
  setExcerpt(data.excerpt ?? '');
  setBody(data.body ?? '');
- setAuthor(data.author ?? 'HRIS Demo');
+ setAuthor(data.author ?? 'Stride');
  setCategory(data.category ?? 'Uncategorized');
  setUrl(data.url ?? '');
  setImage(data.image ?? '');
@@ -113,7 +113,7 @@ export default function EditInsightPage() {
  title: trimmedTitle,
  excerpt: trimmedExcerpt,
  body: body.trim() || null,
- author: author.trim() || 'HRIS Demo',
+ author: author.trim() || 'Stride',
  category: category || 'Uncategorized',
  url: url.trim() || '#',
  image: image.trim() || PLACEHOLDER_IMAGE,
@@ -258,7 +258,7 @@ export default function EditInsightPage() {
  type="text"
  value={author}
  onChange={(e) => setAuthor(e.target.value)}
- placeholder="e.g. HRIS Demo"
+ placeholder="e.g. Stride"
  className="w-full min-w-0 px-4 py-2.5 sm:py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
  />
  </div>

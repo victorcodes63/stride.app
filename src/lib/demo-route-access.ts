@@ -5,6 +5,14 @@ export function canAccessPayroll(user: StaffUser): boolean {
   return user.role === 'admin' || user.staffUserType === 'finance';
 }
 
+export function canAccessFleet(user: StaffUser): boolean {
+  return (
+    user.role === 'admin' ||
+    user.staffUserType === 'business_manager' ||
+    user.staffUserType === 'operations'
+  );
+}
+
 export function canAccessAssets(user: StaffUser): boolean {
   return (
     user.role === 'admin' ||

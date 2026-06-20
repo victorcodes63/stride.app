@@ -18,7 +18,7 @@ export function buildCompanySetupFromPack(pack: DemoPack): CompanySetupSettings 
 
   return sanitizeCompanySetup({
     ...DEFAULT_COMPANY_SETUP,
-    appName: cs.appName ?? 'HRIS Demo',
+    appName: cs.appName ?? 'Stride',
     orgName,
     tagline: cs.tagline ?? DEFAULT_TAGLINE,
     wordmark: cs.wordmark ?? orgName,

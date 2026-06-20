@@ -1,10 +1,17 @@
 import type { Metadata } from 'next';
-import { Figtree, IBM_Plex_Mono } from 'next/font/google';
+import { Bricolage_Grotesque, IBM_Plex_Mono, Inter } from 'next/font/google';
 import './globals.css';
+import '@/styles/dashboard-theme.css';
 
-const figtree = Figtree({
+const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  variable: '--font-figtree',
+  variable: '--font-bricolage',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
   display: 'swap',
 });
 
@@ -17,14 +24,17 @@ const ibmPlexMono = IBM_Plex_Mono({
 import '@/styles/public-theme.css';
 import { ToastViewport } from '@/components/ui/toast';
 import { BrandProvider } from '@/components/BrandProvider';
+import { DashboardThemeProvider } from '@/components/dashboard/DashboardThemeProvider';
+import { DashboardThemeScript } from '@/components/dashboard/DashboardThemeScript';
 import { brand, getSiteUrl } from '@/lib/brand';
+import { STRIDE_WORDMARK_SRC } from '@/lib/brand-constants';
 import { getResolvedPublicBrand } from '@/lib/get-resolved-public-brand';
 import { brandThemeStyle } from '@/lib/brand-theme-style';
 
 const siteUrl = getSiteUrl();
 const defaultDescription = `${brand.orgName} — ${brand.tagline}`;
 const keywords =
-  'HRIS, HR software, payroll, recruitment, ATS, leave management, workforce, human resources';
+  'Stride, HRIS, HR software, payroll, operations platform, recruitment, leave management, workforce, East Africa';
 
 export const metadata: Metadata = {
   title: {
@@ -52,7 +62,7 @@ export const metadata: Metadata = {
     siteName: brand.appName,
     images: [
       {
-        url: brand.logoSrc.startsWith('/') ? brand.logoSrc : `/${brand.logoSrc}`,
+        url: STRIDE_WORDMARK_SRC,
         width: 1200,
         height: 630,
         alt: brand.orgName,
@@ -65,7 +75,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: brand.appName,
     description: defaultDescription,
-    images: [brand.logoSrc.startsWith('/') ? brand.logoSrc : `/${brand.logoSrc}`],
+    images: [STRIDE_WORDMARK_SRC],
   },
   robots: {
     index: true,
@@ -143,20 +153,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const publicBrand = await getResolvedPublicBrand();
-  const themeStyle = brandThemeStyle(publicBrand);
+  const themeStyle = brandThemeStyle();
   const favicon = publicBrand.faviconSrc || publicBrand.logoSrc;
 
   return (
     <html
       lang="en"
-      className={`${figtree.variable} ${ibmPlexMono.variable}`}
+      className={`${bricolage.variable} ${inter.variable} ${ibmPlexMono.variable}`}
       style={themeStyle}
       data-table-zebra={publicBrand.dashboardTableZebraStriping ? 'true' : 'false'}
+      suppressHydrationWarning
     >
       <head>
         <link rel="icon" href={favicon.startsWith('/') ? favicon : `/${favicon}`} />
       </head>
-      <body className={`${figtree.className} antialiased`}>
+      <body className={`${inter.className} antialiased`}>
+        <DashboardThemeScript />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -165,7 +177,9 @@ export default async function RootLayout({
             ),
           }}
         />
-        <BrandProvider value={publicBrand}>{children}</BrandProvider>
+        <DashboardThemeProvider>
+          <BrandProvider value={publicBrand}>{children}</BrandProvider>
+        </DashboardThemeProvider>
         <ToastViewport />
       </body>
     </html>

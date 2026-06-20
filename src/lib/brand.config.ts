@@ -1,24 +1,24 @@
 /**
- * Imara product identity — single source for platform naming and GTM positioning.
- * Override per-tenant copy via env (NEXT_PUBLIC_*) or Admin → Company Setup.
+ * Stride product identity — fixed platform brand (not tenant-configurable).
+ * Tenant org names, logos, and copy are configured in Admin → Company Setup (dashboard only).
  */
 
-export const IMARA_PRODUCT_NAME = 'Imara';
-export const IMARA_PRODUCT_DESCRIPTOR = 'The Vertical BMS';
+export const STRIDE_PRODUCT_NAME = 'Stride';
+/** @deprecated Internal alias — use {@link STRIDE_PRODUCT_NAME}. */
+export const IMARA_PRODUCT_NAME = STRIDE_PRODUCT_NAME;
+export const IMARA_PRODUCT_DESCRIPTOR = 'Operations platform for East African businesses';
 
 export const brandConfig = {
-  productName: IMARA_PRODUCT_NAME,
+  productName: STRIDE_PRODUCT_NAME,
   productDescriptor: IMARA_PRODUCT_DESCRIPTOR,
   companyLegal: 'Raven Tech Group',
-  /** Primary beachhead per strategy roadmap (June 2026). */
   beachhead: 'sacco' as const,
   tagline:
-    'The operating system for regulated East African organisations — payroll, people, and compliance built for how you actually work.',
-  shortTagline: 'People, time, and payroll — M-Pesa-native, SASRA-ready.',
-  /** Default theme when env / Company Setup do not set colors. */
+    'Hit your stride. HR, finance, and operations on one platform — built for East African businesses.',
+  shortTagline: 'People, payroll, and operations — M-Pesa-native, compliance-ready.',
   theme: {
-    primary: '#0D9488',
-    secondary: '#0F172A',
+    primary: '#FF5436',
+    secondary: '#1A1714',
   },
   demo: {
     saccoOrgName: 'Nyati SACCO Society Ltd',

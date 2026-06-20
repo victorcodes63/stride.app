@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import DynamicJobListings from '@/components/ats/DynamicJobListings';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import PublicPageLayout from '@/components/public/PublicPageLayout';
+import { CareersDemoBanner } from '@/components/public/CareersDemoBanner';
 import CareersHighlights from '@/components/public/CareersHighlights';
 import { getResolvedPublicBrand } from '@/lib/get-resolved-public-brand';
+import { isPublicDemoMode } from '@/lib/deployment-config';
 
 type CareersPageProps = {
   searchParams?: Promise<{
@@ -13,6 +14,7 @@ type CareersPageProps = {
 
 export default async function CareersPage({ searchParams }: CareersPageProps) {
   const publicBrand = await getResolvedPublicBrand();
+  const demoMode = isPublicDemoMode();
   const employerName = publicBrand.careersEmployerName || publicBrand.orgName;
   const careersTagline =
     publicBrand.careersTagline ||
@@ -27,10 +29,11 @@ export default async function CareersPage({ searchParams }: CareersPageProps) {
         : '';
 
   return (
-    <main className="min-h-screen bg-white">
-      <Navbar />
+    <PublicPageLayout>
+      <main className="min-h-screen bg-pub-surface">
+        {demoMode ? <CareersDemoBanner employerName={employerName} /> : null}
 
-      <section className="pub-careers-hero border-b border-pub-border pt-[72px]">
+        <section className="pub-careers-hero border-b border-pub-border">
         {publicBrand.careersHeroImageUrl ? (
           <div className="relative h-40 w-full overflow-hidden md:h-48">
             <img
@@ -55,23 +58,39 @@ export default async function CareersPage({ searchParams }: CareersPageProps) {
               <a href="#job-openings" className="pub-btn-primary">
                 View open roles
               </a>
-              <Link href="/dashboard/login" className="pub-btn-secondary">
-                Staff sign in
-              </Link>
+              {demoMode ? (
+                <>
+                  <Link href="/dashboard/login" className="pub-btn-secondary">
+                    See recruiter dashboard
+                  </Link>
+                  <Link
+                    href="/platform"
+                    className="inline-flex h-11 items-center px-1 text-sm font-semibold text-[var(--pub-primary)] hover:underline"
+                  >
+                    Recruitment on Stride →
+                  </Link>
+                </>
+              ) : (
+                <Link href="/dashboard/login" className="pub-btn-secondary">
+                  Staff sign in
+                </Link>
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      <CareersHighlights />
+      <CareersHighlights variant={demoMode ? 'product-demo' : 'candidate'} />
 
-      <section id="job-openings" className="bg-white py-12 md:py-16">
+      <section id="job-openings" className="bg-pub-surface py-12 md:py-16">
         <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <h2 className="pub-heading-md">Open roles</h2>
               <p className="mt-1 text-sm text-pub-ink-subtle">
-                Active vacancies across departments and locations.
+                {demoMode
+                  ? 'Sample vacancies seeded for this demo employer — apply to walk through the candidate experience.'
+                  : 'Active vacancies across departments and locations.'}
               </p>
             </div>
           </div>
@@ -81,8 +100,7 @@ export default async function CareersPage({ searchParams }: CareersPageProps) {
           />
         </div>
       </section>
-
-      <Footer />
-    </main>
+      </main>
+    </PublicPageLayout>
   );
 }

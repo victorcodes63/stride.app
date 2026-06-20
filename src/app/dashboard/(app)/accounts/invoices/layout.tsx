@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
- title: 'Invoices | HRIS Demo (Accounts)',
+ title: 'Invoices | Stride (Accounts)',
  description: 'Accounts invoices and VAT',
 };
 

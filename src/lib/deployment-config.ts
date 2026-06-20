@@ -4,6 +4,11 @@
  */
 
 import { brand } from '@/lib/brand';
+import {
+  canAccessCompanySetup,
+  getDeploymentTier,
+  type DeploymentTier,
+} from '@/lib/deployment-tier';
 
 function trimEnv(key: string): string | undefined {
   const v = process.env[key];
@@ -97,7 +102,19 @@ export function getProvisionAdminConfig(): ProvisionAdminConfig {
   };
 }
 
-export function getDeploymentSummary() {
+export type DeploymentSummary = {
+  demoMode: boolean;
+  publicDemoMode: boolean;
+  country: DeploymentCountry;
+  currency: string;
+  orgName: string;
+  appName: string;
+  multiEntityEnvEnabled: boolean;
+  deploymentTier: DeploymentTier;
+  canAccessCompanySetup: boolean;
+};
+
+export function getDeploymentSummary(): DeploymentSummary {
   return {
     demoMode: isDemoMode(),
     publicDemoMode: isPublicDemoMode(),
@@ -106,5 +123,7 @@ export function getDeploymentSummary() {
     orgName: getWorkspaceDefaults().name,
     appName: brand.appName,
     multiEntityEnvEnabled: isMultiEntityEnvEnabled(),
+    deploymentTier: getDeploymentTier(),
+    canAccessCompanySetup: canAccessCompanySetup(),
   };
 }
